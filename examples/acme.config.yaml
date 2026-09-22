@@ -1,0 +1,51 @@
+# Example config: "acme" host — the fuller setup.
+#
+# Adopt by copying into the host repo and adjusting paths/ids. Contains NO
+# secrets — the Telegram bot token is referenced by env-var NAME only and
+# resolved at use time; S3 uses a named AWS profile, not inline credentials.
+#
+# Behavior: slide extraction on, transcript parsing on, S3 sync on (uploads
+# recordings to a bucket via a named profile), original-language summaries,
+# topic-routed Telegram (per-topic chat ids with a default fallback), Notion
+# subpage insertion under a parent page.
+
+recordings_dir: ./recordings
+
+stages:
+  slides: true
+  parse_transcript: true
+  s3_sync: true
+
+transcribe:
+  model_id: scribe_v1
+
+summary:
+  language: original
+  sections:
+    - overview
+    - key_points
+    - action_items
+
+agent:
+  cli: agy
+  extra_args:
+    - --dangerously-skip-permissions
+  output_file: "{basename}.md"
+
+notion:
+  server: notion-acme
+  # Placeholder — replace with the real parent page id.
+  parent_page_id: "REPLACE_WITH_PARENT_PAGE_ID"
+  insert: subpage
+
+telegram:
+  bot_token_env: ACME_BOT_TOKEN
+  # Default fallback chat when no topic route matches.
+  default_chat_id: "REPLACE_WITH_DEFAULT_CHAT_ID"
+  routing:
+    topic-a: "REPLACE_WITH_TOPIC_A_CHAT_ID"
+    topic-b: "REPLACE_WITH_TOPIC_B_CHAT_ID"
+
+s3:
+  bucket: "s3://acme-recordings/recordings/"
+  profile: acme

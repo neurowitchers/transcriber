@@ -4,7 +4,7 @@ Derived from `docs/seed/transcriber-engine.md` and the brainstorm `docs/brainsto
 
 ## Problem Statement
 
-Two ad-hoc, agent-driven meeting-transcription setups exist today — `../../scartill/scartill-ai-hub` and `../../adsight/ai-hub` — that share one pipeline but differ in customizations. Extract the shared core into this `transcriber` app as a **Python-native engine** attachable to each host repo as a **git submodule**. Each host supplies only its config, secrets (env vars), and `recordings/`. Preserve each host's customizations through config.
+Two ad-hoc, agent-driven meeting-transcription setups exist today — a fuller "host A" and a simpler "host B" — that share one pipeline but differ in customizations. Extract the shared core into this `transcriber` app as a **Python-native engine** attachable to each host repo as a **git submodule**. Each host supplies only its config, secrets (env vars), and `recordings/`. Preserve each host's customizations through config.
 
 An earlier idea of "pure PowerShell scripts" is explicitly dropped in favor of Python.
 
@@ -33,11 +33,11 @@ R18. Transcript content passed to `agy` is wrapped using strict **non-XML** stru
 
 ## Background (source audit)
 
-- **`scartill-ai-hub/scripts/Transcribe.ps1`** — fullest deterministic pipeline: `ffmpeg -vn -c:a libmp3lame -q:a 2` mp4→mp3; `scenedetect -b pyav ... detect-content --threshold 30 --min-scene-len 5s list-scenes -f <name>.scenes.csv save-images -n 1` → `extracted_slides.<name>/`; `elevenlabs speech-to-text convert --file <mp3> --model-id scribe_v2 --format jsonl` → `.jsonl`; then `parse_transcript.py` → `.txt`. Each step guarded by `Test-Path` on its output.
-- **`adsight/ai-hub/scripts/Transcribe.ps1`** — same minus slide extraction and parse. **`Sync-ToCloud.ps1`**: `aws --profile ai-hub s3 sync ../recordings s3://ai-hub.adsight/recordings/`.
-- **`scartill-ai-hub/scripts/parse_transcript.py`** — reads jsonl `word`/`spacing` items, emits `[MM:SS]` markers at a configurable interval (default 15s). Port verbatim into a module.
+- **Host A — `Transcribe.ps1`** — fullest deterministic pipeline: `ffmpeg -vn -c:a libmp3lame -q:a 2` mp4→mp3; `scenedetect -b pyav ... detect-content --threshold 30 --min-scene-len 5s list-scenes -f <name>.scenes.csv save-images -n 1` → `extracted_slides.<name>/`; `elevenlabs speech-to-text convert --file <mp3> --model-id scribe_v2 --format jsonl` → `.jsonl`; then `parse_transcript.py` → `.txt`. Each step guarded by `Test-Path` on its output.
+- **Host B — `Transcribe.ps1`** — same minus slide extraction and parse. **`Sync-ToCloud.ps1`**: `aws --profile <profile> s3 sync ../recordings s3://<bucket>/recordings/`.
+- **Host A — `parse_transcript.py`** — reads jsonl `word`/`spacing` items, emits `[MM:SS]` markers at a configurable interval (default 15s). Port verbatim into a module.
 - **`slide-extractor.md`** — per-slide prompt: Notion markdown, mermaid for diagrams, `== no information ==` guard for empty slides.
-- **`local-automation.md`** (both) — summary sections (Decisions, Action Items, Plans, Identified Risks); English-forced (scartill) vs original-language topic-routed Telegram (adsight); Notion targets and IDs.
+- **`local-automation.md`** (both) — summary sections (Decisions, Action Items, Plans, Identified Risks); English-forced (host A) vs original-language topic-routed Telegram (host B); Notion targets and IDs.
 - Divergences that become config: slide/parse/s3 toggles, Notion parent/server, Telegram routing + language, S3 bucket/profile.
 
 ## Proposed Solution
@@ -94,8 +94,8 @@ transcriber/
   cleanup.py         # intermediate deletion
   prompt_templates/  # summary + slide-extractor prompts
 examples/
-  scartill.config.yaml
-  adsight.config.yaml
+  example.config.yaml
+  acme.config.yaml
 ```
 
 ## Task Breakdown
@@ -104,7 +104,7 @@ examples/
 - **Objective:** `pyproject.toml` (uv), package `transcriber/`, deps `duct`, `agy-headless-bridge`, `scenedetect`, `av`, `PyYAML`, `httpx`; dev `pytest`. `config.py` loads `.json`/`.yaml`/`.yml` by extension into a validated dataclass model; secrets resolved from env-var names at use time.
 - **Guidance:** single loader dispatching on suffix; both formats map to the identical model.
 - **Tests:** JSON and YAML fixtures parse to the identical model; missing required field → clear error; unknown/absent env var → readable error.
-- **Demo:** `uv run python -c "from transcriber.config import load; print(load('examples/scartill.config.yaml'))"`.
+- **Demo:** `uv run python -c "from transcriber.config import load; print(load('examples/example.config.yaml'))"`.
 
 ### Task 2 — Deterministic media pipeline (`pipeline.py`)
 - **Objective:** Port `Transcribe.ps1` to `duct`: mp4→mp3 (ffmpeg flags as in source), optional scenedetect (slides + scenes CSV), elevenlabs jsonl. Idempotent per-artifact guards. Wrap every child-process call with a **configurable execution timeout** (E3) so bad media or hung sockets cannot block indefinitely. Return per-recording result listing new artifacts.
@@ -140,12 +140,12 @@ examples/
   4. Batch execution: load config → discover new `*.mp4` → pipeline → agent → Telegram → S3 + cleanup, per recording, with structured logging, **per-recording `.transcriber_state.json` stage-status tracking for resumeability (E1)**, and per-recording failure isolation (cleanup only on that recording's success). On retry, completed stages (summarize/notion/telegram/s3) are skipped per the manifest to avoid duplicate Notion pages / Telegram messages.
   5. Emit a batch run summary (per-recording outcome; e.g. "2 succeeded, 1 failed at audio-extract").
 - **Tests:** pre-flight failure on missing binary/env var; timeout enforcement; dry-run prints plan and performs no side effects; E2E with externals mocked — happy path over 2 fixtures; a failing stage on one recording skips its cleanup but processes the other; state manifest causes completed stages to be skipped on re-run; disabled toggles skip stages.
-- **Demo:** `uv run transcriber --config examples/adsight.config.yaml --dry-run` prints the plan; a full run over fixtures reports per-recording results.
+- **Demo:** `uv run transcriber --config examples/acme.config.yaml --dry-run` prints the plan; a full run over fixtures reports per-recording results.
 
 ### Task 8 — Submodule packaging, example configs, docs
-- **Objective:** Example configs for both hosts reflecting real behavior (both: slides on, subpage + link-on-top; scartill: parse on, single English chat; adsight: s3 on, topic-routed original-language). Rewrite `README.md` (engine overview, config schema, prerequisites, submodule adoption). Supersede the old `extraction-brainstorm.md` seed.
+- **Objective:** Example configs for both hosts reflecting real behavior (both: slides on, subpage + link-on-top; host A: parse on, single English chat; host B: s3 on, topic-routed original-language). Rewrite `README.md` (engine overview, config schema, prerequisites, submodule adoption). Supersede the old `extraction-brainstorm.md` seed.
 - **Tests:** both example configs load under Task 1's loader.
-- **Demo:** `uv run transcriber --config examples/adsight.config.yaml` loads cleanly; README documents adoption.
+- **Demo:** `uv run transcriber --config examples/acme.config.yaml` loads cleanly; README documents adoption.
 
 ## Risks
 

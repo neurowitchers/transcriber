@@ -9,7 +9,7 @@
 `transcriber/parse.py`.
 
 ## Change
-Port `scartill-ai-hub/scripts/parse_transcript.py` into an importable Python function (no `uv run` shell-out):
+Port `the host A Python transcript parser` into an importable Python function (no `uv run` shell-out):
 - Read an ElevenLabs JSONL transcript; collect `word` and `spacing` items with their `start` time and `text`.
 - Emit readable text with `[MM:SS]` timestamp markers inserted at a configurable interval (default 15s), matching the source behavior.
 - Provide a function usable from the pipeline (input path → output `.txt` path, plus interval arg).

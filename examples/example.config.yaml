@@ -1,0 +1,42 @@
+# Example config: "example" host — the simpler setup.
+#
+# Adopt by copying into the host repo and adjusting paths/ids. Contains NO
+# secrets — the Telegram bot token is referenced by env-var NAME only and
+# resolved at use time.
+#
+# Behavior: slide extraction on, transcript parsing on, no S3 sync, English
+# summaries, single Telegram chat, Notion subpage insertion under a parent page.
+
+recordings_dir: ./recordings
+
+stages:
+  slides: true
+  parse_transcript: true
+  s3_sync: false
+
+transcribe:
+  model_id: scribe_v1
+
+summary:
+  language: en
+  sections:
+    - overview
+    - key_points
+    - action_items
+
+agent:
+  cli: agy
+  extra_args:
+    - --dangerously-skip-permissions
+  output_file: "{basename}.md"
+
+notion:
+  server: notion-example
+  # Placeholder — replace with the real parent page id.
+  parent_page_id: "REPLACE_WITH_PARENT_PAGE_ID"
+  insert: subpage
+
+telegram:
+  bot_token_env: TELEGRAM_BOT_TOKEN
+  default_chat_id: "REPLACE_WITH_DEFAULT_CHAT_ID"
+  routing: {}

@@ -39,4 +39,4 @@ Owns: `pyproject.toml`, `transcriber/__init__.py`, `transcriber/config.py`, and 
 
 ## Observable Acceptance
 - **Tests (pytest):** JSON and YAML fixtures parse to the identical model; missing required field → clear error; unknown/absent env var → readable error.
-- **Demo:** `uv run python -c "from transcriber.config import load; print(load('examples/scartill.config.yaml'))"` prints the parsed model.
+- **Demo:** `uv run python -c "from transcriber.config import load; print(load('examples/example.config.yaml'))"` prints the parsed model.

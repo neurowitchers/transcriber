@@ -9,7 +9,7 @@
 `transcriber/pipeline.py`.
 
 ## Change
-Port the deterministic media stages from `scartill-ai-hub/scripts/Transcribe.ps1` to Python using `duct`:
+Port the deterministic media stages from `the host A PowerShell transcription script` to Python using `duct`:
 1. **Audio extract:** mp4 → mp3 via `ffmpeg` (mirror source flags: `-vn -c:a libmp3lame -q:a 2`, `-hide_banner -loglevel error`).
 2. **Slide/scene extraction (optional, when `stages.slides`):** `scenedetect -b pyav -i <mp4> -o extracted_slides.<name> detect-content --threshold 30 --min-scene-len 5s list-scenes -f <name>.scenes.csv save-images -n 1`.
 3. **Transcribe:** `elevenlabs speech-to-text convert --file <mp3> --model-id <config.transcribe.model_id> --format jsonl` → `<name>.jsonl`.

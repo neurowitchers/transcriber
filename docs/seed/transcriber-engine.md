@@ -3,8 +3,8 @@
 ## Intent
 
 I run two ad-hoc, agent-driven meeting-transcription setups today:
-- `../../scartill/scartill-ai-hub` (more advanced: slide extraction, Notion, single Telegram chat)
-- `../../adsight/ai-hub` (S3 backup, topic-routed multi-channel Telegram)
+- **host A** (more advanced: slide extraction, Notion, single Telegram chat)
+- **host B** (S3 backup, topic-routed multi-channel Telegram)
 
 Both are the same pipeline with different customizations. I want to extract the common core into **this `transcriber` app** so it can be attached to each host repo as a **git submodule**, while each host keeps only its own config + secrets + recordings.
 
@@ -43,8 +43,8 @@ Every stage is idempotent (skip work whose output already exists) and only proce
 
 ## Customizations to preserve
 
-- **scartill:** slide extraction + transcript parsing on; Notion subpage under a fixed parent; single Telegram chat; English summaries.
-- **adsight:** slide extraction on; Notion **subpage** policy (same as scartill); S3 sync on; topic-routed Telegram (per-topic chat IDs) in the original language; unidentified material to the CTO private chat.
+- **host A:** slide extraction + transcript parsing on; Notion subpage under a fixed parent; single Telegram chat; English summaries.
+- **host B:** slide extraction on; Notion **subpage** policy (same as host A); S3 sync on; topic-routed Telegram (per-topic chat IDs) in the original language; unidentified material to a default private chat.
 
 In **both** hosts, the created subpage's link is added to the **top** of the base/parent page, not the bottom.
 
@@ -66,18 +66,18 @@ agent:
   extra_args: ["--dangerously-skip-permissions"]
   output_file: "{basename}.md"
 notion:
-  server: notion-private
-  parent_page_id: "3dd6e913-f33d-8038-b4d6-f0df1cc4f68f"
+  server: notion-example
+  parent_page_id: "REPLACE_WITH_PARENT_PAGE_ID"
   insert: subpage        # create subpage under parent, add its link at the TOP of the parent
 telegram:
   bot_token_env: TELEGRAM_BOT_TOKEN
-  default_chat_id: "247395877"
+  default_chat_id: "REPLACE_WITH_DEFAULT_CHAT_ID"
   routing:               # optional topic → chat map
-    ECL2.0: "-4986569602"
-    MagicWheel: "-5501481540"
+    topic-a: "REPLACE_WITH_TOPIC_A_CHAT_ID"
+    topic-b: "REPLACE_WITH_TOPIC_B_CHAT_ID"
 s3:
-  bucket: "s3://ai-hub.adsight/recordings/"
-  profile: ai-hub
+  bucket: "s3://acme-recordings/recordings/"
+  profile: acme
 ```
 
 ## Prerequisites (host environment)
@@ -87,6 +87,6 @@ Windows first. On `PATH`: `ffmpeg`, `elevenlabs` (authenticated), `aws` (profile
 ## Follow-up tasks
 
 - Update `README.md` from "Local-first AI enabled transcriber" to describe the engine, config, and submodule usage.
-- Document how `scartill-ai-hub` and `adsight/ai-hub` adopt the submodule (add submodule, drop in their config, set secrets, run).
+- Document how the host repos adopt the submodule (add submodule, drop in their config, set secrets, run).
 - Provide example config files for both host repos reflecting their current behavior.
 - Reconcile/replace the older `extraction-brainstorm.md` seed (which said "pure pwsh") with this one.

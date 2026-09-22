@@ -30,4 +30,4 @@ Owns: `transcriber/__main__.py`, the state-manifest helper, and integration/E2E 
 
 ## Observable Acceptance
 - **Tests (pytest, externals mocked):** pre-flight failure on missing binary/env var; timeout enforcement; `--dry-run` prints the plan and performs no side effects; E2E happy path over 2 fixtures; a failing stage on one recording skips its cleanup but processes the other; state manifest causes completed stages to be skipped on re-run; disabled toggles skip stages.
-- **Demo:** `uv run transcriber --config examples/adsight.config.yaml --dry-run` prints the plan; a full run over fixtures reports per-recording results.
+- **Demo:** `uv run transcriber --config examples/acme.config.yaml --dry-run` prints the plan; a full run over fixtures reports per-recording results.

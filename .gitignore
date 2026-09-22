@@ -1,2 +1,4 @@
 .aider*
-
+__pycache__/
+.venv
+.sessions
