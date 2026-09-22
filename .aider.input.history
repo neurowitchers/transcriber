@@ -1,0 +1,35 @@
+
+# 2026-09-22 12:46:48.580209
++Generate a Git commit message based solely on the staged diff below.
++
++Format:
++<scope>: <short-description>
++
++<detailed-description>
++
++Commit kind: <kind>
++Original branch: master
++
++Rules:
++- Scope: affected component (e.g., 'backend', 'frontend', 'CLI').
++- Kind: docs, editorial, refactor, perf, test, ci, chore, revert, feat, fix, data.
++- If changes affect specs/tests only, append (spec) to the short description.
++- Do not output backticks or markdown fences.
++
++
++CRITICAL: Wrap the final output strictly inside <COMMIT_BLOCK_d73aa249> and </COMMIT_BLOCK_d73aa249>.
++Example:
++<COMMIT_BLOCK_d73aa249>
++cli: fix encoding crash
++
++Ensure console outputs UTF-8.
++
++Commit kind: fix
++Original branch: master
++</COMMIT_BLOCK_d73aa249>
++
++STAGED DIFF:
++README.md --- Text
++1 Local-first AI enabled transcriber.
++2 
++
