@@ -185,7 +185,9 @@ def test_run_agent_reads_back_written_file(tmp_path: Path, monkeypatch) -> None:
     assert out.read_text(encoding="utf-8").strip()
 
     # Bridge invoked with the required knobs.
-    assert captured["add_dirs"] == [str(rec_dir)]
+    # Workspace is the recording dir's PARENT (the trusted host root), not the
+    # untrusted recordings subdir — avoids agy's "trust this folder?" hang.
+    assert captured["add_dirs"] == [str(rec_dir.resolve().parent)]
     assert captured["extra_args"] == ["--dangerously-skip-permissions"]
     assert captured["timeout"] == 42
     # idle_timeout tied to the hard ceiling so long agy runs aren't killed early.

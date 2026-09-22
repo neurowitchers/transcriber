@@ -227,10 +227,18 @@ def run_agent(
         inline_transcript=False,
     )
 
+    # agy prompts for "trust this folder?" on any workspace not in its
+    # trustedWorkspaces, and hangs headless (no stdin) until the idle timeout.
+    # The host repo root is the trusted workspace; the ``recordings/`` subdir
+    # usually is not. Expose the recording dir's PARENT (the host root) so agy
+    # opens an already-trusted workspace. Files are referenced by absolute path,
+    # so a single trusted ancestor is sufficient.
+    workspace = str(recording_dir.resolve().parent)
+
     try:
         run(
             prompt,
-            add_dirs=[str(recording_dir)],
+            add_dirs=[workspace],
             extra_args=["--dangerously-skip-permissions"],
             timeout=config.timeouts.agy,
             # agy can think for a long stretch (summarize + Notion MCP call)
