@@ -111,6 +111,7 @@ def build_prompt(
     slide_image_paths: Optional[Sequence[str]] = None,
     *,
     output_file: Optional[str] = None,
+    inline_transcript: bool = True,
 ) -> str:
     """Assemble the agy prompt from the parsed transcript + slides + templates.
 
@@ -122,25 +123,41 @@ def build_prompt(
         output_file: The resolved summary output filename agy must write. When
             omitted, it is derived from ``config.agent.output_file`` templated
             with the transcript ``{basename}``.
+        inline_transcript: When True (default), the transcript text is embedded
+            in the prompt (wrapped in a Markdown code fence). When False, the
+            prompt instead instructs agy to READ the transcript file by path —
+            required for real runs, since a full transcript embedded on the
+            command line exceeds the Windows process command-line length limit.
 
     Returns:
-        The fully-assembled prompt string. The transcript is wrapped in a
-        Markdown triple-backtick code fence — never XML tags.
+        The fully-assembled prompt string. When inlined, the transcript is
+        wrapped in a Markdown triple-backtick code fence — never XML tags.
     """
     transcript_path = Path(transcript_path)
     slide_image_paths = list(slide_image_paths or [])
 
-    transcript = _load_transcript(transcript_path)
     if output_file is None:
         basename = transcript_path.stem
         output_file = config.agent.output_file.format(basename=basename)
+
+    if inline_transcript:
+        transcript_section = _transcript_fence(_load_transcript(transcript_path))
+    else:
+        # Reference the file by path; agy reads it via its file tools (the
+        # recording dir is exposed with --add-dir). Keeps the command line
+        # short regardless of transcript size.
+        transcript_section = (
+            "Read the transcript from the file `"
+            f"{transcript_path.name}` in the working directory. Do not expect "
+            "it inline; open and read that file."
+        )
 
     summary_template = _read_template("summary.md")
     body = summary_template.format(
         language_instruction=_language_instruction(config.summary.language),
         sections_block=_sections_block(config.summary.sections),
         slide_block=_slide_block(slide_image_paths),
-        transcript_fence=_transcript_fence(transcript),
+        transcript_fence=transcript_section,
     )
 
     directives = (
@@ -203,6 +220,7 @@ def run_agent(
         transcript_path,
         slide_image_paths,
         output_file=output_name,
+        inline_transcript=False,
     )
 
     try:

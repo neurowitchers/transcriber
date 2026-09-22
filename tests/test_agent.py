@@ -189,6 +189,36 @@ def test_run_agent_reads_back_written_file(tmp_path: Path, monkeypatch) -> None:
     assert captured["timeout"] == 42
 
 
+def test_run_agent_references_transcript_by_file_not_inline(tmp_path: Path, monkeypatch) -> None:
+    """run_agent must NOT inline the transcript into the prompt (command line);
+    it must instruct agy to read the transcript file by name. This avoids the
+    Windows command-line length limit on large transcripts."""
+    cfg = make_config()
+    rec_dir = tmp_path / "rec"
+    rec_dir.mkdir()
+    big_transcript = "\n".join(f"[00:{i:02d}] " + "word " * 200 for i in range(60))
+    tp = rec_dir / "meeting.txt"
+    tp.write_text(big_transcript, encoding="utf-8")
+
+    captured = {}
+
+    def fake_run(prompt, *, add_dirs, extra_args, timeout, **kwargs):
+        captured["prompt"] = prompt
+        (rec_dir / "meeting.md").write_text("# Summary\n", encoding="utf-8")
+        return ""
+
+    monkeypatch.setattr(agent, "run", fake_run)
+    run_agent(cfg, tp, rec_dir, slide_image_paths=[])
+
+    prompt = captured["prompt"]
+    # Names the transcript file so agy reads it.
+    assert "meeting.txt" in prompt
+    # Does not embed the (large) transcript body.
+    assert "word word word" not in prompt
+    # Prompt stays well under the Windows command-line limit (~32K).
+    assert len(prompt) < 8000
+
+
 def test_run_agent_raises_when_file_missing(tmp_path: Path, monkeypatch) -> None:
     cfg = make_config()
     rec_dir = tmp_path / "rec"
