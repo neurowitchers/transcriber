@@ -19,12 +19,17 @@ R6. Orchestration: the Python engine is the top-level orchestrator; it runs dete
 R7. Agent = Antigravity CLI (`agy`), invoked with `--dangerously-skip-permissions`. The agent's console output is **not** consumed — the agent is instructed to write results to a file, which Python then reads.
 R8. Responsibility split:
    - **Agent (agy):** summarize (write `.md`) **and** publish to Notion via its `notion-*` MCP.
-   - **Python:** deterministic media stages, Telegram dissemination (Bot HTTP API), S3 sync, cleanup.
+   - **Python:** deterministic media stages, Telegram dissemination (Bot HTTP API), S3 sync, cleanup, and per-recording stage status tracking (`.transcriber_state.json`).
 R9. Config in JSON **or** YAML (`transcriber.config.json` / `.yaml` / `.yml`), format chosen by extension. Declares stage toggles and per-stage settings. Secrets referenced by env-var name only, never stored.
 R10. Notion (both hosts): create a subpage under the configured parent page, then add its link at the **top** of the parent page.
 R11. Telegram: topic→chat routing table with default-chat fallback; message language English or original per config.
 R12. Cleanup: on a recording's success, S3 upload first (if enabled), then delete intermediates (`.mp3`, `.jsonl`, `.txt`, extracted slides, scenes CSV); keep `.mp4` and `.md`. A `--keep-intermediates` flag disables deletion.
 R13. Per-recording failure isolation: one recording's failure must not abort the batch; cleanup runs only on that recording's success.
+R14. Per-recording stage status tracking via a `.transcriber_state.json` manifest, so retries resume cleanly and do not create duplicate Notion pages / Telegram messages or skip an incomplete publish. Stage completion is tracked per publishing target (summarize, notion, telegram, s3), not inferred from artifact file existence alone.
+R15. Pre-flight validation at startup: verify required CLI binaries (`ffmpeg`, `scenedetect`, `elevenlabs`, `aws`, `agy`) on `PATH` and required env vars (per enabled stages) are set; fail fast with a clear message. Also exposed as a `transcriber check` subcommand.
+R16. All child-process invocations (`duct`) have configurable execution timeouts so malformed media or hung network sockets cannot block the orchestrator indefinitely.
+R17. A `--dry-run` flag previews the execution plan (which `*.mp4` will be processed, which stages will run, publishing destinations) without invoking subprocesses, calling the agent, publishing, or deleting files.
+R18. Transcript content passed to `agy` is wrapped using strict **non-XML** structural encapsulation (Markdown code fences / block quotes) in prompt templates, to reduce the prompt-injection surface created by `--dangerously-skip-permissions`.
 
 ## Background (source audit)
 
@@ -71,6 +76,7 @@ Config
   notion: { server: str, parent_page_id: str, insert: "subpage" }
   telegram: { bot_token_env: str, default_chat_id: str, routing: dict[str,str] }
   s3: { bucket: str, profile: str } | None
+  timeouts: { ffmpeg: int, scenedetect: int, elevenlabs: int, agy: int, s3: int }   # seconds; per-child-process (E3)
 ```
 
 ### Package layout
@@ -101,9 +107,9 @@ examples/
 - **Demo:** `uv run python -c "from transcriber.config import load; print(load('examples/scartill.config.yaml'))"`.
 
 ### Task 2 — Deterministic media pipeline (`pipeline.py`)
-- **Objective:** Port `Transcribe.ps1` to `duct`: mp4→mp3 (ffmpeg flags as in source), optional scenedetect (slides + scenes CSV), elevenlabs jsonl. Idempotent per-artifact guards. Return per-recording result listing new artifacts.
-- **Guidance:** mirror the exact ffmpeg/scenedetect/elevenlabs args from the source scripts.
-- **Tests:** duct mocked — assert command lines/args per toggle; existing-artifact skip; new-recording detection.
+- **Objective:** Port `Transcribe.ps1` to `duct`: mp4→mp3 (ffmpeg flags as in source), optional scenedetect (slides + scenes CSV), elevenlabs jsonl. Idempotent per-artifact guards. Wrap every child-process call with a **configurable execution timeout** (E3) so bad media or hung sockets cannot block indefinitely. Return per-recording result listing new artifacts.
+- **Guidance:** mirror the exact ffmpeg/scenedetect/elevenlabs args from the source scripts; timeouts come from config with sensible defaults.
+- **Tests:** duct mocked — assert command lines/args per toggle; existing-artifact skip; new-recording detection; timeout is passed through / enforced.
 - **Demo:** run on a fixture `.mp4` (or mocked binaries) → artifacts appear; re-run is a no-op.
 
 ### Task 3 — Transcript parser module (`parse.py`)
@@ -112,8 +118,8 @@ examples/
 - **Demo:** parse sample `.jsonl` and diff against golden `.txt`.
 
 ### Task 4 — Agent stage (`agent.py`): summarize + Notion via agy
-- **Objective:** Build prompt from `.txt`/`.jsonl` + slide images + `prompt_templates/` (port `slide-extractor.md` + summary sections). Invoke `agy` via `agy_headless_bridge.run(prompt, add_dirs=[recording_dir], extra_args=["--dangerously-skip-permissions"], ...)`, instructing it to (a) write the summary to the configured `output_file` and (b) create a Notion subpage under the configured parent via MCP and add the subpage link at the **top** of the parent. Read the file back; assert exists + non-empty; handle `AgyTimeoutError.partial`.
-- **Tests:** prompt-builder units (language forced per config; slide sections only when slides exist; sections from config); agy call mocked to write a fixture file → assert readback + non-empty validation + timeout handling.
+- **Objective:** Build prompt from `.txt`/`.jsonl` + slide images + `prompt_templates/` (port `slide-extractor.md` + summary sections). Wrap transcript content using **non-XML** structural encapsulation (Markdown code fences / block quotes) — never XML tags — to bound the prompt-injection surface. Invoke `agy` via `agy_headless_bridge.run(prompt, add_dirs=[recording_dir], extra_args=["--dangerously-skip-permissions"], ...)`, instructing it to (a) write the summary to the configured `output_file` and (b) create a Notion subpage under the configured parent via MCP and add the subpage link at the **top** of the parent. Read the file back; assert exists + non-empty; handle `AgyTimeoutError.partial`.
+- **Tests:** prompt-builder units (language forced per config; slide sections only when slides exist; sections from config; **transcript wrapped in Markdown code fences, no XML**); agy call mocked to write a fixture file → assert readback + non-empty validation + timeout handling.
 - **Demo:** with mocked/real agy, a `.txt` produces `<name>.md`.
 
 ### Task 5 — Telegram dissemination (`publish/telegram.py`)
@@ -122,14 +128,19 @@ examples/
 - **Demo:** mocked run shows correct `sendMessage` calls for a multi-topic summary.
 
 ### Task 6 — S3 sync (`publish/s3.py`) + cleanup (`cleanup.py`)
-- **Objective:** `aws s3 sync <bucket>` with `--profile` from config via `duct`, gated on `s3_sync`. Cleanup deletes intermediates (`.mp3`, `.jsonl`, `.txt`, `extracted_slides.*`, `*.scenes.csv`); keeps `.mp4` + `.md`; runs only after successful publish + optional sync; `--keep-intermediates` skips it.
+- **Objective:** `aws s3 sync <bucket>` with `--profile` from config via `duct` (with a configurable timeout, E3), gated on `s3_sync`. Cleanup deletes intermediates (`.mp3`, `.jsonl`, `.txt`, `extracted_slides.*`, `*.scenes.csv`); keeps `.mp4` + `.md`; runs only after successful publish + optional sync; `--keep-intermediates` skips it.
 - **Tests:** sync command correct + skipped when disabled; cleanup deletes exactly the intermediate set and preserves `.mp4`/`.md`; no cleanup on failure or with `--keep-intermediates`; sync-before-delete ordering enforced.
 - **Demo:** a dir with all artifacts → after run only `.mp4` + `.md` remain (all remain with `--keep-intermediates`).
 
-### Task 7 — Orchestrator + CLI entry (`__main__.py`)
-- **Objective:** `uv run transcriber [--config PATH] [--keep-intermediates]`: load config → discover new `*.mp4` → pipeline → agent → Telegram → S3 + cleanup, per recording, with structured logging and per-recording failure isolation (cleanup only on that recording's success).
-- **Tests:** E2E with externals mocked — happy path over 2 fixtures; a failing stage on one recording skips its cleanup but processes the other; disabled toggles skip stages.
-- **Demo:** `uv run transcriber --config examples/adsight.config.yaml` over fixtures reports per-recording results.
+### Task 7 — Orchestrator, CLI entry & pre-flight check (`__main__.py`)
+- **Objective:** `uv run transcriber [--config PATH] [--keep-intermediates] [--dry-run]` plus a `transcriber check` subcommand:
+  1. **Pre-flight check (E2):** verify required binaries (`ffmpeg`, `scenedetect`, `elevenlabs`, `aws`, `agy`) on `PATH` and required env vars (per enabled stages) are set; fail fast with a clear message. Also runnable standalone as `transcriber check`.
+  2. Run child commands via `duct` with **configurable execution timeouts (E3)**.
+  3. **`--dry-run` (P1):** load config, discover new `*.mp4`, print the execution plan (recordings, stages, publishing destinations), then exit without invoking subprocesses, the agent, publishing, or deletion.
+  4. Batch execution: load config → discover new `*.mp4` → pipeline → agent → Telegram → S3 + cleanup, per recording, with structured logging, **per-recording `.transcriber_state.json` stage-status tracking for resumeability (E1)**, and per-recording failure isolation (cleanup only on that recording's success). On retry, completed stages (summarize/notion/telegram/s3) are skipped per the manifest to avoid duplicate Notion pages / Telegram messages.
+  5. Emit a batch run summary (per-recording outcome; e.g. "2 succeeded, 1 failed at audio-extract").
+- **Tests:** pre-flight failure on missing binary/env var; timeout enforcement; dry-run prints plan and performs no side effects; E2E with externals mocked — happy path over 2 fixtures; a failing stage on one recording skips its cleanup but processes the other; state manifest causes completed stages to be skipped on re-run; disabled toggles skip stages.
+- **Demo:** `uv run transcriber --config examples/adsight.config.yaml --dry-run` prints the plan; a full run over fixtures reports per-recording results.
 
 ### Task 8 — Submodule packaging, example configs, docs
 - **Objective:** Example configs for both hosts reflecting real behavior (both: slides on, subpage + link-on-top; scartill: parse on, single English chat; adsight: s3 on, topic-routed original-language). Rewrite `README.md` (engine overview, config schema, prerequisites, submodule adoption). Supersede the old `extraction-brainstorm.md` seed.
