@@ -108,22 +108,109 @@ Please edit the answers inside the `USER_INPUT` tags. Defaults (assumptions) are
 
 ---
 
+## Resolved Decisions (from user answers)
+
+| # | Decision | Impact |
+|---|----------|--------|
+| Q1 | **Git submodule** consumption model. | `transcriber` = engine; host repos add config + secrets + `recordings/`. |
+| Q2 | **Orchestrator drives deterministic stages, then calls a headless agent** for stages 5–6. | Top-level is code, not a prompt. |
+| Q3 | **Antigravity CLI (`agy`)** is the headless agent for iteration 1. | Must handle agy's non-TTY empty-output bug (#76) + interactive-approval stalls. |
+| Q4 | **JSON *and* YAML** config (`transcriber.config.json` or `.yaml`/`.yml`). | Per-host stage toggles + settings + topic→chat routing; format chosen by file extension. |
+| Q5 | **Upload (if S3 enabled) → then clear** intermediates. Keep `.mp4` + `.md`. | Cleanup gated on success, ordered after backup. |
+| Q6 | **Drop PowerShell entirely.** Python + `uv` + `duct`. | Major pivot from the original seed ("pure pwsh"). Cross-platform-capable, single toolchain. |
+
+> **Deviation flagged:** the seed spec asked for "pure pwsh scripts." The user has explicitly redirected to a Python-native engine (Python + `uv` + `duct`) with `agy` as the headless agent. All approaches below assume Python; the seed should be updated to reflect this when converted (`Seed` command).
+
+### Research findings on the new stack
+
+- **`duct` (duct.py):** child-process library with shell-like pipelines and IO redirection, errors-by-default. Fits chaining `ffmpeg`/`elevenlabs`/`scenedetect`/`aws`. API: `cmd("ffmpeg", ...).run()`, `.stdout_capture()`, `.stdout_to_file(path)`, `cmd(a).pipe(cmd(b))`.
+- **`agy` headless is broken from non-TTY callers (upstream bug #76):** `agy -p "<prompt>"` prints nothing (empty string, exit 0) when stdout isn't a real terminal — i.e. exactly when called from a Python subprocess. On Windows a **ConPTY** (via `pywinpty`) is required.
+- **`agy-headless-bridge` (PyPI) solves this:** `from agy_headless_bridge import run; run(prompt, add_dirs=["."], timeout=..., model=...)` allocates a fresh pty, runs `agy -p`, strips ANSI/TUI chrome, returns clean text. Verified on Windows with `agy 1.0.6`. Also exposes `AgyTimeoutError.partial` and an MCP server mode.
+- **`agy` interactive-approval stall:** if `agy` pauses to ask "allow this tool call?" (e.g. Notion MCP write, shell), the headless run hangs until idle timeout. **Mitigation (user-chosen):** run agy with **`--dangerously-skip-permissions`** so it auto-proceeds without approval modals.
+- **Output-via-file convention (user-chosen):** rather than parsing agy's stdout (subject to bug #76 and TUI noise), instruct agy in the prompt to **write its result to a named file**; Python reads the file afterward. This makes agy's console output irrelevant and the handoff deterministic.
+
 ## Architectural Approaches Evaluated
 
-_(Phase 3 — to be completed after user answers above.)_
+All approaches share: Python package managed by `uv`, `duct` for the deterministic media stages (ffmpeg → mp3, scenedetect → slides, elevenlabs → jsonl, parse → txt), a JSON/YAML config with stage toggles, git-submodule packaging, and success-gated cleanup that runs *after* optional S3 upload. They differ in **how the agent stage (5–6) is invoked** and **where the publishing/dissemination logic lives**.
+
+### Approach A: Thin Python orchestrator + one big agent prompt (delegate everything)
+
+- **Concept:** Python runs stages 1–4 with `duct`, then for each new recording builds one prompt (parsed transcript + slide descriptions + config-derived instructions for Notion/Telegram) and hands it to `agy` via `agy-headless-bridge`. The agent does summarize + Notion (its MCP) + Telegram (its skill) itself, mirroring today's `local-automation.md`. Python then does S3 upload + cleanup.
+- **Component Changes:** `transcriber/` package: `pipeline.py` (duct stages), `agent.py` (bridge wrapper), `prompt_templates/` (summarize/slide/dissemination `.md`), `config.py` (JSON/YAML loader + schema). Host repo: `transcriber.config.json`/`.yaml`, `run.py` (thin entry), `recordings/`, agent MCP/skill config.
+- **Dependencies Introduced:** `duct`, `agy-headless-bridge` (→ `pywinpty` on Windows), `agy` binary (auth), `uv`; slide stage keeps `scenedetect`/`av`. External CLIs unchanged (`ffmpeg`, `elevenlabs`, `aws`).
+
+### Approach B: Python owns publishing/dissemination; agent only summarizes (deterministic side effects)
+
+- **Concept:** Python runs 1–4, then calls `agy` **only to produce the Markdown summary** (pure text-in/text-out — no tool use, so no MCP-approval stalls and non-TTY reliability is the only agy concern). Python then does Notion (Notion REST API/SDK), S3 (`aws` via duct or boto3), and Telegram (HTTP Bot API) itself, driven entirely by the config's routing table. Cleanup last.
+- **Component Changes:** Adds `publish/notion.py`, `publish/telegram.py`, `publish/s3.py` to the package; agent surface shrinks to a single summarize call. Config carries Notion tokens/parent IDs and the topic→chat routing table.
+- **Dependencies Introduced:** Same as A **minus** reliance on agent-side MCP/skill, **plus** `httpx`/`requests` (Telegram + Notion REST) or `notion-client`. Removes the "agy must auto-approve tool calls" risk for publishing.
+
+### Approach C: Config-driven stage plugins + agent-as-a-stage (most decoupled)
+
+- **Concept:** A generic `Runner` executes an ordered list of `Stage` objects declared in config; each stage is a Python class (`AudioExtract`, `SlideExtract`, `Transcribe`, `Parse`, `Summarize`, `NotionPublish`, `S3Sync`, `TelegramDisseminate`). The `Summarize` stage internally uses the agent bridge. Host repos enable/disable/reorder stages purely via config (JSON or YAML). Publishing can be either agent-driven (A-style) or code-driven (B-style) per stage implementation.
+- **Component Changes:** `stages/` package with a registry; `runner.py`; richer config schema (`{"stages": [{"type": "...", "enabled": true, "settings": {...}}]}` in JSON or the YAML equivalent). Highest structure, most upfront design.
+- **Dependencies Introduced:** Superset of A/B depending on which stage impls ship.
 
 ## Structured Comparison & Methodology
 
-_(Phase 3.)_
+### SWOT Matrix
+
+| Approach | Strengths | Weaknesses | Opportunities | Threats/Risks |
+|----------|-----------|------------|---------------|---------------|
+| **A: delegate everything to agy** | Closest to current working setups; least new code; keeps Notion/Telegram logic in agent prompts (easy per-host tweak) | Fragile: agy must auto-approve MCP/tool calls or it stalls; non-deterministic publishing; hard to unit-test; empty-output bug surface is large | Fast first iteration; reuse existing `slide-extractor.md`/`local-automation.md` almost verbatim | agy #76 non-TTY bug; interactive-approval hangs; agent may hallucinate routing/IDs; token cost |
+| **B: agy summarizes, Python publishes** | Deterministic, testable side effects; agy used only for text→text (safest agy mode); routing table is explicit config, not agent judgment; secrets handled in code | More code to write now (Notion/Telegram/S3 clients); must reimplement what agent MCP did | Reliable CI; reusable publish modules; language/topic routing enforced exactly | Notion/Telegram API changes; still depends on agy non-TTY reliability for the one summarize call |
+| **C: stage-plugin framework** | Maximum flexibility & reuse; clean submodule story; host repos differ by config only | Over-engineered for 2 consumers; slowest to first working run; registry/schema design cost | Scales to N host repos & new stages later | YAGNI; premature abstraction may not match real 3rd consumer's needs |
+
+**Methodology:** weighted against the seed's explicit constraints — headless reliability (highest weight, given agy #76), preserve-customizations, minimal-intermediate-cleanup correctness, and time-to-first-working-iteration. Reliability and testability separate B from A; simplicity separates B from C.
 
 ## Recommendation
 
-_(Phase 4.)_
+**Adopt Approach B (agy summarizes, Python publishes) as the target, reached via a fast A-flavored first iteration.**
+
+Rationale:
+- **Reliability is the dominant constraint.** The agy #76 non-TTY bug and the interactive-approval stall make "delegate all tool use to agy headless" (Approach A) the riskiest exactly where it matters — automated, unattended runs. Restricting agy to **pure text→text summarization** (Approach B) uses the one mode that is verified working through `agy-headless-bridge`, and removes the MCP-auto-approve hazard entirely for publishing.
+- **Customizations become explicit config, not agent judgment.** Topic→chat routing, Notion parent IDs, English-vs-original language, and stage on/off are precisely the divergences between scartill and adsight. Encoding them in `transcriber.config.json`/`.yaml` and executing them in tested Python (`publish/telegram.py`, `publish/notion.py`, `publish/s3.py`) preserves each host's behavior deterministically — the seed's "preserve customizations" requirement.
+- **Cleanup correctness is trivial in code.** Q5's "upload if enabled, then clear" is a simple ordered, success-gated step in the orchestrator — hard to guarantee if an agent is driving.
+- **Approach C is deferred, not rejected.** Structure B's publishers behind a thin stage interface so a future third consumer can graduate to the plugin model without a rewrite. Don't build the registry now (only two consumers).
+
+**Pragmatic sequencing:** Iteration 1 may lean A-style (reuse existing prompts, let agy attempt Notion/Telegram via its MCP/skill) to get end-to-end fast — *but* gate it behind agy auto-approve config and treat it as throwaway. Land Approach B as the durable design.
 
 ### Key Risks & Mitigations
 
-_(Phase 4.)_
+| Risk | Mitigation |
+|------|------------|
+| `agy -p` returns empty from Python (non-TTY bug #76) | **Don't consume agy's stdout at all** — instruct agy in the prompt to *write its output to a specified file* (e.g. `recordings/<name>.md`), then Python reads that file. This sidesteps the isatty()-gated stdout entirely. Still allocate a pty via `agy-headless-bridge` (`run()`) as belt-and-suspenders; assert the output file exists and is non-empty, fail loudly otherwise. |
+| agy stalls on interactive tool-approval | Run agy with **`--dangerously-skip-permissions`** so it never blocks on approval modals. Combined with the file-output convention above, and `idle_timeout` as a backstop. (Approach B still keeps agy text-only where possible; the flag covers the iteration-1 A-style path and any tool use.) |
+| Intermediate cleanup deletes data before S3 upload finishes | Strict ordering in orchestrator: summarize → publish → **S3 sync (if enabled) → verify → cleanup**. Cleanup only on success; `--keep-intermediates` debug flag. |
+| Secrets (ElevenLabs, Notion, bot tokens, AWS) leaking into shared submodule | Secrets only in env vars referenced by name in JSON; `.gitignore` media/transcripts/config-with-secrets; never commit tokens. |
+| Cross-platform drift (duct/pty differ POSIX vs Windows) | Target Windows first (verified stack); keep OS-specific bits (pty backend) inside the bridge; add smoke test per stage. |
+| Python/uv toolchain now required where pwsh sufficed before | Ship `pyproject.toml` + `uv.lock`; document `uv run` entry; pin `agy-headless-bridge`, `duct`, `scenedetect`, `av`. |
+| Divergent Notion insert semantics (subpage-under-parent vs prepend-link) | Model as a Notion strategy enum in config; implement both in `publish/notion.py`. |
+| ElevenLabs/Notion/Telegram API or CLI changes | Wrap each in a small module with one integration point; pin `elevenlabs`/`aws` CLI expectations in README prerequisites. |
 
 ### Summary Table
 
-_(Phase 4.)_
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Engine language | Python (+ `uv`, `duct`) | User pivot (Q6); single toolchain, testable, cross-platform-capable. |
+| Packaging | Git submodule | User (Q1); host repos add config + secrets + recordings only. |
+| Orchestration | Python top-level; agent called per-recording | User (Q2). |
+| Agent (iter 1) | `agy` via `agy-headless-bridge` | User (Q3) + non-TTY bug forces the bridge. |
+| Agent role | **Summarize only** (text→text) | Reliability; avoids agy tool-approval stalls. |
+| agy invocation | `--dangerously-skip-permissions` + **write output to a file** (Python reads the file, not stdout) | User-chosen: sidesteps approval stalls and the non-TTY stdout bug (#76). |
+| Publishing/dissemination | **Python** (Notion API, Telegram Bot API, `aws`/duct) | Deterministic; encodes per-host customizations as config. |
+| Config | `transcriber.config.json` or `.yaml`/`.yml` (stage toggles + settings + routing); format by extension | User (Q4) + YAML follow-up. |
+| Cleanup | Success-gated, after optional S3 upload; keep `.mp4`+`.md` | User (Q5). |
+| Architecture | Approach B, publishers behind thin stage interface | Reliability + testability now; path to Approach C later. |
+
+## Phased Execution Plan
+
+1. **Scaffold the Python engine** — `pyproject.toml` (uv), package `transcriber/`, deps: `duct`, `agy-headless-bridge`, `scenedetect`, `av`, `PyYAML` (YAML config); `transcriber.config.{json,yaml}` schema + a single loader that picks JSON or YAML by extension and validates into one internal model.
+2. **Deterministic media stages (`pipeline.py`)** — port `Transcribe.ps1` logic to `duct`: mp4→mp3 (ffmpeg), optional scenedetect slides, elevenlabs jsonl, and port `parse_transcript.py` (keep as Python module, no more `uv run` shell-out). Idempotent `Test-Path`-equivalent guards. Emit a structured list of *new* recordings.
+3. **Agent summarize stage (`agent.py`)** — invoke `agy` via `agy_headless_bridge.run()` with `--dangerously-skip-permissions` (passed through `extra_args`) so it never blocks on approval modals. Build prompt from parsed transcript + slide descriptions + `prompt_templates/`; force summary language per config; **instruct agy to write the summary to a target file** (e.g. `recordings/<name>.md`) rather than returning it on stdout. Python then reads that file. Assert the file exists and is non-empty; handle `AgyTimeoutError.partial` as a backstop.
+4. **Publishers (`publish/`)** — `notion.py` (both insert strategies), `telegram.py` (Bot API, topic→chat routing, English-or-original per config), `s3.py` (aws sync via duct). All config-driven, unit-testable with mocked clients.
+5. **Orchestrator + cleanup (`run.py`/`__main__`)** — order: discover → 1–4 → summarize → publish (Notion/Telegram) → S3 sync (if enabled) → verify → cleanup intermediates (keep `.mp4`+`.md`), `--keep-intermediates` flag.
+6. **Submodule packaging & host wiring** — document/scaffold how `scartill-ai-hub` and `adsight/ai-hub` consume it: add submodule, drop in `transcriber.config.json` or `.yaml` reflecting each repo's current behavior, set env-var secrets, run `uv run transcriber`.
+7. **Tests + README** — per-stage unit tests (mock ffmpeg/elevenlabs/agy/clients), a config-loader test asserting JSON and YAML parse to the same internal model, an end-to-end smoke test on a tiny fixture mp4, and a README covering prerequisites (ffmpeg, elevenlabs, aws, agy auth) and the config schema (both formats).
+8. **Update the seed** — reconcile `docs/seed/extraction-brainstorm.md` with the Python pivot (via the `Seed` command) so downstream full-spec work matches reality.
+
