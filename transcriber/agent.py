@@ -229,6 +229,11 @@ def run_agent(
             add_dirs=[str(recording_dir)],
             extra_args=["--dangerously-skip-permissions"],
             timeout=config.timeouts.agy,
+            # agy can think for a long stretch (summarize + Notion MCP call)
+            # with no intermediate output. The bridge's default idle_timeout is
+            # only 120s, which kills legitimate long runs; tie it to the hard
+            # ceiling so the run is bounded solely by config.timeouts.agy.
+            idle_timeout=config.timeouts.agy,
         )
     except AgyTimeoutError as exc:
         # Surface partial work: if agy still managed to write a non-empty

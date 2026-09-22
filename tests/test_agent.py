@@ -173,6 +173,7 @@ def test_run_agent_reads_back_written_file(tmp_path: Path, monkeypatch) -> None:
         captured["add_dirs"] = add_dirs
         captured["extra_args"] = extra_args
         captured["timeout"] = timeout
+        captured["idle_timeout"] = kwargs.get("idle_timeout")
         # Simulate agy writing the summary file.
         (rec_dir / "meeting.md").write_text("# Summary\n\nDecisions: none\n", encoding="utf-8")
         return "agy chatter on stdout (ignored)"
@@ -187,6 +188,8 @@ def test_run_agent_reads_back_written_file(tmp_path: Path, monkeypatch) -> None:
     assert captured["add_dirs"] == [str(rec_dir)]
     assert captured["extra_args"] == ["--dangerously-skip-permissions"]
     assert captured["timeout"] == 42
+    # idle_timeout tied to the hard ceiling so long agy runs aren't killed early.
+    assert captured["idle_timeout"] == 42
 
 
 def test_run_agent_references_transcript_by_file_not_inline(tmp_path: Path, monkeypatch) -> None:
