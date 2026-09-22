@@ -253,8 +253,19 @@ def _process_one(
             logger.info("[%s] telegram: already complete, skipping", name)
         else:
             logger.info("[%s] telegram: sending", name)
-            summary_text = _summary_path(mp4, config).read_text(encoding="utf-8")
-            TelegramPublisher(config).send(summary_text)
+            summary_file = _summary_path(mp4, config)
+            digest_file = agent_mod.digest_path_for(summary_file)
+            # Prefer the concise digest agy wrote for chat; fall back to the
+            # full summary only if the digest is missing/empty.
+            if digest_file.exists() and digest_file.read_text(encoding="utf-8").strip():
+                message_text = digest_file.read_text(encoding="utf-8")
+            else:
+                logger.warning(
+                    "[%s] telegram: digest missing/empty, sending full summary",
+                    name,
+                )
+                message_text = summary_file.read_text(encoding="utf-8")
+            TelegramPublisher(config).send(message_text)
             state.mark_complete("telegram")
 
         # 4. S3 sync (gated).

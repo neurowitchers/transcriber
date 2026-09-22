@@ -12,9 +12,9 @@ Your job is to generate clean, native Notion markdown for the slide-description 
    - Retain exact node names, component boundaries, and directional arrows.
    - If there is no diagram, omit the Mermaid block entirely.
 4. **Speaker Context**: Highlight decisions, caveats, or Q&A raised in the transcript that are NOT visible on the slide graphic itself.
-5. **No essential information guard**: Output a single line `== no information ==` if nothing essential is visible (e.g. pure audio scene with webcam stub images).
+5. **Skip empty scenes (IMPORTANT)**: If a slide has no essential visual information (e.g. a pure audio scene, a webcam/Google Meet call view, a static desktop, or a near-duplicate of the previous slide), **OMIT that scene entirely** — do not write a heading, timestamp, or any placeholder for it. Never emit `== no information ==` or an empty section. Only include scenes that carry real, useful visual content. If NO scenes carry essential information, omit the entire Slide Descriptions section.
 
-### Output Structure (per slide):
+### Output Structure (per INCLUDED slide only):
 ```markdown
 ### [Slide Title or Inferred Topic]
 **Timestamp:** MM:SS - MM:SS

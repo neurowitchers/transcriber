@@ -91,6 +91,10 @@ def stage_calls(monkeypatch):
         calls.append(("agent", name))
         md = Path(recording_dir) / f"{name}.md"
         md.write_text("summary body", encoding="utf-8")
+        # Also write the concise Telegram digest, as the real agent does.
+        (Path(recording_dir) / f"{name}.telegram.md").write_text(
+            "digest body", encoding="utf-8"
+        )
         return md
 
     sent: list[tuple[str, str]] = []

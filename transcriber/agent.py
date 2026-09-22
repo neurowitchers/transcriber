@@ -83,6 +83,20 @@ def _load_transcript(transcript_path: Path) -> str:
     return transcript_path.read_text(encoding="utf-8")
 
 
+def digest_path_for(summary_path: str | os.PathLike[str]) -> Path:
+    """The Telegram-digest file path derived from the summary path.
+
+    ``<dir>/<name>.md`` -> ``<dir>/<name>.telegram.md``. Kept public so the
+    orchestrator can locate the digest agy was told to write.
+    """
+    summary_path = Path(summary_path)
+    return summary_path.with_suffix(".telegram.md")
+
+
+# Backwards/internal alias used within run_agent.
+_digest_path_for = digest_path_for
+
+
 def _slide_block(slide_image_paths: Sequence[str]) -> str:
     """Assemble the slide-description block, included ONLY when slides exist.
 
@@ -111,6 +125,7 @@ def build_prompt(
     slide_image_paths: Optional[Sequence[str]] = None,
     *,
     output_file: Optional[str] = None,
+    digest_file: Optional[str] = None,
     inline_transcript: bool = True,
 ) -> str:
     """Assemble the agy prompt from the parsed transcript + slides + templates.
@@ -159,6 +174,18 @@ def build_prompt(
         transcript_fence=transcript_section,
     )
 
+    digest_step = ""
+    if digest_file:
+        digest_step = (
+            "## Step 2 (after Step 1): Write a SHORT Telegram digest\n"
+            f"Write a very concise digest to the file `{digest_file}` — this is "
+            "sent to a chat, so keep it to the **essentials only**: a one-line "
+            "meeting title, then just the key Decisions and Action Items as a "
+            "few short bullet points. No slide descriptions, no long prose, no "
+            "verbatim quotes. Aim for well under 1500 characters. Write it in "
+            "the same language as the summary.\n\n"
+        )
+
     directives = (
         "# Task\n"
         "Summarize the meeting transcript and publish the result, following the "
@@ -168,7 +195,8 @@ def build_prompt(
         "file is the source of truth for the summary — do not rely on your "
         "stdout being read. **Fully write and save this file before doing "
         "anything else**, so the summary is preserved even if later steps fail.\n\n"
-        "## Step 2 (only after Step 1 is saved): Publish to Notion\n"
+        f"{digest_step}"
+        "## Step 3 (only after the files above are saved): Publish to Notion\n"
         f"Using your `{config.notion.server}` MCP, create a new "
         f"{config.notion.insert} under the parent page "
         f"`{config.notion.parent_page_id}` containing the summary. Then add a "
@@ -219,11 +247,14 @@ def run_agent(
     # dir), not the recording dir — --add-dir grants visibility, not a write base.
     output_path = output_path.resolve()
 
+    digest_path = _digest_path_for(output_path)
+
     prompt = build_prompt(
         config,
         transcript_path.resolve(),
         slide_image_paths,
         output_file=str(output_path),
+        digest_file=str(digest_path),
         inline_transcript=False,
     )
 

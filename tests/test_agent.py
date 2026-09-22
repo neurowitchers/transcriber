@@ -160,6 +160,37 @@ def test_notion_publish_instructions_present(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 # run_agent — agy mocked
 # --------------------------------------------------------------------------- #
+def test_digest_path_for_derives_telegram_file() -> None:
+    from transcriber.agent import digest_path_for
+
+    p = digest_path_for("/some/dir/2026-09-22_Meeting.md")
+    assert p.name == "2026-09-22_Meeting.telegram.md"
+
+
+def test_run_agent_writes_digest_instruction_and_path(tmp_path: Path, monkeypatch) -> None:
+    """run_agent must instruct agy to write a concise Telegram digest to the
+    ``<name>.telegram.md`` companion file, before the Notion step."""
+    cfg = make_config()
+    rec_dir = tmp_path / "rec"
+    rec_dir.mkdir()
+    tp = write_transcript(rec_dir)
+
+    captured = {}
+
+    def fake_run(prompt, *, add_dirs, extra_args, timeout, **kwargs):
+        captured["prompt"] = prompt
+        (rec_dir / "meeting.md").write_text("# Summary\n", encoding="utf-8")
+        return ""
+
+    monkeypatch.setattr(agent, "run", fake_run)
+    run_agent(cfg, tp, rec_dir, slide_image_paths=[])
+
+    prompt = captured["prompt"]
+    assert "meeting.telegram.md" in prompt
+    assert "digest" in prompt.lower()
+    assert prompt.index("meeting.telegram.md") < prompt.lower().index("publish to notion")
+
+
 def test_run_agent_reads_back_written_file(tmp_path: Path, monkeypatch) -> None:
     cfg = make_config()
     rec_dir = tmp_path / "rec"

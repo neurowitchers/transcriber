@@ -111,14 +111,30 @@ def test_intermediate_paths_excludes_durable(tmp_path):
     mp4 = tmp_path / f"{NAME}.mp4"
     candidates = {p.name for p in cleanup_mod.intermediate_paths(mp4)}
     assert f"{NAME}.mp4" not in candidates
-    assert f"{NAME}.md" not in candidates
+    assert f"{NAME}.md" not in candidates  # durable summary must be kept
     assert candidates == {
         f"{NAME}.mp3",
         f"{NAME}.jsonl",
         f"{NAME}.txt",
         f"{NAME}.scenes.csv",
+        f"{NAME}.telegram.md",
         f"extracted_slides.{NAME}",
     }
+
+
+def test_cleanup_deletes_digest_keeps_summary(tmp_path):
+    mp4 = tmp_path / f"{NAME}.mp4"
+    mp4.write_text("video", encoding="utf-8")
+    summary = tmp_path / f"{NAME}.md"
+    summary.write_text("# full summary", encoding="utf-8")
+    digest = tmp_path / f"{NAME}.telegram.md"
+    digest.write_text("short digest", encoding="utf-8")
+
+    cleanup(mp4)
+
+    assert summary.exists(), "durable .md summary must be kept"
+    assert not digest.exists(), "the .telegram.md digest must be deleted"
+    assert mp4.exists()
 
 
 # --------------------------------------------------------------------------- #

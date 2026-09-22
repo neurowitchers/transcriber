@@ -50,6 +50,7 @@ def intermediate_paths(recording: Path) -> list[Path]:
         directory / f"{name}.jsonl",
         directory / f"{name}.txt",
         directory / f"{name}.scenes.csv",
+        directory / f"{name}.telegram.md",  # concise Telegram digest
         directory / f"extracted_slides.{name}",  # directory
     ]
     return candidates
@@ -96,4 +97,8 @@ def cleanup(recording: Path, keep_intermediates: bool = False) -> list[Path]:
 
 def _has_keep_suffix(path: Path) -> bool:
     name = path.name.lower()
+    # The Telegram digest ends in ``.md`` but is an intermediate, not the
+    # durable summary — allow it to be deleted.
+    if name.endswith(".telegram.md"):
+        return False
     return any(name.endswith(suffix) for suffix in KEEP_SUFFIXES)
