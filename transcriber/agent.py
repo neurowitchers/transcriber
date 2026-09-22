@@ -143,13 +143,12 @@ def build_prompt(
     if inline_transcript:
         transcript_section = _transcript_fence(_load_transcript(transcript_path))
     else:
-        # Reference the file by path; agy reads it via its file tools (the
-        # recording dir is exposed with --add-dir). Keeps the command line
-        # short regardless of transcript size.
+        # Reference the file by absolute path; agy reads it via its file tools.
+        # An absolute path avoids CWD ambiguity (agy runs in its own scratch dir).
         transcript_section = (
-            "Read the transcript from the file `"
-            f"{transcript_path.name}` in the working directory. Do not expect "
-            "it inline; open and read that file."
+            "Read the transcript from the file at this absolute path:\n"
+            f"`{transcript_path}`\n"
+            "Do not expect it inline; open and read that file."
         )
 
     summary_template = _read_template("summary.md")
@@ -215,12 +214,16 @@ def run_agent(
     output_path = Path(output_name)
     if not output_path.is_absolute():
         output_path = recording_dir / output_name
+    # Resolve to an absolute path so agy writes exactly where the engine reads
+    # it back. A bare filename would resolve against agy's own CWD (its scratch
+    # dir), not the recording dir — --add-dir grants visibility, not a write base.
+    output_path = output_path.resolve()
 
     prompt = build_prompt(
         config,
-        transcript_path,
+        transcript_path.resolve(),
         slide_image_paths,
-        output_file=output_name,
+        output_file=str(output_path),
         inline_transcript=False,
     )
 
