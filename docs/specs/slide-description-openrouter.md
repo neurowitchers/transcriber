@@ -44,7 +44,9 @@ summarize on `agy`.
   `agy`. **Stop/re-scope checkpoint:** if the projected saving from moving slides
   to `openrouter` is < 40% wall-time on that baseline, pause and reconsider scope
   before building the new backends — the added complexity is only justified by a
-  real cost win.
+  real cost win. **If the checkpoint fails (P1):** Task 1's additive config stays
+  in place but inert (both backends default to `agy`, so behavior is unchanged)
+  and Tasks 2–7 are shelved — no revert needed.
 - **Why per-stage backends instead of one global switch.** The two workloads
   have different needs: slide description is vision-heavy and stateless
   (great fit for a cheap vision API); summarize is text-heavy and must publish
@@ -61,7 +63,14 @@ summarize on `agy`.
 - **Success criteria (P5 — concrete).** With slides on `openrouter` + summarize
   on `agy`: **≥ 40% wall-time reduction** on the baseline recording, with no
   visible quality regression in the "Slide Descriptions" section (manual parity
-  check, Task 7). The 40% figure is the Task 7 pass/fail bar, not a vibe.
+  check, Task 7). The 40% figure is the Task 7 pass/fail bar, scoped to the
+  baseline recording(s) — **not** a guarantee across all recordings (P2); the
+  parity check runs on **2–3 recordings of differing slide counts** (including
+  one near the R23 ceiling, X3) to avoid a one-off favorable sample. **Cost is a
+  secondary metric (P5):** capture token/$-cost at the P1 baseline when the
+  bridge surfaces it and record it in Task 7, so a wall-time miss paired with a
+  large cost win is a conscious decision rather than an automatic fail (motivation
+  is cost; wall-time is the proxy).
 - **Rollback.** Setting both stages' backend to `agy` reproduces today's
   behavior exactly; the split is additive, so rollback is a config change.
 
@@ -132,15 +141,25 @@ summarize on `agy`.
   summarize backends publish to Notion through the Notion **MCP** server, never a
   hand-rolled REST client and never skipped. This is precisely why the summarize
   backend options are `agy` and `agno` (both can drive MCP tools) and why a bare
-  OpenRouter chat-completions call is excluded. **The `agno` backend stands up its
+  OpenRouter chat-completions call is excluded. **This is a policy choice (P3),
+  not merely a technical limit:** we will not maintain a bespoke Notion REST
+  client — MCP is the single, standardized Notion integration path — so even
+  though one *could* call the Notion API directly for a summary blob, we
+  deliberately do not. **The `agno` backend stands up its
   own Notion MCP server** — it does **not** inspect or reuse `agy`'s MCP
   configuration (that reverse-engineering would be a fragile hidden coupling).
   Instead, the config **explicitly requires a Notion API-key env-var name**
   (`notion.token_env`) whenever `summary.backend == "agno"`; the engine launches
   the official Notion MCP server (via Agno's `MCPTools`) with that key supplied
   through the MCP process environment. The key is secret-by-name (R12), resolved
-  at use time, never stored in config and never logged. Telegram dissemination is
-  unaffected (the orchestrator reads the digest file regardless of backend).
+  at use time, never stored in config and never logged. **MCP subprocess env
+  (E4):** the child env is `os.environ` **merged** with `{token_env:
+  resolved_key}` — never a bare replacement — so `PATH`/`APPDATA`/etc. survive
+  (critical on Windows). **Windows launch (E4):** this engine is Windows-first;
+  a bare `npx` often fails to spawn, so the command form must be
+  Windows-launchable (e.g. `npx.cmd`/appropriate shim), confirmed in Task 6.
+  Telegram dissemination is unaffected (the orchestrator reads the digest file
+  regardless of backend).
 
 ### Cross-cutting (both backends / stages)
 
@@ -156,8 +175,11 @@ summarize on `agy`.
   configured separately (`summary_model`) and should default to a solid
   tool-calling model (e.g. a stronger OpenRouter model), since weak models call
   MCP tools unreliably. Per-stage timeouts `timeouts.slides` (added, default
-  900s) and `timeouts.agy` (reused as the summarize-stage timeout regardless of
-  backend) apply.
+  900s) apply. The summarize-stage timeout is `timeouts.summarize` when set,
+  otherwise falls back to `timeouts.agy` (E9): reusing `timeouts.agy` for both
+  backends is convenient but a slower networked `agno`+MCP run may need more time
+  than a fast local `agy`, so the optional `timeouts.summarize` lets operators
+  mixing backends size it independently. Document the fallback in the README.
 - **R14.** Pre-flight validation matches the selected backends. If **slides use
   `openrouter`** or **summary uses `agno`**, the `openrouter` section is required
   and its API-key env var is checked. If **summary uses `agno`**, the Notion
@@ -203,14 +225,32 @@ summarize on `agy`.
   stage for retry) rather than persisting a truncated `<name>.md`. Reuse the
   existing "non-empty summary file" success check in `run_agent` as the
   post-condition (an empty/absent `<name>.md` after the run fails the stage).
-- **R23.** Deterministic payload bound (E5). The `openrouter` slides backend
+- **R22b.** Hard time bound + subprocess cleanup for `agno` (E2/E3). The `agno`
+  run is bounded by the summarize-stage timeout (`timeouts.summarize` or, when
+  unset, `timeouts.agy` — R13/E9): the async run is wrapped so it cannot hang
+  indefinitely (mirrors the `agy` path's `timeout`/`idle_timeout`). `MCPTools` is
+  closed via a `finally`/async-context-manager on **every** path — success,
+  exception, and timeout — so a spawned Notion MCP subprocess (`npx`/node) is
+  never orphaned.
+- **R23.** Deterministic payload bound (E5/E6). The `openrouter` slides backend
   enforces a concrete ceiling as module constants (e.g. max slides and/or max
   total encoded bytes). Exceeding it raises `SlideDescribeError` **before**
   sending, so the failure is deterministic rather than a provider-side `413`.
+  **Long-deck behavior (E6 — decided):** over-ceiling decks **hard-fail** (no
+  chunking, no silent fallback to `agy`), consistent with R19's no-silent-
+  fallback rule. This is intentional: the operator gets a clear, deterministic
+  error and can either raise the ceiling, choose `slides.backend=agy` for that
+  host, or split the recording — rather than silently degrading quality or cost.
+  The ceiling constant should be set generously (well above typical decks) so it
+  triggers only on genuinely pathological inputs.
 - **R24.** Operator visibility of selected backends. `--dry-run` and
   `transcriber check` show the chosen backend per stage (e.g. "slides:
   openrouter, summarize: agno") so the operator can confirm the run's engine mix
   before it executes.
+- **R25.** Downscaling is a size/cost control, **not** redaction (E5). The
+  README privacy note must state that reducing image resolution lowers but does
+  not eliminate the fidelity of sensitive on-slide content; operators must not
+  treat downscaling as masking — sensitive material still egresses.
 
 ## Background (Codebase Internals)
 
@@ -339,9 +379,10 @@ class Notion:                     # existing; add MCP token env-var name
 class Timeouts:
     ffmpeg: int = 900
     scenedetect: int = 900
-    slides: int = 900             # NEW
+    slides: int = 900             # NEW (describe_slides stage)
     elevenlabs: int = 900
-    agy: int = 900                # reused as summarize-stage timeout (any backend)
+    agy: int = 900
+    summarize: int | None = None  # NEW; summarize-stage timeout, falls back to agy
     s3: int = 900
 
 # Config: openrouter: Optional[OpenRouter] = None
@@ -355,11 +396,12 @@ class Timeouts:
 Note the `summary_model` default is a **tool-capable** model, not the cheap
 vision model — reliable MCP tool calling needs a stronger model (R13).
 
-Backward-compat note: the existing `stages.slides: bool` is generalized. Keep the
-loader tolerant — accept the legacy `stages.slides: true/false` bool and map it
-to `SlidesStage(enabled=..., backend="agy")`, OR require the new nested shape and
-update all configs/examples in Task 6. **Open Decision D2** (Task 1) picks one;
-default recommendation: accept both shapes for a smooth migration.
+Config migration (no legacy): the existing `stages.slides: bool` is **replaced**
+by the nested `stages.slides: {enabled, backend}` shape. There is **no**
+backward-compatible bool acceptance — a bare `stages.slides: true/false` is a
+`ConfigError`. All in-repo configs/examples (and any host configs) must adopt the
+nested shape. This is safe because the engine is consumed as a submodule and its
+configs are updated in lockstep (Task 6 updates the examples).
 
 ### Backend interfaces (sketch)
 
@@ -441,17 +483,18 @@ module constants cap max slides and/or total encoded bytes; exceeding them raise
 
 **Objective.** Generalize `stages.slides` to carry a `backend`; add
 `summary.backend`; add an optional `OpenRouter` section (api_key_env, base_url,
-slides_model, summary_model); add `notion.token_env`; add `timeouts.slides`.
+slides_model, summary_model); add `notion.token_env`; add `timeouts.slides` and
+the optional `timeouts.summarize` (E9; `None` default → falls back to
+`timeouts.agy` at use time).
 Validate `slides.backend` against `("agy","openrouter")` and `summary.backend`
 against `("agy","agno")`. Require `openrouter` iff (slides=openrouter or
 summary=agno); require `notion.token_env` iff summary=agno.
 
-**Implementation guidance.** Resolve **Open Decision D2** (accept legacy
-`stages.slides: bool` and coerce to `SlidesStage(enabled, backend="agy")`, vs.
-require nested shape). Recommended: accept both. Follow the `S3` optional-section
-pattern for `openrouter`. Put backend-value validation and the cross-field
-requirements (openrouter-iff-used; notion-token-iff-agno) next to the
-`summary.language` validation.
+**Implementation guidance.** Require the nested `stages.slides: {enabled,
+backend}` shape — **no legacy bool acceptance** (a bare `stages.slides: bool` is
+a `ConfigError`). Follow the `S3` optional-section pattern for `openrouter`. Put
+backend-value validation and the cross-field requirements (openrouter-iff-used;
+notion-token-iff-agno) next to the `summary.language` validation.
 
 **Test requirements** (`tests/test_config.py`):
 - Defaults: omitted backends → both `"agy"`; no `openrouter`/`notion.token_env`
@@ -462,8 +505,10 @@ requirements (openrouter-iff-used; notion-token-iff-agno) next to the
 - Invalid backend value → `ConfigError` listing allowed values for that stage
   (note `summary` allows `agno` not `openrouter`, and vice versa).
 - `openrouter` parses `base_url`/`slides_model`/`summary_model` defaults.
-- Legacy `stages.slides: true` still loads (if D2 = accept-both).
-- `timeouts.slides` defaults to 900 and is overridable.
+- A bare `stages.slides: true/false` (legacy bool) → `ConfigError` (no
+  backward-compat); only the nested `{enabled, backend}` shape is accepted.
+- `timeouts.slides` defaults to 900 and is overridable; `timeouts.summarize`
+  defaults to `None` and falls back to `timeouts.agy` at use time.
 
 **Demo.** Load each valid combination; show the missing-`openrouter` and
 missing-`notion.token_env` errors; show an invalid backend value rejected.
@@ -540,10 +585,12 @@ digest files, then create the Notion subpage), constructs an Agno `Agent` with
 `AgnoOpenRouter(id=summary_model, api_key=resolve_env(...), base_url=...)` and
 `MCPTools` for the Notion server (token via `resolve_env(config.notion.token_env)`
 in the MCP env), runs it (async; wrap with `asyncio.run` in the sync
-orchestrator), opening/closing the MCP connection per run. After the run, apply
-the existing **non-empty `<name>.md` post-condition** (R22): an empty/absent
-summary file fails the stage. Agent-run atomicity (R21): a Notion-publish failure
-inside the run fails the whole `summarize`+`notion` stage (retryable), like `agy`.
+orchestrator), **bounded by `timeouts.agy`** (R22b) and closing `MCPTools` in a
+`finally`/async-context-manager on success, error, **and timeout** (R22b/E3).
+After the run, apply the existing **non-empty `<name>.md` post-condition** (R22):
+an empty/absent summary file fails the stage. Agent-run atomicity (R21): a
+Notion-publish failure inside the run fails the whole `summarize`+`notion` stage
+(retryable), like `agy`.
 
 **Test requirements** (`tests/test_agent.py` / `tests/test_backends.py`):
 - `_slide_block` embeds markdown when non-empty; omits on `None`/`""`/whitespace;
@@ -552,8 +599,10 @@ inside the run fails the whole `summarize`+`notion` stage (retryable), like `agy
 - Agno summarize (mock the Agno `Agent`/`MCPTools`): builds a model with
   `summary_model` + resolved key/base_url, attaches the Notion MCP with the token
   resolved by env-var name, runs the shared prompt; a run leaving an empty/absent
-  `<name>.md` → stage failure (R22); Notion token env-var is resolved, never
-  inlined in logs (R16).
+  `<name>.md` → stage failure (R22); the run is bounded and `MCPTools.close()`
+  (context-exit) runs on the **exception/timeout** path too (R22b/E3).
+- **(E8)** log-hygiene: capture logs during a mocked `agno` run and assert the
+  resolved OpenRouter key, the Notion token, and image bytes are absent.
 
 **Demo.** Produce a summary via `agy` (mocked bridge) and via `agno` (mocked Agno
 agent + MCP) and show both write `<name>.md` + `<name>.telegram.md`; show an
@@ -568,8 +617,10 @@ configured summarize backend, passing the slide markdown. Feed Telegram from the
 digest as today.
 
 **Implementation guidance.**
-- `state.py`: insert `"describe_slides"` after `"pipeline"`; update the docstring
-  "Tracked stages" list and any `STAGES`-tuple-asserting test. **Manifest
+- `state.py`: the target tuple is **exactly**
+  `STAGES = (pipeline, describe_slides, summarize, notion, telegram, s3, cleanup)`
+  (`describe_slides` inserted after `pipeline`). Update the docstring "Tracked
+  stages" list to this tuple and any `STAGES`-tuple-asserting test. **Manifest
   migration (R20):** existing manifests predate `describe_slides` and lack the
   key; `_completed.get(stage, False)` already treats them as incomplete, so a
   re-run re-issues the slides call exactly once — state this in the docstring.
@@ -583,17 +634,26 @@ digest as today.
   result writes an empty file and completes.
 - Backend selection = pure function of config (`slides.backend`,
   `summary.backend`).
-- `_enabled_stage_names`: add `"describe-slides"` after `transcribe` when slides
-  on; keep `"summarize"`. **(R24)** annotate the plan with the selected backend
-  per stage (e.g. "describe-slides [openrouter]", "summarize [agno]").
+- `_enabled_stage_names` — **pin the tokens (E1/X1)** to remove the "slides"
+  naming collision. Rename the existing pipeline slide-extraction token from
+  `slides` to **`scene-extract`**. Add **`describe-slides [<backend>]`** after
+  `transcribe` when slides on. Standardize the summarize token as
+  **`summarize+notion [<backend>]`** (keep the `+notion` suffix — it signals the
+  R20/R21 atomicity). So a slides-on plan reads:
+  `audio-extract, scene-extract, transcribe, describe-slides [openrouter],
+  summarize+notion [agno], telegram, s3-sync`.
 - `preflight_check`/`_required_env_vars`: require the OpenRouter env var iff
   (slides=openrouter or summary=agno); require the Notion token env var iff
   summary=agno; require `agy` on PATH iff a stage uses `agy`; **(R24)** show the
   selected backends in `check` output.
 
 **Test requirements** (`tests/test_main.py`, monkeypatch backends):
-- Dry-run plan lists `describe-slides` only when slides on, annotated with the
-  chosen backend.
+- Dry-run plan uses the pinned tokens: pipeline extraction is `scene-extract`
+  (not `slides`); the new stage is `describe-slides [<backend>]`; summarize is
+  `summarize+notion [<backend>]`. **Update the existing test** that asserts
+  `"slides" in stages` to `"scene-extract" in stages`.
+- `describe-slides` appears only when slides on, annotated with the chosen
+  backend.
 - Correct backend chosen per config for each valid combination.
 - `describe_slides` manifest-gated: skipped on retry when complete.
 - Summarize receives slide markdown; no image paths.
@@ -601,10 +661,14 @@ digest as today.
   summary=agno; the Notion token env var iff summary=agno; `agy` iff a stage
   uses it.
 - **(R24)** `--dry-run` and `check` show the selected backend per stage.
+- **(E7)** shared-config-distinct-models: the slides backend uses
+  `openrouter.slides_model` and the `agno` backend uses `openrouter.summary_model`
+  from the **same** `openrouter` block (they must not cross-wire).
 
-**Demo.** `--dry-run` shows `describe-slides [openrouter]` + `summarize [agno]`;
-a mocked (openrouter, agy) run writes `<name>.slides.md` then summarizes via
-`agy`; a re-run skips the paid slides call.
+**Demo.** `--dry-run` shows `scene-extract, transcribe, describe-slides
+[openrouter], summarize+notion [agno]`; a mocked (openrouter, agy) run writes
+`<name>.slides.md` then summarizes via `agy`; a re-run skips the paid slides
+call.
 
 ### Task 6 — Agno dependency + Notion MCP wiring for the summarize backend
 
@@ -614,30 +678,44 @@ and resolve the Notion token by env-var name.
 
 **Implementation guidance.**
 - Add `agno[mcp]` (+ the OpenRouter model provider) as an **optional dependency**
-  in `pyproject.toml` (e.g. an `agno` extra), imported only inside
-  `AgnoSummarizeBackend`. When `summary.backend == "agno"` and the import fails,
-  raise a clear error telling the operator to install the extra.
+  in `pyproject.toml` (e.g. an `agno` extra), **version-pinned** (`~=` or exact,
+  not an open range — E10) so a minor Agno release can't silently break the
+  summarize path. Import it only inside `AgnoSummarizeBackend`; when
+  `summary.backend == "agno"` and the import fails, raise a clear error telling
+  the operator to install the extra. Confirm the exact Agno API surface
+  (`agno.models.openrouter.OpenRouter`, `agno.tools.mcp.MCPTools`, `Agent.arun`)
+  against the pinned version during implementation (E10).
 - **Launch the official Notion MCP server from the config'd API key — do NOT
   inspect or reuse `agy`'s MCP configuration.** Define engine-owned constants for
   the Notion MCP invocation (the official Notion MCP server package/command and
   its API-key env-var name); confirm the exact package + env-var name from
   Notion's MCP documentation during implementation. Pass the key via the MCP
-  process env from `resolve_env(config.notion.token_env)`. Attach via `MCPTools`,
-  open/close per run; give the agent the shared summary/digest+Notion prompt
-  (Task 4). This keeps the `agno` path fully self-contained and configured only
-  by `notion.token_env` (+ `notion.parent_page_id`/`insert`).
+  process env: **`os.environ` merged with `{token_env: resolved_key}`** (never a
+  bare replace — `PATH`/`APPDATA` must survive on Windows, E4). **Windows launch
+  (E4):** confirm a Windows-launchable command form (e.g. `npx.cmd` / shim), as a
+  bare `npx` frequently fails to spawn on Windows — this is the most likely
+  first-run blocker. Attach via `MCPTools`, close on every path (R22b); give the
+  agent the shared summary/digest+Notion prompt (Task 4). This keeps the `agno`
+  path fully self-contained and configured only by `notion.token_env` (+
+  `notion.parent_page_id`/`insert`).
 
 **Test requirements.**
 - Mock `MCPTools` + Agno `Agent`: assert the engine launches the Notion MCP with
   the API key resolved by env-var name (never inlined/logged) and passed in the
   MCP env; the agent is asked to publish; the connection is closed after the run.
+- **(E4)** the MCP subprocess env is `os.environ` merged with the token (assert
+  a sentinel `os.environ` key survives alongside the token), not a bare replace.
+- **(E3)** `MCPTools` context-exit/`close()` runs on the **exception** path (make
+  the mocked agent raise mid-run; assert close was still called).
 - No reference to `agy`'s MCP config anywhere in the `agno` path.
 - Missing `agno` import when `summary.backend=agno` → clear actionable error.
 - Missing `notion.token_env` env var → caught at pre-flight (R14), not mid-run.
 
 **Demo.** With Agno + Notion MCP mocked, run an (any, agno) summarize and show
 the engine launching the Notion MCP with the key from env, the publish tool
-invoked, and both files written.
+invoked, and both files written. **Windows spawn smoke test (X2):** on a Windows
+host, confirm the real Notion MCP command actually spawns (env merged, correct
+shim) before the Task 7 parity run — this is the riskiest new runtime path.
 
 ### Task 7 — Cleanup, docs/config, verification
 
@@ -659,9 +737,12 @@ full verification.
   third party. **(E4)** The privacy note must add that slide images (often the most
   sensitive material) are uploaded and that upstream **retention** is outside the
   engine's control, so operators in regulated contexts should keep both stages on
-  `agy`. Document the `summary.backend` options (`agy` | `agno`), the `agno`
-  backend's `notion.token_env` + `agno` optional-dependency requirement, and the
-  R24 per-stage backend visibility.
+  `agy`. **(R25/E5)** state that image downscaling is a size/cost control, **not**
+  redaction — sensitive on-slide content still egresses. Document the
+  `summary.backend` options (`agy` | `agno`), the `agno`
+  backend's `notion.token_env` + `agno` optional-dependency requirement, the
+  optional `timeouts.summarize` (falls back to `timeouts.agy`; recommend raising
+  it for `agno`+MCP — E9), and the R24 per-stage backend visibility.
 - `examples/example.config.yaml` / `acme.config.yaml`: show the new shape
   (e.g. example = both `agy` (no `openrouter` needed); acme = slides `openrouter`
   + summarize `agno` with an `openrouter` block and `notion.token_env`, env-var
@@ -688,8 +769,9 @@ the Slide Descriptions + Notion page for parity.
   MCP tools, so the summarize backend options are `agy` and `agno` (both drive
   MCP); a plain-API summarize path is excluded. No engine-owned REST Notion
   client and no skip-with-warning.
-- **D2 — Config migration for `stages.slides`:** accept legacy bool + coerce
-  (recommended) vs. require the new nested `{enabled, backend}` shape. Task 1.
+- **D2 — RESOLVED (no legacy):** require the nested `stages.slides: {enabled,
+  backend}` shape; a bare `stages.slides: bool` is a `ConfigError`. No
+  backward-compat coercion. All in-repo examples adopt the nested shape (Task 6).
 - **D3 — Scope (RESOLVED): ship all valid backend combinations in one cut.** Both
   the slides `openrouter` backend and the summarize `agno` backend ship together
   as a consciously-accepted tradeoff. Consequence: the `agno` summarize path is
