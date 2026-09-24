@@ -1,518 +1,511 @@
-# Spec: Offload Slide Description to a Cheap OpenRouter Vision Model
+# Spec: Two Pluggable Post-Transcript Stages (Slide Description + Summarize) with Selectable Backends
 
 ## Problem Statement
 
-Slide description is currently performed inside the heavy `agy` agent run. The
-agent receives the extracted slide image paths, opens each image (vision), and
-writes the "Slide Descriptions" section as part of the same run that summarizes
-the transcript and publishes to Notion. Vision work on the heavy agent is the
-expensive part of the run.
+Today a single heavy `agy` (local CLI agent) run does three things at once:
+describes the extracted slide images (vision), summarizes the transcript, and
+publishes to Notion + writes the Telegram digest. This couples an expensive
+vision workload to the summary/publish workload and gives the operator no way to
+choose a cheaper engine for either piece independently.
 
-We want to move slide description out of `agy` into a dedicated stage that calls
-a cheaper, configurable **OpenRouter** vision model. After this change, `agy`
-becomes a **text-only** summarizer + publisher: it consumes a pre-generated
-slide-descriptions markdown file as text and no longer performs any vision work.
+We want to **cleanly split the post-transcript work into two stages** and let
+each stage's **backend be configured independently**:
+
+1. **`describe_slides`** — turn the extracted slide images (+ transcript
+   context) into a `<name>.slides.md` markdown block.
+2. **`summarize`** — turn the transcript (+ the `<name>.slides.md` block) into
+   the final `<name>.md` summary and `<name>.telegram.md` digest, and publish to
+   Notion.
+
+Each stage can run on one of two **backends**, chosen per stage in config:
+
+- **`agy`** — the local headless CLI agent (current behavior).
+- **`openrouter`** — a direct OpenRouter API call (cheaper / faster models).
+
+The two selections are **orthogonal**: e.g. slides on `openrouter` + summarize on
+`agy` (the primary cost-saving configuration), both on `agy` (today's behavior),
+both on `openrouter`, or slides on `agy` + summarize on `openrouter`.
 
 ## Motivation, Baseline & Success
 
-- **Baseline (to record during implementation).** The ROI premise is that vision
-  is the dominant cost of a slides-on `agy` run. Before wiring the new stage,
-  capture a rough baseline for one representative slides-on recording: approx.
-  wall time and (if surfaced by the bridge) token/cost of the current combined
-  run. After the change, compare against the OpenRouter call's logged
-  slide-count/elapsed time (R13) plus the now-cheaper `agy` text run. This need
-  not be precise — one line in the implementation notes is enough to confirm the
-  win is real.
-- **Why a dedicated stage instead of just cheapening `agy`'s model.** Simply
-  pointing `agy` at a cheaper vision model was considered and rejected: `agy`'s
-  model is not configurable per-stage from this engine, a cheaper *general* agent
-  would also degrade summary/Notion quality, and decoupling lets the vision step
-  and the summary/publish step scale, retry, and be priced independently.
-- **Success criteria.** Cost/latency of a slides-on run drops materially with no
-  visible quality regression in the "Slide Descriptions" section on a sample
-  recording (manual parity check, Task 6).
-- **Rollback.** The change is self-contained: revert the `describe_slides` stage
-  and restore image-path threading in `agent.py`/`__main__.py`. No data migration
-  is involved, so rollback is cheap.
+- **Baseline (record during implementation).** The ROI premise is that slide
+  vision is the dominant cost of a slides-on `agy` run. Capture a rough baseline
+  (wall time, and token/cost if the bridge surfaces it) for one representative
+  slides-on recording with both stages on `agy`. Compare against slides on
+  `openrouter` + summarize on `agy`.
+- **Why per-stage backends instead of one global switch.** The two workloads
+  have different needs: slide description is vision-heavy and stateless
+  (great fit for a cheap vision API); summarize is text-heavy and must publish
+  to Notion and write local files (needs the agent's MCP + file tools, or engine
+  glue if done via API). Making the backend a per-stage choice lets the operator
+  optimize each independently without degrading the other.
+- **Success criteria.** With slides on `openrouter` + summarize on `agy`,
+  cost/latency of a slides-on run drops materially with no visible quality
+  regression in the "Slide Descriptions" section (manual parity check, Task 7).
+- **Rollback.** Setting both stages' backend to `agy` reproduces today's
+  behavior exactly; the split is additive, so rollback is a config change.
 
 ## Requirements
 
-- **R1.** When `stages.slides` is enabled, slide description is produced by a
-  dedicated pipeline stage that calls OpenRouter's image-understanding
-  (chat-completions) API with a cheap, configurable model.
-- **R2.** The stage writes a `<name>.slides.md` intermediate artifact. The
-  summarize stage (`agy`) then consumes that markdown **as text** and no longer
-  receives image paths or performs vision.
-- **R3.** Secrets follow the existing pattern: the config stores the OpenRouter
-  API-key **environment-variable name** only; the value is resolved at *use*
-  time via `resolve_env`. No secrets are stored in config.
-- **R4.** When `stages.slides` is disabled, behavior is unchanged: no slide
-  stage runs and no slide block appears in the summary prompt.
-- **R5.** Failure isolation: a *transport/format* OpenRouter failure fails the
-  slides stage for that recording (retryable via the state manifest). It does
-  **not** silently fall back to the expensive `agy` vision path. A **valid empty
-  description** (the model correctly finds no slide worth describing) is **not**
-  a failure — see R10.
-- **R6.** The existing `slide_extractor.md` rules are reused as the vision
-  prompt so output format and quality are preserved. Because the extractor
-  requires per-slide `**Timestamp:** MM:SS - MM:SS` lines, the payload **must**
-  carry per-slide scene timing: for each slide image, its start/end timestamp
-  (parsed from `<name>.scenes.csv`) is included as a small text part immediately
-  before that image's `image_url` part, so the model can emit accurate
-  timestamps. If timing metadata is unavailable for an image, its timestamp is
-  passed as unknown rather than omitted.
-- **R7.** Cleanup deletes `<name>.slides.md`; `--keep-intermediates` preserves
-  it. The `<name>.slides.md` intermediate must never be confused with the
-  durable `<name>.md` summary.
-- **R8.** The OpenRouter model, base URL, and API-key env-var name are
-  configurable. The model defaults to a cheap vision model
-  (`google/gemini-2.0-flash-001`); the base URL defaults to
-  `https://openrouter.ai/api/v1`. A per-stage `timeouts.slides` key is added
+### Stage separation
+
+- **R1.** The post-transcript work is split into two explicit, independently
+  tracked stages: `describe_slides` (produces `<name>.slides.md`) and `summarize`
+  (produces `<name>.md` + `<name>.telegram.md` and publishes to Notion).
+- **R2.** `describe_slides` runs only when `stages.slides` is enabled. When
+  disabled, no `<name>.slides.md` is produced and `summarize` omits the slide
+  block (unchanged behavior).
+- **R3.** `summarize` consumes `<name>.slides.md` **as text**. An absent or
+  empty/whitespace `<name>.slides.md` is treated exactly like slides-off (block
+  omitted).
+
+### Backend selection
+
+- **R4.** Each stage has an independent backend selector in config:
+  `slides.backend` and `summary.backend`, each one of `"agy" | "openrouter"`.
+  Defaults preserve current behavior: both default to `"agy"`.
+- **R5.** The four combinations are all valid and behave correctly:
+  (agy, agy) = today; (openrouter, agy) = primary cost saver; (agy, openrouter);
+  (openrouter, openrouter).
+- **R6.** Backend selection for one stage does not change the other stage's
+  behavior, artifacts, or contracts. Both backends of a stage produce the same
+  output artifact(s) with the same semantics.
+
+### `describe_slides` behavior
+
+- **R7.** `agy` backend: `agy` is driven (as today's slide path) to read the
+  slide images and write `<name>.slides.md`. `openrouter` backend: a single
+  chat-completions vision call produces the markdown.
+- **R8.** Both backends reuse the existing `slide_extractor.md` rules so output
+  format is preserved. Because the extractor requires per-slide
+  `**Timestamp:** MM:SS - MM:SS` lines, per-slide scene timing (parsed from
+  `<name>.scenes.csv`) is provided to the backend: for `openrouter`, as a text
+  part immediately before each image; for `agy`, alongside the image paths.
+  Unknown timing is passed as `unknown`, never omitted.
+- **R9.** Empty-result semantics: an empty image set or a valid empty backend
+  response both resolve to an **empty `<name>.slides.md`**; the stage still
+  completes successfully and is marked done. A backend *transport/format*
+  failure raises `SlideDescribeError` (not triggered by an intentionally empty
+  result).
+
+### `summarize` behavior
+
+- **R10.** `agy` backend: unchanged — `agy` writes `<name>.md` +
+  `<name>.telegram.md` and publishes to Notion via its MCP (the current
+  file-is-source-of-truth contract). `openrouter` backend: the engine calls
+  OpenRouter to produce the summary markdown and the digest text, **the engine
+  writes** `<name>.md` and `<name>.telegram.md` itself, and Notion publishing is
+  handled by the engine's own Notion path (see R11).
+- **R11.** **Notion publishing under the `openrouter` summarize backend.**
+  OpenRouter is a plain LLM API with no MCP/file/Notion tools, so it cannot
+  publish to Notion or write files. This is an explicit architectural
+  constraint. The spec resolves it as follows: when `summary.backend ==
+  "openrouter"`, the engine (a) writes the summary + digest files from the API
+  response, and (b) publishes to Notion via a small engine-owned Notion client
+  (new, minimal) OR, if that is out of scope for the first cut, **skips Notion
+  and logs a clear warning** that Notion publishing requires the `agy` summarize
+  backend. Task 6 makes this an explicit decision point (see "Open Decision D1").
+  Telegram dissemination is unaffected (it already reads the digest file in the
+  orchestrator, independent of backend).
+
+### Cross-cutting (both backends / stages)
+
+- **R12.** Secrets follow the existing pattern: config stores the OpenRouter
+  API-key **env-var name** only; resolved at use time via `resolve_env`. No
+  secrets in config.
+- **R13.** `openrouter` connection config (`api_key_env`, `base_url`, and
+  per-stage `model`) is configurable. `base_url` defaults to
+  `https://openrouter.ai/api/v1`. The slides model defaults to a cheap vision
+  model (`google/gemini-2.0-flash-001`); the summary model defaults to a cheap
+  text model (`google/gemini-2.0-flash-001` is acceptable for both, but the two
+  are configured separately so they can diverge). Per-stage timeouts
+  `timeouts.slides` and (reuse of) `timeouts.agy` apply; add `timeouts.slides`
   (default 900s).
-- **R9.** Pre-flight validation: when `stages.slides` is enabled, the config
-  must include an `openrouter` section, and the referenced API-key env var is
-  checked in the pre-flight check.
-- **R10.** Empty-result semantics: an empty image set (no `.jpg` produced) and a
-  valid empty model description both resolve to an **empty `<name>.slides.md`**
-  (zero-length or whitespace-only). The `describe_slides` stage still completes
-  successfully and is marked done in the manifest. The summarize stage treats an
-  empty `<name>.slides.md` exactly like slides-off: it omits the slide block. A
-  `SlideDescribeError` is raised **only** for transport/format failures
-  (non-2xx, malformed JSON, missing `choices[0].message.content`), never for an
-  intentionally empty description.
-- **R11.** Transient-failure resilience: `describe_slides` retries `429` and
-  `5xx` responses with bounded exponential backoff (small, capped attempt count)
-  before raising `SlideDescribeError`.
-- **R12.** Privacy / data egress: enabling slides sends slide imagery **and**
-  transcript text to a third party (OpenRouter). This new outbound trust
-  boundary is documented in the spec and the README schema section so operators
-  with sensitive content make an informed choice. The API key, `Authorization`
-  header, and base64 image bytes are never written to logs or error messages.
-- **R13.** Observability: each `describe_slides` call logs (at INFO) the model
-  id, slide count, and elapsed wall time — never payload contents (R12). This
-  also supplies the cost/latency baseline the motivation rests on.
+- **R14.** Pre-flight validation: whichever backends are selected, the required
+  inputs must be present. If **either** stage uses `openrouter`, the config must
+  include an `openrouter` section and its API-key env var is checked. If a stage
+  uses `agy`, the `agy` binary must be on PATH (existing check). If slides use
+  `openrouter` but summarize uses `agy` (and vice versa), only the actually-used
+  backends' prerequisites are required.
+- **R15.** Transient-failure resilience for `openrouter` calls: retry `429`/`5xx`
+  with bounded exponential backoff before raising.
+- **R16.** Privacy / data egress: any `openrouter` backend sends content to a
+  third party — slides backend sends slide imagery + transcript context;
+  summarize backend sends the transcript + slide markdown. Documented in the spec
+  and README. API key, auth headers, and image bytes are never logged.
+- **R17.** Observability: each `openrouter` call logs (INFO) the stage, model id,
+  input size (slide count or transcript length), and elapsed time — never payload
+  contents (R16).
+- **R18.** Cleanup deletes `<name>.slides.md`; `--keep-intermediates` preserves
+  it; it is never confused with the durable `<name>.md`.
+- **R19.** Failure isolation is per recording and per stage (existing manifest
+  behavior). No silent cross-backend fallback: a selected backend's failure fails
+  that stage (retryable), it does not silently switch to the other backend.
 
 ## Background (Codebase Internals)
 
 - **`transcriber/agent.py`**
   - `_slide_block(slide_image_paths)` reads `prompt_templates/slide_extractor.md`
-    and renders a "Slide descriptions" instruction block listing the image
-    paths. Returns `""` when there are no slides (so the prompt has no slide
-    instructions at all).
-  - `build_prompt(config, transcript_path, slide_image_paths, *, output_file,
-    digest_file, inline_transcript)` threads the slide block into
-    `prompt_templates/summary.md`'s `{slide_block}` placeholder. Transcript is
-    wrapped in a non-XML Markdown code fence (`_transcript_fence`) with a
-    fence-length guard (`_fence_for`).
+    and lists image paths in a "Slide descriptions" instruction block; `""` when
+    no slides.
+  - `build_prompt(...)` threads the slide block into
+    `prompt_templates/summary.md`'s `{slide_block}` placeholder; transcript is
+    wrapped in a non-XML Markdown fence (`_transcript_fence` / `_fence_for`).
   - `run_agent(config, transcript_path, recording_dir, slide_image_paths)`
-    resolves the output path, builds the prompt with `inline_transcript=False`
-    (agy reads the transcript file by absolute path — the full transcript would
-    overflow the Windows command line), exposes the host workspace via
-    `add_dirs`, and drives `agy` through `agy_headless_bridge.run`.
-- **`transcriber/pipeline.py`**
-  - `process_recording` runs, in order: ffmpeg (mp4→mp3), scenedetect (optional,
-    slides), transcribe (mp3→`.txt` via `elevenlabs ... --format text`). Each
-    stage is idempotent (skips when its output already exists). `_run_command`
-    is the single child-process seam (monkeypatched in tests).
-  - `RecordingResult.new_artifacts` currently tracks a subset of
-    `{"mp3", "slides", "txt"}`.
-- **`transcriber/__main__.py`**
-  - `_slide_image_paths(mp4, config)` returns the sorted `.jpg` files under
-    `extracted_slides.<name>/` when slides are enabled, else `[]`.
-  - `_transcript_path(mp4, config)` returns `<name>.txt`.
-  - `_process_one` drives stages using the state manifest: `pipeline` →
-    `summarize`(+`notion`) → `telegram` → `s3` → `cleanup`. The summarize step
-    calls `run_agent(config, _transcript_path(...), mp4.parent,
-    _slide_image_paths(...))`.
-  - `_enabled_stage_names` builds the dry-run plan. `preflight_check` verifies
-    required binaries and env vars; `_required_env_vars` currently returns the
-    Telegram token env-var name.
-- **`transcriber/state.py`** — ordered stage manifest
-  `STAGES = (pipeline, summarize, notion, telegram, s3, cleanup)`; only listed
-  stages are tracked; `mark_complete` persists immediately.
+    resolves the output path, builds the prompt (`inline_transcript=False`),
+    exposes the workspace via `add_dirs`, and drives `agy` through
+    `agy_headless_bridge.run`. `agy` writes `<name>.md` + `<name>.telegram.md`
+    and publishes to Notion via MCP.
+- **`transcriber/pipeline.py`** — `process_recording` runs ffmpeg → scenedetect
+  (optional) → transcribe (`--format text` → `.txt`). Idempotent per stage.
+  `_run_command` is the single child-process seam (monkeypatched in tests).
+- **`transcriber/__main__.py`** — `_process_one` drives stages via the state
+  manifest: `pipeline` → `summarize`(+`notion`) → `telegram` → `s3` → `cleanup`.
+  `_slide_image_paths(mp4, config)` lists `extracted_slides.<name>/*.jpg`.
+  `_transcript_path` → `<name>.txt`. `_enabled_stage_names` builds the dry-run
+  plan; `preflight_check` / `_required_env_vars` verify binaries + env vars.
+- **`transcriber/state.py`** — `STAGES = (pipeline, summarize, notion, telegram,
+  s3, cleanup)`; only listed stages tracked; `mark_complete` persists at once.
 - **`transcriber/cleanup.py`** — `INTERMEDIATE_SUFFIXES = (".mp3", ".txt",
-  ".scenes.csv")`; `intermediate_paths` also lists `<name>.telegram.md` and the
-  `extracted_slides.<name>/` dir; `KEEP_SUFFIXES = (".mp4", ".md")`;
-  `_has_keep_suffix` special-cases `.telegram.md` so the digest is deletable.
-- **`transcriber/config.py`** — dataclass model with `_build_section` helper;
-  optional sections (`s3`) are built present-or-`None`; `Timeouts` fields each
-  default to `DEFAULT_TIMEOUT_SECONDS` (900). `resolve_env(name)` resolves a
-  secret at use time and raises `MissingEnvVarError` when absent.
-- **Dependencies** — `httpx` is already a declared dependency of `transcriber`;
-  no new dependency is required.
-- **OpenRouter image understanding** — OpenAI-compatible endpoint
-  `POST {base_url}/chat/completions`. Request: `{"model": ..., "messages":
-  [{"role": "user", "content": [ {"type": "text", "text": ...},
-  {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,<b64>"}} ]}]}`
-  with header `Authorization: Bearer <key>`. Response text is at
-  `choices[0].message.content`. Slide images are JPEGs
-  (`extracted_slides.<name>/*.jpg`).
+  ".scenes.csv")`; `intermediate_paths` also lists `<name>.telegram.md` + the
+  slides dir; `KEEP_SUFFIXES = (".mp4", ".md")`; `_has_keep_suffix`
+  special-cases `.telegram.md` so the digest is deletable.
+- **`transcriber/config.py`** — dataclass model + `_build_section`; optional
+  sections (`s3`) present-or-`None`; `Timeouts` fields default to 900;
+  `resolve_env` resolves secrets at use time.
+- **Telegram** — the orchestrator reads `<name>.telegram.md` (fallback
+  `<name>.md`) and sends it; independent of the summarize backend.
+- **Dependencies** — `httpx` already declared; no new dependency needed for
+  OpenRouter calls. A minimal Notion HTTP client (R11/D1) would also use `httpx`.
+- **OpenRouter** — OpenAI-compatible `POST {base_url}/chat/completions`. Vision:
+  message `content` parts of `{"type":"text",...}` and
+  `{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,<b64>"}}`.
+  Text: plain text parts. Header `Authorization: Bearer <key>`; response text at
+  `choices[0].message.content`.
 
 ## Proposed Solution
 
-Insert a new **manifest-gated orchestrator stage**, `describe_slides`, that runs
-after the deterministic `pipeline` stage and before `summarize`, only when
-`stages.slides` is enabled. The paid OpenRouter call lives in this orchestrator
-step (in `__main__._process_one`), guarded by `state.is_complete("describe_slides")`,
-so the state manifest actually protects the paid call on retry. The `pipeline`
-stage stays limited to ffmpeg + scenedetect + transcribe and does **not** make
-the network call (single owner — resolves the two-owner hazard).
+### Stage/backend structure
 
-The `describe_slides` step base64-encodes each extracted slide `.jpg`, pairs each
-with its scene timestamp (parsed from `<name>.scenes.csv`), sends them together
-with the `slide_extractor.md` rules and the transcript (as text context) to the
-configured OpenRouter model in a single chat-completions call, and writes the
-returned markdown to `<name>.slides.md`. The write is idempotent (skip if the
-file already exists) and the manifest gate prevents re-issuing the paid call.
+Two stages, each behind a small **backend interface**, selected by config:
 
-`agent.py` is changed so that, when a non-empty `<name>.slides.md` exists, the
-summary prompt **embeds that markdown text** (fenced, non-XML) with an
-instruction to incorporate it as the "Slide Descriptions" section — `agy`
-receives no image paths and does no vision. An empty `<name>.slides.md` is
-treated exactly like slides-off (block omitted). A new optional `openrouter`
-config section holds the API-key env-var name, model, and base URL, plus a
-`timeouts.slides` key.
+```
+describe_slides stage  -> backend in {AgySlidesBackend, OpenRouterSlidesBackend}
+summarize stage        -> backend in {AgySummarizeBackend, OpenRouterSummarizeBackend}
+```
+
+- Each stage is a manifest-tracked orchestrator step in `__main__._process_one`.
+  The `pipeline` stage stays ffmpeg + scenedetect + transcribe only (no network).
+- `describe_slides` (when `stages.slides`) runs after `pipeline`, before
+  `summarize`, and writes `<name>.slides.md`. Manifest-gated so a paid backend
+  call is not re-issued on retry.
+- `summarize` reads the transcript + `<name>.slides.md` and produces `<name>.md`
+  + `<name>.telegram.md` (+ Notion). Both backends yield the same artifacts.
 
 ```mermaid
 flowchart TD
-    subgraph pipeline_stage[pipeline manifest stage]
-        A[ffmpeg mp3] --> C{slides?}
-        C -- yes --> S[scenedetect slides .jpg + scenes.csv]
-        C -- no --> D[transcribe .txt]
-        S --> D
-    end
-    D --> E{slides on?}
-    E -- yes --> F[describe_slides stage - manifest-gated OpenRouter call -> name.slides.md]
-    E -- no --> G[summarize with agy - text only]
-    F --> G
-    G --> H[telegram] --> I[s3] --> J[cleanup]
+    P[pipeline: ffmpeg + scenedetect + transcribe] --> Q{stages.slides?}
+    Q -- yes --> DS[describe_slides stage]
+    Q -- no --> SUM[summarize stage]
+    DS -->|backend=agy| DA[agy reads images -> slides.md]
+    DS -->|backend=openrouter| DO[OpenRouter vision call -> slides.md]
+    DA --> SUM
+    DO --> SUM
+    SUM -->|backend=agy| SA[agy writes md + digest + Notion]
+    SUM -->|backend=openrouter| SO[OpenRouter text call -> engine writes md + digest; Notion per D1]
+    SA --> T[telegram] --> S3[s3] --> CL[cleanup]
+    SO --> T
 ```
 
 ### Config model additions
 
 ```python
+BACKENDS = ("agy", "openrouter")
+
+@dataclass
+class SlidesStage:
+    enabled: bool                 # was stages.slides
+    backend: str = "agy"          # "agy" | "openrouter"
+
+@dataclass
+class Summary:                    # existing; add backend
+    language: str                 # "en" | "original"
+    sections: list[str]
+    backend: str = "agy"          # "agy" | "openrouter"
+
 @dataclass
 class OpenRouter:
     api_key_env: str
-    model: str = "google/gemini-2.0-flash-001"
     base_url: str = "https://openrouter.ai/api/v1"
+    slides_model: str = "google/gemini-2.0-flash-001"   # vision
+    summary_model: str = "google/gemini-2.0-flash-001"  # text
 
 @dataclass
 class Timeouts:
-    ffmpeg: int = DEFAULT_TIMEOUT_SECONDS
-    scenedetect: int = DEFAULT_TIMEOUT_SECONDS
-    slides: int = DEFAULT_TIMEOUT_SECONDS       # NEW
-    elevenlabs: int = DEFAULT_TIMEOUT_SECONDS
-    agy: int = DEFAULT_TIMEOUT_SECONDS
-    s3: int = DEFAULT_TIMEOUT_SECONDS
+    ffmpeg: int = 900
+    scenedetect: int = 900
+    slides: int = 900             # NEW
+    elevenlabs: int = 900
+    agy: int = 900
+    s3: int = 900
 
-# Config gains: openrouter: Optional[OpenRouter] = None
-# Validation: if stages.slides and openrouter is None -> ConfigError
+# Config: openrouter: Optional[OpenRouter] = None
+# Validation: openrouter required iff any selected backend == "openrouter";
+#             backend values validated against BACKENDS.
 ```
 
-### Config shape (YAML)
+Backward-compat note: the existing `stages.slides: bool` is generalized. Keep the
+loader tolerant — accept the legacy `stages.slides: true/false` bool and map it
+to `SlidesStage(enabled=..., backend="agy")`, OR require the new nested shape and
+update all configs/examples in Task 6. **Open Decision D2** (Task 1) picks one;
+default recommendation: accept both shapes for a smooth migration.
 
-```yaml
-stages:
-  slides: true
-  s3_sync: false
-openrouter:
-  api_key_env: OPENROUTER_API_KEY      # env-var NAME, resolved at use time
-  model: google/gemini-2.0-flash-001   # cheap vision model (default)
-  base_url: https://openrouter.ai/api/v1
-timeouts:
-  slides: 600
-```
-
-### New module: `transcriber/slides_describe.py`
+### Backend interfaces (sketch)
 
 ```python
-class SlideDescribeError(RuntimeError): ...
+# transcriber/backends/slides.py
+class SlidesBackend(Protocol):
+    def describe(self, slides: Sequence[SlideInput], transcript_text: str,
+                 config: Config, *, timeout: float) -> str: ...
 
-def describe_slides(
-    slides: Sequence[SlideInput],   # (image_path, start_ts, end_ts) per slide
-    transcript_text: str,
-    config: Config,
-    *,
-    timeout: float,
-) -> str:
-    """Return slide-description markdown from a single OpenRouter vision call.
-
-    Empty slide list -> returns "" without an HTTP call (valid empty result).
-    A valid empty model response -> returns "" (NOT an error).
-    Raises SlideDescribeError only on transport/format failure (non-2xx after
-    bounded 429/5xx retries, malformed JSON, or missing message content).
-    """
+# transcriber/backends/summarize.py
+class SummarizeBackend(Protocol):
+    def summarize(self, transcript_path: Path, slides_markdown: str | None,
+                  recording_dir: Path, config: Config) -> SummaryResult: ...
+    # SummaryResult: paths to <name>.md and <name>.telegram.md (both written).
 ```
 
-Behavior:
-- Resolve the key via `resolve_env(config.openrouter.api_key_env)`.
-- Read `prompt_templates/slide_extractor.md`; build one user message: a leading
-  text part (extractor rules + language instruction + transcript context),
-  then, per slide in deterministic order, a small text part naming its
-  `Timestamp: MM:SS - MM:SS` (from `<name>.scenes.csv`; `unknown` when missing)
-  followed by that slide's `image_url` part (`data:image/jpeg;base64,...`).
-- **Downscale** each JPEG to a bounded max dimension (e.g. long edge ≤ 1024 px)
-  before base64 to cap tokens/cost; scenedetect frames are full-resolution video
-  frames, so this materially reduces payload size. State the max dimension as a
-  module constant.
-- Send headers `Authorization: Bearer <key>`, plus `HTTP-Referer` and `X-Title`
-  (OpenRouter attribution — some models/rankings expect them; harmless
-  otherwise). Never log these headers or the body.
-- POST to `{base_url}/chat/completions` via `httpx` honoring `timeout`; retry
-  `429`/`5xx` with bounded exponential backoff (R11); return
-  `choices[0].message.content` (empty/whitespace → `""`, a valid empty result).
+- `AgySlidesBackend` drives `agy` to write `<name>.slides.md` (reuses the
+  existing prompt-building + `run_agent` seam, scoped to the slides sub-task).
+- `OpenRouterSlidesBackend` = the single vision chat-completions call
+  (timestamps + downscale + retry) described below.
+- `AgySummarizeBackend` = today's `run_agent` (writes md + digest + Notion).
+- `OpenRouterSummarizeBackend` = text chat-completions call; the **engine** writes
+  the two files and handles Notion per R11/D1.
 
-The single HTTP call keeps cost and latency bounded and gives the model all
-slides + transcript at once for cross-slide dedup/context (matching the
-extractor rules). **Payload ceiling:** a very long meeting can produce many
-slides; downscaling plus JPEG keeps per-image size small, but implementers
-should note the target model's context/request-size limits. If the encoded
-payload is implausibly large, that is an accepted `SlideDescribeError`
-(transport failure) rather than a silently truncated request; document the
-expected practical max (tens of slides).
+### OpenRouter vision call (slides backend)
+
+Behavior mirrors the prior design: resolve key via `resolve_env`; read
+`slide_extractor.md`; build one user message = leading text part (rules +
+language + transcript context), then per slide a `Timestamp: MM:SS - MM:SS` text
+part (from `<name>.scenes.csv`; `unknown` when missing) + `image_url` part;
+**downscale** each JPEG to a bounded long edge (module constant, e.g. 1024 px)
+before base64; headers `Authorization`, `HTTP-Referer`, `X-Title`; POST with
+`timeout`; retry `429`/`5xx` with bounded backoff; return
+`choices[0].message.content` (empty/whitespace → `""`). Single call bounds
+cost/latency and preserves cross-slide dedup. Practical ceiling: tens of slides;
+implausibly large payload → `SlideDescribeError`.
 
 ## Task Breakdown
 
-### Task 1 — Config: `openrouter` section + `timeouts.slides` + validation
+### Task 1 — Config: per-stage `backend`, `openrouter` section, validation
 
-**Objective.** Extend `transcriber/config.py` with an optional `OpenRouter`
-dataclass (`api_key_env`, `model` default `google/gemini-2.0-flash-001`,
-`base_url` default `https://openrouter.ai/api/v1`), built present-or-`None` like
-`s3`. Add `slides: int = DEFAULT_TIMEOUT_SECONDS` to `Timeouts` (place it after
-`scenedetect`). Add validation: when `stages.slides` is true and `openrouter` is
-`None`, raise `ConfigError` with a clear message (mirrors the S3
-"required-only-when-enabled" rule).
+**Objective.** Generalize `stages.slides` to carry a `backend`; add
+`summary.backend`; add an optional `OpenRouter` section (api_key_env, base_url,
+slides_model, summary_model); add `timeouts.slides`. Validate backend values
+against `("agy","openrouter")` and require `openrouter` iff any selected backend
+is `openrouter`.
 
-**Implementation guidance.** Follow the `S3` optional-section pattern in
-`_from_dict` (`data.get("openrouter")` → `_build_section` or `None`). Perform
-the slides/openrouter cross-field check next to the existing
-`summary.language` validation.
+**Implementation guidance.** Resolve **Open Decision D2** (accept legacy
+`stages.slides: bool` and coerce to `SlidesStage(enabled, backend="agy")`, vs.
+require nested shape). Recommended: accept both. Follow the `S3` optional-section
+pattern for `openrouter`. Put backend-value validation and the
+"openrouter-required-iff-used" cross-field check next to the `summary.language`
+validation.
 
-**Test requirements** (`tests/test_config.py`, extend `BASE_CONFIG`):
-- JSON/YAML parity produces identical models with `openrouter` present.
-- `openrouter` omitted with `stages.slides: false` → `cfg.openrouter is None`.
-- `stages.slides: true` without `openrouter` → `ConfigError` mentioning
-  `openrouter`.
-- `openrouter` with only `api_key_env` uses default `model` and `base_url`.
-- `timeouts.slides` defaults to 900 and is overridable; existing timeout tests
-  still pass.
+**Test requirements** (`tests/test_config.py`):
+- Defaults: omitted backends → both `"agy"`; no `openrouter` needed.
+- `slides.backend: openrouter` (or `summary.backend: openrouter`) without
+  `openrouter` section → `ConfigError`.
+- Invalid backend value → `ConfigError` listing allowed values.
+- `openrouter` parses `base_url`/`slides_model`/`summary_model` defaults.
+- Legacy `stages.slides: true` still loads (if D2 = accept-both).
+- `timeouts.slides` defaults to 900 and is overridable.
 
-**Demo.** `load()` a slides-on config with `openrouter` and assert
-`cfg.openrouter.model` and `cfg.timeouts.slides`; show a slides-on config
-without `openrouter` raising a clear `ConfigError`.
+**Demo.** Load each of the four backend combinations; show a missing
+`openrouter` section error when a stage selects it.
 
-### Task 2 — OpenRouter vision client (`slides_describe.py`)
+### Task 2 — Backend interfaces + OpenRouter client core
 
-**Objective.** New module exposing `describe_slides(slides, transcript_text,
-config, *, timeout) -> str` and `SlideDescribeError`, where each `slides` entry
-carries an image path plus optional `(start_ts, end_ts)`.
+**Objective.** Introduce the `SlidesBackend` / `SummarizeBackend` interfaces and
+a shared OpenRouter HTTP helper (auth headers, retry/backoff, log hygiene,
+error type). No stage wiring yet.
 
-**Implementation guidance.** Sort slides deterministically (by scene/index).
-Downscale each `.jpg` to a bounded long-edge max (module constant, e.g. 1024 px)
-then base64-encode into a `data:image/jpeg;base64,...` URL. Build the
-OpenAI-compatible chat-completions payload: leading text part (extractor rules +
-language instruction + transcript context), then per slide a small text part
-naming `Timestamp: MM:SS - MM:SS` (from the passed timing; `unknown` when
-missing) immediately followed by that slide's `image_url` part. Resolve the key
-with `resolve_env(config.openrouter.api_key_env)`; send `Authorization: Bearer
-<key>`, `HTTP-Referer`, and `X-Title`. Use `httpx` with the given `timeout`.
-Retry `429`/`5xx` with bounded exponential backoff (small capped attempts) then
-raise `SlideDescribeError`. On non-2xx (after retries), malformed JSON, or
-missing `choices[0].message.content` → raise `SlideDescribeError`. Empty slide
-list → return `""` with **no** HTTP call. A valid empty/whitespace model
-response → return `""` (NOT an error). Keep the module free of
-pipeline/orchestration concerns. **Log hygiene:** `SlideDescribeError` messages
-and any logging must include only status + a short body snippet — never the
-`Authorization` header, `HTTP-Referer`/`X-Title`, or base64 image bytes.
+**Implementation guidance.** Add `transcriber/backends/` (or top-level modules).
+Shared helper `_openrouter_chat(config, messages, model, *, timeout) -> str`
+handling headers, `429`/`5xx` retry, and `SlideDescribeError`/`SummarizeError`
+on transport/format failure. Log hygiene: never include key/headers/base64 in
+errors or logs.
 
-**Test requirements** (`tests/test_slides_describe.py`, mock `httpx`):
-- Request shape: correct URL (`{base_url}/chat/completions`), `Authorization`
-  header present, `model` from config, exactly one `image_url` part per slide,
-  each URL starting with `data:image/jpeg;base64,`, and a `Timestamp:` text part
-  preceding each image.
-- 200 response → returns `choices[0].message.content`.
-- Valid empty/whitespace content → returns `""` (no exception).
-- 4xx (non-429) / malformed JSON → `SlideDescribeError`.
-- **Retry:** `429` then `200` → succeeds after backoff (patch sleep); repeated
-  `5xx` → `SlideDescribeError` after the capped attempts.
-- Empty slide list → returns `""` and makes **no** HTTP call.
-- Missing API-key env var → `MissingEnvVarError` (from `resolve_env`).
-- **Log hygiene:** on error, the raised message contains neither the key/header
-  values nor base64 bytes.
+**Test requirements** (`tests/test_backends.py`, mock `httpx`):
+- Helper sends `Authorization`+`HTTP-Referer`+`X-Title`, correct URL, model.
+- Retry `429`→`200` succeeds (patch sleep); persistent `5xx` → error after cap.
+- Malformed JSON / missing content → error.
+- Errors carry status + short snippet only (no secrets/bytes).
 
-**Demo.** With a mocked `httpx` transport, run over two fixture images (with fake
-timestamps) and print the returned markdown; simulate a 429→200 and a persistent
-500 to show retry then failure.
+**Demo.** Drive the helper against a mocked transport for success, retry, and
+failure.
 
-### Task 3 — Slide-input assembly helper (scene timing); pipeline stays network-free
+### Task 3 — Slides backends (agy + openrouter) + slide-input helper
 
-**Objective.** Provide the inputs the `describe_slides` call needs, **without**
-making the paid call inside `pipeline.process_recording`. The `pipeline` stage
-remains ffmpeg + scenedetect + transcribe only (single-owner rule, E1). Add a
-helper that gathers the ordered slide images and their scene timestamps.
+**Objective.** Implement `AgySlidesBackend` and `OpenRouterSlidesBackend`, plus
+`build_slide_inputs(recording_dir, name)` (ordered images joined to
+`<name>.scenes.csv` timing; missing → `unknown`; zero images → `[]`). Both
+backends write/return the slide markdown; empty result → `""` (R9). Pipeline
+stays network-free.
 
-**Implementation guidance.** Add a helper (in `slides_describe.py` or a small
-`slides_index.py`) `build_slide_inputs(recording_dir, name) -> list[SlideInput]`
-that lists `extracted_slides.<name>/*.jpg` in deterministic order and joins each
-to its `(start_ts, end_ts)` by parsing `<name>.scenes.csv` (scenedetect's
-`list-scenes -f` output). Missing/unparseable timing → `unknown`. Do **not**
-add the OpenRouter call to `process_recording`; `RecordingResult` is unchanged
-by this task (the `<name>.slides.md` artifact is produced by the orchestrator
-step in Task 5). Zero `.jpg` files → returns `[]` (drives the empty-result path,
-R10).
+**Implementation guidance.** OpenRouter backend = the vision call above
+(timestamps, downscale, single request). Agy backend = a scoped `agy` run that
+writes `<name>.slides.md` only (reuse prompt building). Neither lives in
+`process_recording`.
 
-**Test requirements** (`tests/test_slides_describe.py` or `tests/test_pipeline.py`):
-- `build_slide_inputs` returns images in stable order with timestamps joined
-  from a fixture `scenes.csv`.
-- Missing `scenes.csv` or unmatched image → timing `unknown`, no exception.
-- Zero images → `[]`.
-- `pipeline.process_recording` makes **no** network/`describe_slides` call
-  (existing pipeline tests still pass unchanged).
+**Test requirements** (`tests/test_backends.py` / `tests/test_slides.py`):
+- `build_slide_inputs`: stable order, timing joined from fixture CSV, `unknown`
+  on miss, `[]` on zero images.
+- OpenRouter backend request shape: one `image_url` per slide, `Timestamp:` part
+  before each; empty images → no HTTP call, returns `""`.
+- Agy backend (mock `run_agent`): writes `<name>.slides.md`.
+- `pipeline.process_recording` makes no slides-backend call.
 
-**Demo.** Run `build_slide_inputs` on a fixture slides dir + `scenes.csv` and
-print the ordered `(path, start, end)` tuples.
+**Demo.** Run each backend (mocked) over a fixture slides dir → `<name>.slides.md`.
 
-### Task 4 — Agent: embed slide markdown as text (drop images from `agy`)
+### Task 4 — Summarize backends (agy + openrouter)
 
-**Objective.** Change `agent.py` so the slide block, when present, embeds the
-pre-generated slide markdown (text) instead of listing image paths, and `agy`
-receives no images.
+**Objective.** Implement `AgySummarizeBackend` (today's `run_agent`) and
+`OpenRouterSummarizeBackend` (engine calls OpenRouter for summary + digest text,
+engine writes `<name>.md` + `<name>.telegram.md`; Notion per R11/D1). Both take
+`slides_markdown` (text) and omit the slide block when empty (R3).
 
-**Implementation guidance.** Rework `_slide_block` to accept
-`slides_markdown: str | None`; when it is a **non-empty, non-whitespace** string,
-wrap it in a non-XML fence (reuse `_fence_for`) with an instruction to
-incorporate it as the "Slide Descriptions" section (verbatim or lightly edited),
-preserving native Notion markdown. When `None` **or empty/whitespace** (R10),
-return `""` (block omitted, identical to slides-off). Update `build_prompt` and
-`run_agent` signatures to take `slides_markdown` instead of `slide_image_paths`.
-`run_agent` reads `<name>.slides.md` if the caller passes its path, or accepts
-the markdown string directly (choose one and keep the orchestrator wiring in
-Task 5 consistent). Keep the transcript fence and injection guards intact.
-Workspace exposure (`add_dirs`) remains for file read/write + Notion.
+**Implementation guidance.** Refactor `agent.py` so `_slide_block` accepts
+`slides_markdown: str | None` (embed fenced text when non-empty; omit when
+empty/whitespace) — no image paths. `AgySummarizeBackend` keeps the
+file-is-source-of-truth + Notion-via-MCP contract. `OpenRouterSummarizeBackend`
+builds a text prompt from `summary.md` template + transcript + slide markdown,
+calls the summary model, writes both files, then performs Notion per D1
+(engine-owned minimal Notion client, or skip-with-warning for the first cut).
 
-**Test requirements** (`tests/test_agent.py`):
-- Prompt embeds the slide markdown (fenced) when a non-empty string is provided.
-- Slide block omitted when `slides_markdown` is `None`, `""`, or whitespace-only.
-- No image paths appear anywhere in the prompt.
-- Existing transcript-fence / injection-guard tests still pass.
+**Test requirements** (`tests/test_agent.py` / `tests/test_backends.py`):
+- `_slide_block` embeds markdown when non-empty; omits on `None`/`""`/whitespace;
+  no image paths in the prompt.
+- Agy summarize: existing behavior/tests intact (writes md/digest, Notion prompt).
+- OpenRouter summarize (mock httpx): writes `<name>.md` + `<name>.telegram.md`
+  from the response; on `summary.backend=openrouter`, Notion is either published
+  via the engine client or a clear warning is logged (per D1).
 
-**Demo.** Build a prompt with a sample `slides.md` and show the embedded Slide
-Descriptions block; build one with `None` and one with `"   "` and show both
-omit the block.
+**Demo.** Produce a summary via each backend (mocked) and show both files written.
 
-### Task 5 — Orchestrator wiring (`__main__.py` + `state.py`) — owns the paid call
+### Task 5 — Orchestrator wiring (`__main__.py` + `state.py`)
 
-**Objective.** Add a manifest-gated `describe_slides` stage that **makes the
-OpenRouter call and writes `<name>.slides.md`** (single owner, E1), runs after
-`pipeline` and before `summarize` when `stages.slides` is on, and feeds the
-resulting markdown into the summarize call.
+**Objective.** Add the manifest-tracked `describe_slides` stage (gated on
+`stages.slides.enabled`) that selects and runs the configured slides backend and
+writes `<name>.slides.md`; change the `summarize` stage to select and run the
+configured summarize backend, passing the slide markdown. Feed Telegram from the
+digest as today.
 
 **Implementation guidance.**
-- `state.py`: insert `"describe_slides"` into `STAGES` immediately after
-  `"pipeline"`. **Also update the module docstring's "Tracked stages" list** and
-  any test that asserts the full `STAGES` tuple (E2), so those do not break.
-- `__main__.py::_process_one`: add a `describe_slides` step gated by
-  `state.is_complete("describe_slides")` and `stages.slides`. It: builds slide
-  inputs (Task 3 helper), reads the transcript text, calls
-  `slides_describe.describe_slides(...)` with `config.timeouts.slides`, writes
-  the returned markdown to `<name>.slides.md` (idempotent: skip the call if the
-  file already exists), logs model id + slide count + elapsed time (R13), and
-  marks the stage complete. The manifest gate ensures a crash after the call does
-  not re-issue it on retry. A `SlideDescribeError` fails this recording
-  (isolated); an empty result writes an empty file and still completes (R10).
-- Change the `summarize` call to pass the slide markdown: add
-  `_slides_markdown_path(mp4)` → `<name>.slides.md`; read its text when present
-  (empty/whitespace → treated as no slides), and pass it instead of
-  `_slide_image_paths`.
-- `_enabled_stage_names`: add `"describe-slides"` right after `transcribe` when
-  `stages.slides` is on.
-- `_required_env_vars`: append `config.openrouter.api_key_env` when
-  `stages.slides` is on (and `openrouter` present).
+- `state.py`: insert `"describe_slides"` after `"pipeline"`; update the docstring
+  "Tracked stages" list and any `STAGES`-tuple-asserting test.
+- `_process_one`: `describe_slides` step (manifest-gated) → build slide inputs,
+  read transcript, run slides backend, write `<name>.slides.md` (idempotent skip
+  if present), log stage/model/size/elapsed (R17), mark complete. Then
+  `summarize` step selects the backend and runs it. A backend failure fails the
+  recording (isolated); an empty slide result writes an empty file and completes.
+- Backend selection = pure function of config (`slides.backend`,
+  `summary.backend`).
+- `_enabled_stage_names`: add `"describe-slides"` after `transcribe` when slides
+  on; keep `"summarize"`.
+- `preflight_check`/`_required_env_vars`: require the OpenRouter env var iff any
+  selected backend is `openrouter`; require `agy` on PATH iff any selected
+  backend is `agy`.
 
-**Test requirements** (`tests/test_main.py`, monkeypatch `describe_slides`):
+**Test requirements** (`tests/test_main.py`, monkeypatch backends):
 - Dry-run plan lists `describe-slides` only when slides on.
-- The `describe_slides` step calls the client once and writes `<name>.slides.md`;
-  a completed `describe_slides` in the manifest **skips** the call on retry.
-- An empty client result writes an empty file and still marks the stage done;
-  summarize then omits the slide block.
-- Summarize receives the slide markdown (path/text); no image paths.
-- Pre-flight flags a missing OpenRouter key env var when slides on.
+- Correct backend chosen per config for each of the four combinations.
+- `describe_slides` manifest-gated: skipped on retry when complete.
+- Summarize receives slide markdown; no image paths.
+- Pre-flight requires OpenRouter env var only when a stage uses it; requires
+  `agy` only when a stage uses it.
 
-**Demo.** `--dry-run` on a slides-on config shows `describe-slides`; a mocked
-client run writes `<name>.slides.md` and a re-run does not call the client again;
-`check` fails when the OpenRouter key env var is unset.
+**Demo.** `--dry-run` shows `describe-slides`; a mocked (openrouter, agy) run
+writes `<name>.slides.md` then summarizes via `agy`; a re-run skips the paid call.
 
-### Task 6 — Cleanup, docs/config, and full verification
+### Task 6 — Notion under the OpenRouter summarize backend (Decision D1)
 
-**Objective.** Teach cleanup about `<name>.slides.md`; update in-repo docs and
-examples; verify the whole suite.
+**Objective.** Resolve how Notion publishing works when `summary.backend ==
+"openrouter"` (OpenRouter cannot use MCP/tools).
+
+**Open Decision D1 (author picks in this task):**
+- **D1-a (recommended, fuller):** add a minimal engine-owned Notion client
+  (`transcriber/publish/notion.py`, `httpx`) that creates the subpage under
+  `notion.parent_page_id` and links it at the top of the parent — mirroring what
+  the `agy` prompt instructs. Requires a Notion integration token (new env-var
+  name in config, secret-by-name per R12).
+- **D1-b (smaller first cut):** when `summary.backend=openrouter`, **skip Notion
+  and log a clear warning** that Notion publishing requires `summary.backend=agy`.
+  Files + Telegram still work.
+
+**Implementation guidance.** Pick D1-a or D1-b and implement; if D1-a, add the
+Notion token env-var to config + pre-flight (required iff openrouter summarize).
+
+**Test requirements.** D1-a: mock the Notion client; assert subpage-create call
+shape and token-by-name resolution. D1-b: assert the warning path and that files
++ Telegram still proceed.
+
+**Demo.** Run an (any, openrouter) summarize (mocked) and show Notion published
+(D1-a) or the warning logged with files written (D1-b).
+
+### Task 7 — Cleanup, docs/config, verification
+
+**Objective.** Cleanup for `<name>.slides.md`; docs/examples for the new config;
+full verification.
 
 **Implementation guidance.**
-- `cleanup.py`: add `".slides.md"` handling. Because it ends in `.md`, add a
-  special-case in `_has_keep_suffix` (like `.telegram.md`) so `<name>.slides.md`
-  is deletable while the durable `<name>.md` is kept; add it to
-  `intermediate_paths` candidates. Confirm `--keep-intermediates` preserves it.
-- `README.md`: update the pipeline stage list; add the schema rows
-  `openrouter.api_key_env`, `openrouter.model`, `openrouter.base_url`, and
-  `timeouts.slides`; and add a short **privacy note** (R12) stating that enabling
-  slides sends slide imagery and transcript text to OpenRouter (a third party),
-  so operators with sensitive content choose accordingly.
-- `examples/example.config.yaml` and `examples/acme.config.yaml`: add an
-  `openrouter` block (env-var name only).
-- **Out of scope:** do **not** edit any host repo config. Host repos live
-  outside this engine (submodule design); adding an `openrouter` block to a
-  host's `config.yaml` is a **follow-up note for host maintainers**, not an
-  engine deliverable. (Removes the earlier reference to a
-  `flyvercity-ai-os/local-transcribe/config.yaml` path that does not exist in
-  this repo.)
+- `cleanup.py`: add `".slides.md"` with a `_has_keep_suffix` special-case (like
+  `.telegram.md`) so it is deletable while `<name>.md` is kept; add to
+  `intermediate_paths`; `--keep-intermediates` preserves it.
+- `README.md`: document the two stages, the per-stage `backend` selector, the
+  four combinations, the `openrouter` section + `timeouts.slides`, and a
+  **privacy note** (R16) that `openrouter` backends egress content to a third
+  party. Note the D1 Notion behavior.
+- `examples/example.config.yaml` / `acme.config.yaml`: show the new shape
+  (e.g. example = both `agy`; acme = slides `openrouter` + summarize `agy` with
+  an `openrouter` block, env-var name only).
+- Host config edits are **out of scope** (host repos own their configs; provide
+  a follow-up note for host maintainers).
 
 **Test requirements.**
-- `tests/test_cleanup.py`: cleanup deletes `<name>.slides.md` and keeps
-  `<name>.md` and `<name>.mp4`; `--keep-intermediates` preserves it.
-- `tests/test_examples.py`: example configs load and expose `openrouter`.
+- `tests/test_cleanup.py`: deletes `<name>.slides.md`, keeps `<name>.md`/`.mp4`;
+  `--keep-intermediates` preserves it.
+- `tests/test_examples.py`: example configs load; backends parse; `openrouter`
+  present where used.
 
-**Demo.**
-- `uv run pytest -q` fully green.
-- **Manual parity check (P2):** run one real slides-on recording through the new
-  path and eyeball the "Slide Descriptions" section against a prior `agy`-vision
-  output for quality parity (manual, not an automated test).
-- Optional: in a host checkout, after the host adds an `openrouter` block,
-  `uv run transcriber --config config.yaml --dry-run` prints a plan including
-  `describe-slides`.
+**Demo.** `uv run pytest -q` green. Manual parity check (R-success): one real
+slides-on recording with slides `openrouter` + summarize `agy`; eyeball the
+Slide Descriptions vs. a prior all-`agy` run.
+
+## Open Decisions (resolve during implementation)
+
+- **D1 — Notion under OpenRouter summarize backend:** engine-owned Notion client
+  (D1-a) vs. skip-with-warning (D1-b). Task 6.
+- **D2 — Config migration for `stages.slides`:** accept legacy bool + coerce
+  (recommended) vs. require the new nested `{enabled, backend}` shape. Task 1.
 
 ## Defaults / Decisions
 
-- **Model default:** `google/gemini-2.0-flash-001` (cheap, strong vision, large
-  context), fully overridable via `openrouter.model`.
-- **Failure policy:** a *transport/format* OpenRouter failure fails the
-  `describe_slides` stage (isolated, retryable through the manifest) with no
-  silent fallback to `agy` vision (R5). A **valid empty description is not a
-  failure** — it writes an empty `<name>.slides.md` and the summary omits the
-  block (R10).
-- **Single owner:** the paid OpenRouter call + `<name>.slides.md` write live in
-  the manifest-gated `describe_slides` orchestrator step, not in
-  `pipeline.process_recording`, so the manifest protects the paid call on retry
-  (E1).
-- **Timestamps in payload:** per-slide `MM:SS - MM:SS` timing (from
-  `<name>.scenes.csv`) is sent alongside each image so the extractor's Timestamp
-  requirement (R6) is actually satisfiable.
-- **Single call:** all slides + transcript are sent in one chat-completions
-  request to preserve cross-slide dedup/context and bound cost/latency.
-- **Image downscale (E8):** slide JPEGs are downscaled to a bounded long edge
-  (module constant, e.g. 1024 px) before base64 to cap tokens/cost.
-- **Payload ceiling (E5):** practical max is tens of slides; an implausibly large
-  encoded payload is an accepted `SlideDescribeError`, not a silent truncation.
-- **Retry (R11):** bounded exponential backoff on `429`/`5xx` before failing.
-- **Attribution headers (E12):** send `HTTP-Referer` and `X-Title` in addition to
-  `Authorization` (expected by some OpenRouter models/rankings; harmless
-  otherwise).
-- **Privacy (R12):** enabling slides egresses slide imagery + transcript text to
-  OpenRouter; documented in spec + README; key/headers/bytes never logged.
-- **Observability (R13):** per-call INFO log of model id, slide count, elapsed
-  time — supplies the motivation baseline.
-- **Alternative rejected:** cheapening `agy`'s own model instead of a dedicated
-  stage — `agy`'s model isn't per-stage configurable here and a cheaper general
-  agent would degrade summary/Notion quality; decoupling lets vision and summary
-  scale/price independently.
-- **No new dependency:** `httpx` is already declared.
+- **Backends default to `agy`** for both stages → today's behavior with no config
+  change (R4).
+- **Orthogonal selection:** the two backend choices are independent (R5/R6).
+- **Single owner for paid calls:** OpenRouter calls live in the manifest-gated
+  orchestrator steps, not in `pipeline.process_recording`, so retries don't
+  re-issue paid calls.
+- **Slides OpenRouter call:** single request, per-slide timestamps from
+  `scenes.csv`, JPEG downscale to a bounded long edge, `429`/`5xx` backoff.
+- **No silent fallback (R19):** a selected backend's failure fails the stage
+  (retryable); it never silently switches backends. A *valid empty* slide result
+  is not a failure.
+- **Notion constraint (R11):** OpenRouter can't publish to Notion; the engine
+  either publishes via its own client (D1-a) or skips with a warning (D1-b).
+- **Privacy (R16) / Observability (R17):** documented egress; per-call INFO logs
+  of stage/model/size/elapsed; secrets and bytes never logged.
+- **Dependencies:** `httpx` already declared; the optional Notion client (D1-a)
+  reuses it. No new hard dependency.
