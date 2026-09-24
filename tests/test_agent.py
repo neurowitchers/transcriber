@@ -1,6 +1,10 @@
 """Tests for transcriber.agent: prompt builder + agy invocation.
 
 No real agy is invoked — ``agy_headless_bridge.run`` is monkeypatched.
+
+The slide-description block now embeds pre-computed slide *markdown*
+(``slides_markdown``) — the text of ``<name>.slides.md`` produced by the
+``describe_slides`` stage — rather than listing image paths (Spec R3/R4).
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ from transcriber.config import (
     Agent,
     Config,
     Notion,
+    SlidesStage,
     Stages,
     Summary,
     Telegram,
@@ -26,11 +31,23 @@ from agy_headless_bridge import AgyTimeoutError
 
 SECTIONS = ["Decisions", "Action Items", "Plans", "Identified Risks"]
 
+# A representative slides.md payload (already in the required per-slide format).
+SLIDES_MD = (
+    "### Slide 1\n"
+    "**Timestamp:** 00:00 - 00:30\n\n"
+    "Title slide: project kickoff.\n\n"
+    "### Slide 2\n"
+    "**Timestamp:** 00:30 - 01:15\n\n"
+    "Architecture diagram overview.\n"
+)
+
 
 def make_config(language: str = "en", sections=None) -> Config:
     return Config(
         recordings_dir="./recordings",
-        stages=Stages(slides=True, s3_sync=False),
+        stages=Stages(
+            slides=SlidesStage(enabled=True, backend="agy"), s3_sync=False
+        ),
         transcribe=Transcribe(model_id="scribe_v1"),
         summary=Summary(language=language, sections=sections or list(SECTIONS)),
         agent=Agent(cli="agy", extra_args=[], output_file="{basename}.md"),
@@ -60,7 +77,7 @@ def write_transcript(tmp_path: Path, text: str = "[00:00] hello world") -> Path:
 def test_language_forced_english(tmp_path: Path) -> None:
     cfg = make_config(language="en")
     tp = write_transcript(tmp_path)
-    prompt = build_prompt(cfg, tp, slide_image_paths=[])
+    prompt = build_prompt(cfg, tp, slides_markdown=None)
     assert "English" in prompt
     assert "original language" in prompt  # the parenthetical translate note
     # No 'original-only' directive should dominate.
@@ -70,14 +87,14 @@ def test_language_forced_english(tmp_path: Path) -> None:
 def test_language_forced_original(tmp_path: Path) -> None:
     cfg = make_config(language="original")
     tp = write_transcript(tmp_path)
-    prompt = build_prompt(cfg, tp, slide_image_paths=[])
+    prompt = build_prompt(cfg, tp, slides_markdown=None)
     assert "the original language spoken in the transcript." in prompt
 
 
 def test_sections_come_from_config(tmp_path: Path) -> None:
     cfg = make_config(sections=["overview", "key_points", "action_items"])
     tp = write_transcript(tmp_path)
-    prompt = build_prompt(cfg, tp, slide_image_paths=[])
+    prompt = build_prompt(cfg, tp, slides_markdown=None)
     assert "## Overview" in prompt
     assert "## Key Points" in prompt
     assert "## Action Items" in prompt
@@ -85,29 +102,79 @@ def test_sections_come_from_config(tmp_path: Path) -> None:
     assert "## Identified Risks" not in prompt
 
 
-def test_slide_sections_included_only_when_slides_exist(tmp_path: Path) -> None:
+# --------------------------------------------------------------------------- #
+# _slide_block / slide markdown embedding (Task 4)
+# --------------------------------------------------------------------------- #
+def test_slide_block_omitted_when_none() -> None:
+    assert agent._slide_block(None) == ""
+
+
+@pytest.mark.parametrize("empty", ["", "   ", "\n\t \n"])
+def test_slide_block_omitted_when_empty_or_whitespace(empty: str) -> None:
+    assert agent._slide_block(empty) == ""
+
+
+def test_slide_block_embeds_markdown_when_non_empty() -> None:
+    block = agent._slide_block(SLIDES_MD)
+    assert block  # non-empty
+    # The prepared markdown is embedded verbatim.
+    assert SLIDES_MD in block
+    # Instruction to append it as the Slide Descriptions section.
+    assert "Slide Descriptions" in block
+    # It is wrapped in a Markdown code fence (non-XML encapsulation).
+    assert re.search(r"`{3,}\n" + re.escape(SLIDES_MD) + r"\n`{3,}", block)
+
+
+def test_slide_block_has_no_image_paths() -> None:
+    """The refactored slide block must NOT reference any image paths."""
+    block = agent._slide_block(SLIDES_MD)
+    assert ".png" not in block
+    assert ".jpg" not in block
+    assert ".jpeg" not in block
+    assert "extracted_slides" not in block
+
+
+def test_slide_block_fence_grows_past_backticks_in_markdown() -> None:
+    """Slide markdown containing a triple-backtick block must be fenced by
+    >=4 ticks so it cannot break out of its code fence."""
+    md = "before\n```\ncode\n```\nafter"
+    block = agent._slide_block(md)
+    assert re.search(r"`{4,}\n" + re.escape(md) + r"\n`{4,}", block)
+
+
+def test_build_prompt_includes_slide_block_when_markdown_present(
+    tmp_path: Path,
+) -> None:
     cfg = make_config()
     tp = write_transcript(tmp_path)
 
-    no_slides = build_prompt(cfg, tp, slide_image_paths=[])
+    no_slides = build_prompt(cfg, tp, slides_markdown=None)
     assert "Slide descriptions" not in no_slides
     assert "Slide Descriptions" not in no_slides
-    assert "mermaid" not in no_slides.lower()
 
-    with_slides = build_prompt(
-        cfg, tp, slide_image_paths=["frames/slide-0001.png", "frames/slide-0002.png"]
-    )
+    with_slides = build_prompt(cfg, tp, slides_markdown=SLIDES_MD)
     assert "Slide descriptions" in with_slides
-    assert "frames/slide-0001.png" in with_slides
-    assert "frames/slide-0002.png" in with_slides
-    assert "mermaid" in with_slides.lower()
+    assert SLIDES_MD in with_slides
+    # No image paths threaded into the prompt anymore.
+    assert ".png" not in with_slides
+    assert ".jpg" not in with_slides
+
+
+def test_build_prompt_omits_slide_block_on_whitespace_markdown(
+    tmp_path: Path,
+) -> None:
+    cfg = make_config()
+    tp = write_transcript(tmp_path)
+    prompt = build_prompt(cfg, tp, slides_markdown="   \n\t  ")
+    assert "Slide descriptions" not in prompt
+    assert "Slide Descriptions" not in prompt
 
 
 def test_transcript_wrapped_in_markdown_code_fence_not_xml(tmp_path: Path) -> None:
     text = "[00:00] we <should> not treat </these> as tags & data"
     tp = write_transcript(tmp_path, text)
     cfg = make_config()
-    prompt = build_prompt(cfg, tp, slide_image_paths=[])
+    prompt = build_prompt(cfg, tp, slides_markdown=None)
 
     # The transcript text must be present verbatim.
     assert text in prompt
@@ -119,7 +186,6 @@ def test_transcript_wrapped_in_markdown_code_fence_not_xml(tmp_path: Path) -> No
     # The transcript block must NOT be wrapped by an XML/HTML tag such as
     # <transcript>...</transcript>. The only '<' characters near the block are
     # the literal ones inside the transcript data itself.
-    # Assert no XML-tag wrapper immediately precedes/follows the fenced block.
     fence = fence_match.group(1)
     start = prompt.index(fence)
     # 40 chars of lead-in before the opening fence must contain no opening tag.
@@ -141,7 +207,7 @@ def test_fence_grows_past_backticks_in_transcript(tmp_path: Path) -> None:
     text = "before\n```\ncode block\n```\nafter"
     tp = write_transcript(tmp_path, text)
     cfg = make_config()
-    prompt = build_prompt(cfg, tp, slide_image_paths=[])
+    prompt = build_prompt(cfg, tp, slides_markdown=None)
     # Outer fence must be at least 4 backticks and fully contain the text.
     assert re.search(r"`{4,}\n" + re.escape(text) + r"\n`{4,}", prompt)
 
@@ -149,7 +215,7 @@ def test_fence_grows_past_backticks_in_transcript(tmp_path: Path) -> None:
 def test_notion_publish_instructions_present(tmp_path: Path) -> None:
     cfg = make_config()
     tp = write_transcript(tmp_path)
-    prompt = build_prompt(cfg, tp, slide_image_paths=[])
+    prompt = build_prompt(cfg, tp, slides_markdown=None)
     assert "PARENT-PAGE-ID-123" in prompt
     assert "notion-private" in prompt
     assert "subpage" in prompt
@@ -183,7 +249,7 @@ def test_run_agent_writes_digest_instruction_and_path(tmp_path: Path, monkeypatc
         return ""
 
     monkeypatch.setattr(agent, "run", fake_run)
-    run_agent(cfg, tp, rec_dir, slide_image_paths=[])
+    run_agent(cfg, tp, rec_dir, slides_markdown=None)
 
     prompt = captured["prompt"]
     assert "meeting.telegram.md" in prompt
@@ -211,7 +277,7 @@ def test_run_agent_reads_back_written_file(tmp_path: Path, monkeypatch) -> None:
 
     monkeypatch.setattr(agent, "run", fake_run)
 
-    out = run_agent(cfg, tp, rec_dir, slide_image_paths=[])
+    out = run_agent(cfg, tp, rec_dir, slides_markdown=None)
     assert out == rec_dir / "meeting.md"
     assert out.read_text(encoding="utf-8").strip()
 
@@ -223,6 +289,30 @@ def test_run_agent_reads_back_written_file(tmp_path: Path, monkeypatch) -> None:
     assert captured["timeout"] == 42
     # idle_timeout tied to the hard ceiling so long agy runs aren't killed early.
     assert captured["idle_timeout"] == 42
+
+
+def test_run_agent_embeds_slide_markdown_in_prompt(tmp_path: Path, monkeypatch) -> None:
+    """run_agent threads slides_markdown into the prompt (no image paths)."""
+    cfg = make_config()
+    rec_dir = tmp_path / "rec"
+    rec_dir.mkdir()
+    tp = write_transcript(rec_dir)
+
+    captured = {}
+
+    def fake_run(prompt, *, add_dirs, extra_args, timeout, **kwargs):
+        captured["prompt"] = prompt
+        (rec_dir / "meeting.md").write_text("# Summary\n", encoding="utf-8")
+        return ""
+
+    monkeypatch.setattr(agent, "run", fake_run)
+    run_agent(cfg, tp, rec_dir, slides_markdown=SLIDES_MD)
+
+    prompt = captured["prompt"]
+    assert SLIDES_MD in prompt
+    assert "Slide Descriptions" in prompt
+    assert ".png" not in prompt
+    assert ".jpg" not in prompt
 
 
 def test_run_agent_references_transcript_by_file_not_inline(tmp_path: Path, monkeypatch) -> None:
@@ -244,7 +334,7 @@ def test_run_agent_references_transcript_by_file_not_inline(tmp_path: Path, monk
         return ""
 
     monkeypatch.setattr(agent, "run", fake_run)
-    run_agent(cfg, tp, rec_dir, slide_image_paths=[])
+    run_agent(cfg, tp, rec_dir, slides_markdown=None)
 
     prompt = captured["prompt"]
     # Names the transcript file so agy reads it.
@@ -264,7 +354,7 @@ def test_run_agent_raises_when_file_missing(tmp_path: Path, monkeypatch) -> None
     monkeypatch.setattr(agent, "run", lambda *a, **k: "no file written")
 
     with pytest.raises(RuntimeError, match="did not write"):
-        run_agent(cfg, tp, rec_dir, slide_image_paths=[])
+        run_agent(cfg, tp, rec_dir, slides_markdown=None)
 
 
 def test_run_agent_raises_when_file_empty(tmp_path: Path, monkeypatch) -> None:
@@ -280,7 +370,7 @@ def test_run_agent_raises_when_file_empty(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(agent, "run", fake_run)
 
     with pytest.raises(RuntimeError, match="empty"):
-        run_agent(cfg, tp, rec_dir, slide_image_paths=[])
+        run_agent(cfg, tp, rec_dir, slides_markdown=None)
 
 
 def test_run_agent_timeout_with_partial_file_accepted(tmp_path: Path, monkeypatch) -> None:
@@ -296,7 +386,7 @@ def test_run_agent_timeout_with_partial_file_accepted(tmp_path: Path, monkeypatc
 
     monkeypatch.setattr(agent, "run", fake_run)
 
-    out = run_agent(cfg, tp, rec_dir, slide_image_paths=[])
+    out = run_agent(cfg, tp, rec_dir, slides_markdown=None)
     assert out.read_text(encoding="utf-8").strip() == "# Partial summary"
 
 
@@ -312,5 +402,5 @@ def test_run_agent_timeout_without_file_reraises_with_partial(tmp_path: Path, mo
     monkeypatch.setattr(agent, "run", fake_run)
 
     with pytest.raises(AgyTimeoutError) as excinfo:
-        run_agent(cfg, tp, rec_dir, slide_image_paths=[])
+        run_agent(cfg, tp, rec_dir, slides_markdown=None)
     assert excinfo.value.partial == "some partial work"

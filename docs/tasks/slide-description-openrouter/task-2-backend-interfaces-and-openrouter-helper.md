@@ -1,6 +1,6 @@
 # Task 2 — Backend interfaces + OpenRouter vision-call helper
 
-**Status:** [ ]
+**Status:** [x]
 
 **Spec:** `docs/specs/slide-description-openrouter.md`
 **Dependencies:** Task 1 (config model)

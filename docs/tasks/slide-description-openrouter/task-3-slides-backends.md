@@ -1,6 +1,6 @@
 # Task 3 — Slides backends (agy + openrouter) + slide-input helper
 
-**Status:** [ ]
+**Status:** [x]
 
 **Spec:** `docs/specs/slide-description-openrouter.md`
 **Dependencies:** Task 1 (config), Task 2 (interfaces + OpenRouter helper + error types)

@@ -11,11 +11,20 @@ completion (requirement E1).
 
 Tracked stages (in execution order):
 
-    pipeline, summarize, notion, telegram, s3, cleanup
+    pipeline, describe_slides, summarize, notion, telegram, s3, cleanup
 
-``notion`` is folded into the ``summarize`` stage in practice (agy publishes to
-Notion as part of the same agent run), but it is tracked separately so a future
-split does not break the manifest schema.
+``describe_slides`` runs (when ``stages.slides.enabled``) the configured slides
+backend to produce ``<name>.slides.md`` before summarize consumes it.
+
+``notion`` is folded into the ``summarize`` stage in practice (both summarize
+backends publish to Notion as part of the same run), but it is tracked
+separately so a future split does not break the manifest schema.
+
+Pre-existing manifests written before ``describe_slides`` existed simply lack
+that key. Because completion is read as ``_completed.get(stage, False)``, an
+absent ``describe_slides`` is treated as *incomplete*, so re-running a recording
+whose manifest predates this stage re-issues the slides call exactly once (and
+subsequently records it, making further re-runs idempotent).
 """
 
 from __future__ import annotations
@@ -27,6 +36,7 @@ from typing import Iterable
 # Canonical ordered list of stages tracked by the manifest.
 STAGES: tuple[str, ...] = (
     "pipeline",
+    "describe_slides",
     "summarize",
     "notion",
     "telegram",

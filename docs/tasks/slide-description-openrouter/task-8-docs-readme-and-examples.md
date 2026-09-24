@@ -1,6 +1,6 @@
 # Task 8 — Docs: README + examples
 
-**Status:** [ ]
+**Status:** [x]
 
 **Spec:** `docs/specs/slide-description-openrouter.md`
 **Dependencies:** Task 1 (config shape is authoritative for the schema table).

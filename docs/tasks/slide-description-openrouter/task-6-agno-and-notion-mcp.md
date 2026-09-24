@@ -1,6 +1,6 @@
 # Task 6 — Agno dependency + Notion MCP wiring
 
-**Status:** [ ]
+**Status:** [x]
 
 **Spec:** `docs/specs/slide-description-openrouter.md`
 **Dependencies:** Task 1 (config: `notion.token_env`, `openrouter`). Feeds Task 4

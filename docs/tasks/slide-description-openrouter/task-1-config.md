@@ -1,6 +1,6 @@
 # Task 1 — Config: per-stage backends, `openrouter` section, `notion.token_env`, timeouts
 
-**Status:** [ ]
+**Status:** [x]
 
 **Spec:** `docs/specs/slide-description-openrouter.md`
 **Dependencies:** none (foundation — Tasks 3/4/5/8 import this model)

@@ -1,6 +1,6 @@
 # Task 7 — Cleanup (`<name>.slides.md` + scenes-CSV path) + full verification
 
-**Status:** [ ]
+**Status:** [x]
 
 **Spec:** `docs/specs/slide-description-openrouter.md`
 **Dependencies:** Tasks 1–6 (verification runs against the full feature). The

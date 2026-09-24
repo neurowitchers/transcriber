@@ -12,7 +12,9 @@ from transcriber.config import (
     Config,
     ConfigError,
     MissingEnvVarError,
+    OpenRouter,
     S3,
+    SlidesStage,
     load,
     resolve_env,
 )
@@ -22,7 +24,7 @@ from transcriber.config import (
 # to prove both formats map to the identical model.
 BASE_CONFIG: dict = {
     "recordings_dir": "./recordings",
-    "stages": {"slides": True, "s3_sync": False},
+    "stages": {"slides": {"enabled": True, "backend": "agy"}, "s3_sync": False},
     "transcribe": {"model_id": "scribe_v1"},
     "summary": {"language": "en", "sections": ["overview", "action_items"]},
     "agent": {
@@ -78,7 +80,8 @@ def test_yml_extension_supported(tmp_path):
 
 def test_model_field_values(tmp_path):
     cfg = load(_write(tmp_path / "c.json", BASE_CONFIG, "json"))
-    assert cfg.stages.slides is True
+    assert cfg.stages.slides.enabled is True
+    assert cfg.stages.slides.backend == "agy"
     assert cfg.transcribe.model_id == "scribe_v1"
     assert cfg.summary.language == "en"
     assert cfg.summary.sections == ["overview", "action_items"]
@@ -170,3 +173,143 @@ def test_secrets_not_stored_in_model(tmp_path, monkeypatch):
     cfg = load(_write(tmp_path / "c.json", BASE_CONFIG, "json"))
     assert cfg.telegram.bot_token_env == "TELEGRAM_BOT_TOKEN"
     assert "super-secret" not in repr(cfg)
+
+
+
+# --------------------------------------------------------------------------- #
+# Per-stage backends, openrouter section, notion.token_env, new timeouts
+# --------------------------------------------------------------------------- #
+def test_backends_default_to_agy(tmp_path):
+    # Omitted backends default to "agy"; no openrouter / notion.token_env needed.
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["stages"]["slides"] = {"enabled": True}  # backend omitted
+    # summary.backend omitted entirely
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert cfg.stages.slides.backend == "agy"
+    assert cfg.summary.backend == "agy"
+    assert cfg.openrouter is None
+    assert cfg.notion.token_env is None
+
+
+def test_slides_openrouter_without_openrouter_section_raises(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["stages"]["slides"] = {"enabled": True, "backend": "openrouter"}
+    with pytest.raises(ConfigError) as exc:
+        load(_write(tmp_path / "c.json", data, "json"))
+    assert "openrouter" in str(exc.value)
+
+
+def test_summary_agno_without_openrouter_section_raises(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["summary"]["backend"] = "agno"
+    data["notion"]["token_env"] = "NOTION_TOKEN"  # present so this isn't the failing check
+    with pytest.raises(ConfigError) as exc:
+        load(_write(tmp_path / "c.json", data, "json"))
+    assert "openrouter" in str(exc.value)
+
+
+def test_summary_agno_without_notion_token_env_raises(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["summary"]["backend"] = "agno"
+    data["openrouter"] = {"api_key_env": "OPENROUTER_API_KEY"}
+    with pytest.raises(ConfigError) as exc:
+        load(_write(tmp_path / "c.json", data, "json"))
+    assert "notion.token_env" in str(exc.value)
+
+
+def test_summary_agno_valid_with_openrouter_and_token(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["summary"]["backend"] = "agno"
+    data["notion"]["token_env"] = "NOTION_TOKEN"
+    data["openrouter"] = {"api_key_env": "OPENROUTER_API_KEY"}
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert cfg.summary.backend == "agno"
+    assert cfg.notion.token_env == "NOTION_TOKEN"
+    assert cfg.openrouter.summary_model == "google/gemini-2.5-pro"
+
+
+def test_invalid_slides_backend_raises_with_allowed_set(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    # "agno" is valid for summary but NOT for slides.
+    data["stages"]["slides"] = {"enabled": True, "backend": "agno"}
+    with pytest.raises(ConfigError) as exc:
+        load(_write(tmp_path / "c.json", data, "json"))
+    msg = str(exc.value)
+    assert "stages.slides.backend" in msg
+    assert "agy" in msg and "openrouter" in msg
+
+
+def test_invalid_summary_backend_raises_with_allowed_set(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    # "openrouter" is valid for slides but NOT for summary.
+    data["summary"]["backend"] = "openrouter"
+    with pytest.raises(ConfigError) as exc:
+        load(_write(tmp_path / "c.json", data, "json"))
+    msg = str(exc.value)
+    assert "summary.backend" in msg
+    assert "agy" in msg and "agno" in msg
+
+
+def test_openrouter_defaults(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["stages"]["slides"] = {"enabled": True, "backend": "openrouter"}
+    data["openrouter"] = {"api_key_env": "OPENROUTER_API_KEY"}
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert isinstance(cfg.openrouter, OpenRouter)
+    assert cfg.openrouter.api_key_env == "OPENROUTER_API_KEY"
+    assert cfg.openrouter.base_url == "https://openrouter.ai/api/v1"
+    assert cfg.openrouter.slides_model == "google/gemini-2.0-flash-001"
+    assert cfg.openrouter.summary_model == "google/gemini-2.5-pro"
+
+
+def test_openrouter_overrides(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["stages"]["slides"] = {"enabled": True, "backend": "openrouter"}
+    data["openrouter"] = {
+        "api_key_env": "OPENROUTER_API_KEY",
+        "base_url": "https://example.test/v1",
+        "slides_model": "vendor/vision",
+        "summary_model": "vendor/strong",
+    }
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert cfg.openrouter.base_url == "https://example.test/v1"
+    assert cfg.openrouter.slides_model == "vendor/vision"
+    assert cfg.openrouter.summary_model == "vendor/strong"
+
+
+def test_legacy_bool_slides_true_raises(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["stages"]["slides"] = True
+    with pytest.raises(ConfigError) as exc:
+        load(_write(tmp_path / "c.json", data, "json"))
+    assert "stages.slides" in str(exc.value)
+
+
+def test_legacy_bool_slides_false_raises(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["stages"]["slides"] = False
+    with pytest.raises(ConfigError) as exc:
+        load(_write(tmp_path / "c.json", data, "json"))
+    assert "stages.slides" in str(exc.value)
+
+
+def test_timeouts_slides_default_and_summarize_none(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    # BASE_CONFIG.timeouts does not set slides/summarize.
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert cfg.timeouts.slides == 900
+    assert cfg.timeouts.summarize is None
+
+
+def test_timeouts_slides_and_summarize_overridable(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["timeouts"]["slides"] = 123
+    data["timeouts"]["summarize"] = 456
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert cfg.timeouts.slides == 123
+    assert cfg.timeouts.summarize == 456
+
+
+def test_slides_stage_is_dataclass(tmp_path):
+    cfg = load(_write(tmp_path / "c.json", BASE_CONFIG, "json"))
+    assert isinstance(cfg.stages.slides, SlidesStage)

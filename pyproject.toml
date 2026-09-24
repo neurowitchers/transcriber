@@ -20,6 +20,14 @@ transcriber = "transcriber.__main__:main"
 dev = [
     "pytest",
 ]
+# Summarize `agno` backend: only needed when summary.backend == "agno".
+# Pinned (compatible-release) to the confirmed 3.0.x API. Includes the MCP
+# tooling (agno.tools.mcp.MCPTools) and OpenRouter model provider used by the
+# Agno summarize path.
+agno = [
+    "agno[mcp]~=3.0",
+    "openai~=1.0",
+]
 
 [dependency-groups]
 dev = [

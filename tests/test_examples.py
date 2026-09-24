@@ -26,21 +26,37 @@ def test_example_config_loads(filename):
 
 def test_simple_example_shape():
     cfg = load(str(EXAMPLES_DIR / "example.config.yaml"))
-    assert cfg.stages.slides is True
+    # Nested stages.slides shape parses into {enabled, backend}.
+    assert cfg.stages.slides.enabled is True
+    assert cfg.stages.slides.backend == "agy"
     assert cfg.stages.s3_sync is False
     assert cfg.summary.language == "en"
+    # Both post-transcript backends default to agy (today's behavior).
+    assert cfg.summary.backend == "agy"
     assert cfg.notion.server == "notion-example"
     assert cfg.notion.insert == "subpage"
+    # No agno backend -> no Notion MCP token required.
+    assert cfg.notion.token_env is None
     assert cfg.telegram.bot_token_env == "TELEGRAM_BOT_TOKEN"
     assert cfg.telegram.routing == {}
     assert cfg.s3 is None
+    # The simple example does not use any OpenRouter backend.
+    assert cfg.openrouter is None
 
 
 def test_full_example_shape():
     cfg = load(str(EXAMPLES_DIR / "acme.config.yaml"))
+    # Nested stages.slides shape with the openrouter backend.
+    assert cfg.stages.slides.enabled is True
+    assert cfg.stages.slides.backend == "openrouter"
     assert cfg.stages.s3_sync is True
     assert cfg.summary.language == "original"
+    # Summarize uses the agno backend.
+    assert cfg.summary.backend == "agno"
     assert cfg.notion.server == "notion-acme"
+    # notion.token_env present (required for summary.backend == "agno"),
+    # referenced by env-var NAME only (no secret value).
+    assert cfg.notion.token_env == "NOTION_API_KEY"
     assert cfg.telegram.bot_token_env == "ACME_BOT_TOKEN"
     assert cfg.telegram.routing == {
         "topic-a": "REPLACE_WITH_TOPIC_A_CHAT_ID",
@@ -48,3 +64,10 @@ def test_full_example_shape():
     }
     assert cfg.s3 is not None
     assert cfg.s3.profile == "acme"
+    # openrouter block present and parses api_key_env + per-stage models;
+    # base_url falls back to the default when omitted.
+    assert cfg.openrouter is not None
+    assert cfg.openrouter.api_key_env == "OPENROUTER_API_KEY"
+    assert cfg.openrouter.base_url == "https://openrouter.ai/api/v1"
+    assert cfg.openrouter.slides_model == "google/gemini-2.0-flash-001"
+    assert cfg.openrouter.summary_model == "google/gemini-2.5-pro"

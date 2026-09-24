@@ -1,6 +1,6 @@
 # Task 5 — Orchestrator wiring (`__main__.py` + `state.py`)
 
-**Status:** [ ]
+**Status:** [x]
 
 **Spec:** `docs/specs/slide-description-openrouter.md`
 **Dependencies:** Task 1 (config), Task 3 (slides backends + helper), Task 4

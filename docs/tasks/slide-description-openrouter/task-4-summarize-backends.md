@@ -1,6 +1,6 @@
 # Task 4 — Summarize backends (agy + agno)
 
-**Status:** [ ]
+**Status:** [x]
 
 **Spec:** `docs/specs/slide-description-openrouter.md`
 **Dependencies:** Task 1 (config), Task 2 (interfaces + error types). Task 6
