@@ -401,7 +401,7 @@ by the nested `stages.slides: {enabled, backend}` shape. There is **no**
 backward-compatible bool acceptance — a bare `stages.slides: true/false` is a
 `ConfigError`. All in-repo configs/examples (and any host configs) must adopt the
 nested shape. This is safe because the engine is consumed as a submodule and its
-configs are updated in lockstep (Task 6 updates the examples).
+configs are updated in lockstep (Task 8 updates the examples).
 
 ### Backend interfaces (sketch)
 
@@ -717,10 +717,10 @@ invoked, and both files written. **Windows spawn smoke test (X2):** on a Windows
 host, confirm the real Notion MCP command actually spawns (env merged, correct
 shim) before the Task 7 parity run — this is the riskiest new runtime path.
 
-### Task 7 — Cleanup, docs/config, verification
+### Task 7 — Cleanup + full verification
 
-**Objective.** Cleanup for `<name>.slides.md`; docs/examples for the new config;
-full verification.
+**Objective.** Cleanup for `<name>.slides.md` (and fix the scenes-CSV path);
+run the full suite and the manual parity check.
 
 **Implementation guidance.**
 - `cleanup.py`: add `".slides.md"` with a `_has_keep_suffix` special-case (like
@@ -730,37 +730,66 @@ full verification.
   `directory/<name>.scenes.csv` (recording dir) where the file never exists —
   correct it to `extracted_slides.<name>/<name>.scenes.csv`, or rely on the
   slides-dir `rmtree` and drop the stale recording-dir candidate.
-- `README.md`: document the two stages, the per-stage `backend` selector
-  (slides: `agy`|`openrouter`; summarize: `agy`|`agno`), the valid combinations,
-  the `openrouter` section + `timeouts.slides`, and a
-  **privacy note** (R16) that non-`agy` OpenRouter paths egress content to a
-  third party. **(E4)** The privacy note must add that slide images (often the most
-  sensitive material) are uploaded and that upstream **retention** is outside the
-  engine's control, so operators in regulated contexts should keep both stages on
-  `agy`. **(R25/E5)** state that image downscaling is a size/cost control, **not**
-  redaction — sensitive on-slide content still egresses. Document the
-  `summary.backend` options (`agy` | `agno`), the `agno`
-  backend's `notion.token_env` + `agno` optional-dependency requirement, the
-  optional `timeouts.summarize` (falls back to `timeouts.agy`; recommend raising
-  it for `agno`+MCP — E9), and the R24 per-stage backend visibility.
-- `examples/example.config.yaml` / `acme.config.yaml`: show the new shape
-  (e.g. example = both `agy` (no `openrouter` needed); acme = slides `openrouter`
-  + summarize `agno` with an `openrouter` block and `notion.token_env`, env-var
-  names only).
-- Host config edits are **out of scope** (host repos own their configs; provide
-  a follow-up note for host maintainers, including the `agno` extra install when
-  they choose `summary.backend=agno`).
 
 **Test requirements.**
 - `tests/test_cleanup.py`: deletes `<name>.slides.md`, keeps `<name>.md`/`.mp4`;
-  `--keep-intermediates` preserves it.
-- `tests/test_examples.py`: example configs load; backends parse; `openrouter` +
-  `notion.token_env` present where used.
+  `--keep-intermediates` preserves it; the corrected scenes-CSV path is covered.
 
-**Demo.** `uv run pytest -q` green. Manual parity check (success bar): one real
-slides-on recording with slides `openrouter` + summarize `agy` (and separately
-+ summarize `agno`); confirm ≥40% wall-time reduction vs. all-`agy` and eyeball
-the Slide Descriptions + Notion page for parity.
+**Demo.** `uv run pytest -q` green. Manual parity check (success bar): 2–3 real
+slides-on recordings of differing slide counts (one near the R23 ceiling) with
+slides `openrouter` + summarize `agy` (and separately + summarize `agno`);
+confirm ≥40% wall-time reduction vs. all-`agy` and eyeball the Slide Descriptions
++ Notion page for parity. Record token/$-cost as a secondary metric (P5).
+
+### Task 8 — Docs: README + examples
+
+**Objective.** Bring the README and example configs fully in line with the new
+two-stage / per-stage-backend design. This is its own task because the docs
+surface changed substantially (new stages, backend matrix, Agno dependency,
+Notion token, and the no-legacy config break) and warrants independent review.
+
+**Implementation guidance.**
+- `README.md` — **pipeline section:** describe the two post-transcript stages
+  (`describe_slides`, `summarize`) and the per-stage `backend` selector (slides:
+  `agy`|`openrouter`; summarize: `agy`|`agno`) with the valid combinations and
+  the "both `agy` = today" default.
+- `README.md` — **schema table:** update the `| Field | Type | Notes |` table
+  for the changed/added fields: the nested `stages.slides` (`{enabled, backend}`,
+  **no legacy bool** — call the break out explicitly), `summary.backend`, the new
+  `openrouter` section (`api_key_env`, `base_url`, `slides_model`,
+  `summary_model`), `notion.token_env`, and `timeouts.slides` /
+  `timeouts.summarize` (with the `timeouts.agy` fallback).
+- `README.md` — **prerequisites section:** add the OpenRouter API key (when
+  slides=openrouter or summary=agno); the `agno` optional dependency (install the
+  `agno` extra) and its Node/`npx` runtime for the Notion MCP server (Windows:
+  the launchable command form, E4); and the Notion integration token env var
+  (when summary=agno).
+- `README.md` — **privacy note (R16/R25/E5/E4):** non-`agy` OpenRouter paths
+  egress content to a third party; slide imagery is uploaded and upstream
+  retention is outside the engine's control; downscaling is a size/cost control,
+  **not** redaction. Operators with sensitive content should keep both stages on
+  `agy`.
+- `README.md` — note the R24 per-stage backend visibility in `--dry-run`/`check`.
+- `examples/example.config.yaml` — the simplest config: both stages `agy`, nested
+  `stages.slides: {enabled: true, backend: agy}`, no `openrouter`/`notion.token_env`
+  needed.
+- `examples/acme.config.yaml` — the fuller config: slides `openrouter` + summarize
+  `agno`, with an `openrouter` block (`api_key_env`, `slides_model`,
+  `summary_model`) and `notion.token_env` — **env-var names only**, no secrets.
+- **Out of scope:** host repo configs (host repos own theirs). Add a follow-up
+  note for host maintainers: adopt the nested `stages.slides` shape, and install
+  the `agno` extra + set `notion.token_env` when choosing `summary.backend=agno`.
+
+**Test requirements.**
+- `tests/test_examples.py`: both example configs load and validate; the nested
+  `stages.slides` shape parses; backends parse; `openrouter` + `notion.token_env`
+  present where used (acme) and absent where not (example).
+- A doc-consistency check is manual (README schema table matches the `Config`
+  dataclass fields); no automated test required.
+
+**Demo.** `uv run transcriber --config examples/acme.config.yaml --dry-run`
+prints a plan with `scene-extract, transcribe, describe-slides [openrouter],
+summarize+notion [agno]`; the README schema table lists every new field.
 
 ## Open Decisions (resolve during implementation)
 
@@ -771,7 +800,7 @@ the Slide Descriptions + Notion page for parity.
   client and no skip-with-warning.
 - **D2 — RESOLVED (no legacy):** require the nested `stages.slides: {enabled,
   backend}` shape; a bare `stages.slides: bool` is a `ConfigError`. No
-  backward-compat coercion. All in-repo examples adopt the nested shape (Task 6).
+  backward-compat coercion. All in-repo examples adopt the nested shape (Task 8).
 - **D3 — Scope (RESOLVED): ship all valid backend combinations in one cut.** Both
   the slides `openrouter` backend and the summarize `agno` backend ship together
   as a consciously-accepted tradeoff. Consequence: the `agno` summarize path is
