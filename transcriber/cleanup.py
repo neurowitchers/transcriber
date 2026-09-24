@@ -4,7 +4,7 @@ After a recording finishes processing, its intermediate artifacts are removed
 to keep the recordings directory tidy. The **durable outputs are preserved**:
 
 - KEEP: the source ``<name>.mp4`` and the final ``<name>.md`` summary.
-- DELETE: ``<name>.mp3``, ``<name>.jsonl``, ``<name>.txt``,
+- DELETE: ``<name>.mp3``, ``<name>.txt``,
   the ``extracted_slides.<name>/`` directory, and ``<name>.scenes.csv``.
 
 Ordering / safety contract (requirements R12):
@@ -24,7 +24,7 @@ import shutil
 from pathlib import Path
 
 # Suffixes that are safe to delete after a successful run.
-INTERMEDIATE_SUFFIXES = (".mp3", ".jsonl", ".txt", ".scenes.csv")
+INTERMEDIATE_SUFFIXES = (".mp3", ".txt", ".scenes.csv")
 
 # Suffixes that must NEVER be deleted.
 KEEP_SUFFIXES = (".mp4", ".md")
@@ -47,7 +47,6 @@ def intermediate_paths(recording: Path) -> list[Path]:
 
     candidates = [
         directory / f"{name}.mp3",
-        directory / f"{name}.jsonl",
         directory / f"{name}.txt",
         directory / f"{name}.scenes.csv",
         directory / f"{name}.telegram.md",  # concise Telegram digest
@@ -60,7 +59,7 @@ def cleanup(recording: Path, keep_intermediates: bool = False) -> list[Path]:
     """Delete the intermediate artifacts for ``recording``.
 
     KEEPS the source ``.mp4`` and the final ``.md`` summary. Deletes any of the
-    intermediate artifacts (``.mp3``, ``.jsonl``, ``.txt``, ``.scenes.csv``, and
+    intermediate artifacts (``.mp3``, ``.txt``, ``.scenes.csv``, and
     the ``extracted_slides.<name>/`` directory) that exist.
 
     This function is intended to be called by the orchestrator **only after** a

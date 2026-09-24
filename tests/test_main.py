@@ -46,14 +46,13 @@ def make_config(
     recordings_dir: Path,
     *,
     slides: bool = True,
-    parse_transcript: bool = True,
     s3_sync: bool = False,
     s3_target: bool = False,
 ) -> Config:
     s3 = S3(bucket="s3://bucket", profile="prof") if s3_target else None
     return Config(
         recordings_dir=str(recordings_dir),
-        stages=Stages(slides=slides, parse_transcript=parse_transcript, s3_sync=s3_sync),
+        stages=Stages(slides=slides, s3_sync=s3_sync),
         transcribe=Transcribe(model_id="scribe_v1"),
         summary=Summary(language="en", sections=["overview"]),
         agent=Agent(cli="agy", extra_args=[], output_file="{basename}.md"),
@@ -192,7 +191,6 @@ def _write_yaml_config(path: Path, recordings_dir: Path, *, s3_sync: bool) -> No
         f"""recordings_dir: {recordings_dir.as_posix()}
 stages:
   slides: true
-  parse_transcript: true
   s3_sync: {str(s3_sync).lower()}
 transcribe:
   model_id: scribe_v1
@@ -397,20 +395,18 @@ def test_disabled_s3_toggle_skips_s3(stage_calls, monkeypatch, tmp_path):
     assert ("s3", "-") not in calls
 
 
-def test_disabled_slides_and_parse_use_jsonl_and_no_slides(monkeypatch, tmp_path):
+def test_disabled_slides_use_txt_and_no_slides(monkeypatch, tmp_path):
     recordings_dir = tmp_path / "rec"
     mp4 = make_recording(recordings_dir, "a")
-    config = make_config(
-        recordings_dir, slides=False, parse_transcript=False, s3_sync=False
-    )
+    config = make_config(recordings_dir, slides=False, s3_sync=False)
 
-    # transcript path -> jsonl when parse disabled.
-    assert main_mod._transcript_path(mp4, config).name == "a.jsonl"
+    # transcript path is always the .txt transcript.
+    assert main_mod._transcript_path(mp4, config).name == "a.txt"
     # slides disabled -> empty slide list even if a slides dir exists.
     (recordings_dir / "extracted_slides.a").mkdir()
     assert main_mod._slide_image_paths(mp4, config) == []
 
-    # enabled-stage plan omits slides + parse + s3.
+    # enabled-stage plan omits slides + s3.
     stages = main_mod._enabled_stage_names(config)
     assert "slides" not in stages
     assert "parse-transcript" not in stages
@@ -419,11 +415,11 @@ def test_disabled_slides_and_parse_use_jsonl_and_no_slides(monkeypatch, tmp_path
 
 def test_enabled_toggles_include_stages(tmp_path):
     config = make_config(
-        tmp_path, slides=True, parse_transcript=True, s3_sync=True, s3_target=True
+        tmp_path, slides=True, s3_sync=True, s3_target=True
     )
     stages = main_mod._enabled_stage_names(config)
     assert "slides" in stages
-    assert "parse-transcript" in stages
+    assert "transcribe" in stages
     assert "s3-sync" in stages
 
 

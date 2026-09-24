@@ -6,9 +6,8 @@ transcription script to Python using the :mod:`duct` library:
 1. **Audio extract** — ``ffmpeg`` mp4 -> mp3.
 2. **Slide/scene extraction** (optional, when ``config.stages.slides``) —
    ``scenedetect``.
-3. **Transcribe** — ``elevenlabs speech-to-text convert`` -> ``<name>.jsonl``.
-4. **Parse transcript** (optional, when ``config.stages.parse_transcript``) —
-   :func:`transcriber.parse.parse_jsonl_transcript` -> ``<name>.txt``.
+3. **Transcribe** — ``elevenlabs speech-to-text convert --format text`` ->
+   ``<name>.txt`` (plain readable transcript, no timestamp markers).
 
 Every child-process call is wrapped with a configurable timeout drawn from
 ``config.timeouts``. Each stage is idempotent: a step whose output already
@@ -26,8 +25,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 import duct
-
-from transcriber import parse
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from transcriber.config import Config
@@ -58,7 +55,7 @@ class RecordingResult:
         name: The recording base name (stem of the ``.mp4``).
         mp4: Path to the source ``.mp4``.
         new_artifacts: Names of artifacts produced during this run (a subset of
-            ``{"mp3", "slides", "jsonl", "txt"}``), in stage order.
+            ``{"mp3", "slides", "txt"}``), in stage order.
         skipped_artifacts: Names of artifacts that already existed and were
             skipped.
     """
@@ -169,12 +166,13 @@ def _extract_slides(
     _run_command(argv, timeout)
 
 
-def _transcribe(mp3: Path, jsonl: Path, model_id: str, timeout: float) -> None:
-    """Transcribe ``mp3`` into ``jsonl`` via the elevenlabs CLI.
+def _transcribe(mp3: Path, txt: Path, model_id: str, timeout: float) -> None:
+    """Transcribe ``mp3`` into a plain-text transcript via the elevenlabs CLI.
 
-    Mirrors the source command (stdout redirected to the ``.jsonl`` file):
+    Emits a readable transcript (no timestamp markers) with stdout redirected
+    to the ``.txt`` file:
     ``elevenlabs speech-to-text convert --file <mp3>
-    --model-id <model_id> --format jsonl > <name>.jsonl``.
+    --model-id <model_id> --format text > <name>.txt``.
     """
     argv = [
         "elevenlabs",
@@ -185,9 +183,9 @@ def _transcribe(mp3: Path, jsonl: Path, model_id: str, timeout: float) -> None:
         "--model-id",
         model_id,
         "--format",
-        "jsonl",
+        "text",
     ]
-    _run_command(argv, timeout, stdout_path=jsonl)
+    _run_command(argv, timeout, stdout_path=txt)
 
 
 # --------------------------------------------------------------------------- #
@@ -211,7 +209,6 @@ def process_recording(mp4: Path, config: "Config") -> RecordingResult:
     recordings_dir = Path(config.recordings_dir)
 
     mp3 = directory / f"{name}.mp3"
-    jsonl = directory / f"{name}.jsonl"
     txt = directory / f"{name}.txt"
     slides_dir = recordings_dir / f"extracted_slides.{name}"
     scenes_csv = f"{name}.scenes.csv"
@@ -237,22 +234,12 @@ def process_recording(mp4: Path, config: "Config") -> RecordingResult:
             _extract_slides(mp4, slides_dir, scenes_csv, config.timeouts.scenedetect)
             result.new_artifacts.append("slides")
 
-    # 3. Transcribe (mp3 -> jsonl). Requires the mp3 to be available.
-    have_jsonl = jsonl.exists()
-    if have_jsonl:
-        result.skipped_artifacts.append("jsonl")
+    # 3. Transcribe (mp3 -> txt). Requires the mp3 to be available.
+    if txt.exists():
+        result.skipped_artifacts.append("txt")
     elif have_mp3:
-        _transcribe(mp3, jsonl, config.transcribe.model_id, config.timeouts.elevenlabs)
-        result.new_artifacts.append("jsonl")
-        have_jsonl = True
-
-    # 4. Parse transcript (optional; jsonl -> txt).
-    if config.stages.parse_transcript:
-        if txt.exists():
-            result.skipped_artifacts.append("txt")
-        elif have_jsonl:
-            parse.parse_jsonl_transcript(jsonl, txt)
-            result.new_artifacts.append("txt")
+        _transcribe(mp3, txt, config.transcribe.model_id, config.timeouts.elevenlabs)
+        result.new_artifacts.append("txt")
 
     return result
 

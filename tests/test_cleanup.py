@@ -21,12 +21,11 @@ def _make_all_artifacts(directory: Path) -> dict[str, Path]:
     mp4 = directory / f"{NAME}.mp4"
     md = directory / f"{NAME}.md"
     mp3 = directory / f"{NAME}.mp3"
-    jsonl = directory / f"{NAME}.jsonl"
     txt = directory / f"{NAME}.txt"
     scenes = directory / f"{NAME}.scenes.csv"
     slides_dir = directory / f"extracted_slides.{NAME}"
 
-    for f in (mp4, md, mp3, jsonl, txt, scenes):
+    for f in (mp4, md, mp3, txt, scenes):
         f.write_text("data", encoding="utf-8")
     slides_dir.mkdir()
     (slides_dir / "slide-001.jpg").write_text("img", encoding="utf-8")
@@ -35,7 +34,6 @@ def _make_all_artifacts(directory: Path) -> dict[str, Path]:
         "mp4": mp4,
         "md": md,
         "mp3": mp3,
-        "jsonl": jsonl,
         "txt": txt,
         "scenes": scenes,
         "slides_dir": slides_dir,
@@ -52,13 +50,12 @@ def test_cleanup_deletes_intermediates_and_keeps_durable(tmp_path):
     assert art["md"].exists()
 
     # Intermediates gone.
-    for key in ("mp3", "jsonl", "txt", "scenes", "slides_dir"):
+    for key in ("mp3", "txt", "scenes", "slides_dir"):
         assert not art[key].exists(), f"{key} should have been deleted"
 
     # Exactly the intermediate set was removed.
     assert set(removed) == {
         art["mp3"],
-        art["jsonl"],
         art["txt"],
         art["scenes"],
         art["slides_dir"],
@@ -83,7 +80,7 @@ def test_keep_intermediates_disables_all_deletion(tmp_path):
 
 
 def test_cleanup_handles_missing_artifacts(tmp_path):
-    # Only mp4 + md present (e.g. slides disabled, parse disabled).
+    # Only mp4 + md present (e.g. slides disabled).
     mp4 = tmp_path / f"{NAME}.mp4"
     md = tmp_path / f"{NAME}.md"
     mp4.write_text("v", encoding="utf-8")
@@ -114,7 +111,6 @@ def test_intermediate_paths_excludes_durable(tmp_path):
     assert f"{NAME}.md" not in candidates  # durable summary must be kept
     assert candidates == {
         f"{NAME}.mp3",
-        f"{NAME}.jsonl",
         f"{NAME}.txt",
         f"{NAME}.scenes.csv",
         f"{NAME}.telegram.md",

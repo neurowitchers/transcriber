@@ -120,15 +120,9 @@ def discover_new_recordings(config: Config) -> list[Path]:
 
 
 def _transcript_path(mp4: Path, config: Config) -> Path:
-    """Return the transcript path handed to the agent.
-
-    Prefers the parsed ``.txt`` when transcript parsing is enabled, else the
-    raw ``.jsonl``.
-    """
+    """Return the transcript path handed to the agent (the ``.txt``)."""
     name = mp4.stem
-    if config.stages.parse_transcript:
-        return mp4.parent / f"{name}.txt"
-    return mp4.parent / f"{name}.jsonl"
+    return mp4.parent / f"{name}.txt"
 
 
 def _slide_image_paths(mp4: Path, config: Config) -> list[str]:
@@ -149,8 +143,6 @@ def _enabled_stage_names(config: Config) -> list[str]:
     if config.stages.slides:
         stages.append("slides")
     stages.append("transcribe")
-    if config.stages.parse_transcript:
-        stages.append("parse-transcript")
     stages.append("summarize+notion")
     stages.append("telegram")
     if s3_mod.is_enabled(config):

@@ -22,7 +22,7 @@ from transcriber.config import (
 # to prove both formats map to the identical model.
 BASE_CONFIG: dict = {
     "recordings_dir": "./recordings",
-    "stages": {"slides": True, "parse_transcript": True, "s3_sync": False},
+    "stages": {"slides": True, "s3_sync": False},
     "transcribe": {"model_id": "scribe_v1"},
     "summary": {"language": "en", "sections": ["overview", "action_items"]},
     "agent": {

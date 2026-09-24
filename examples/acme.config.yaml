@@ -4,16 +4,14 @@
 # secrets — the Telegram bot token is referenced by env-var NAME only and
 # resolved at use time; S3 uses a named AWS profile, not inline credentials.
 #
-# Behavior: slide extraction on, transcript parsing on, S3 sync on (uploads
-# recordings to a bucket via a named profile), original-language summaries,
-# topic-routed Telegram (per-topic chat ids with a default fallback), Notion
-# subpage insertion under a parent page.
+# Behavior: slide extraction on, S3 sync on (uploads recordings to a bucket via
+# a named profile), original-language summaries, topic-routed Telegram (per-topic
+# chat ids with a default fallback), Notion subpage insertion under a parent page.
 
 recordings_dir: ./recordings
 
 stages:
   slides: true
-  parse_transcript: true
   s3_sync: true
 
 transcribe:

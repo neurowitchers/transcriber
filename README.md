@@ -18,12 +18,10 @@ through the following stages:
 2. **Slide / scene extraction** *(optional, `stages.slides`)* — detect scene
    cuts and export slide frames (`scenedetect`).
 3. **Transcribe** — send audio to ElevenLabs (`transcribe.model_id`, e.g.
-   `scribe_v1`) and receive a timestamped transcript.
-4. **Transcript parse** *(optional, `stages.parse_transcript`)* — normalize the
-   raw transcript into clean, readable text.
-5. **Summarize** — drive a headless coding agent (`agent.cli`, e.g. `agy`) to
+   `scribe_v1`) and receive a plain-text transcript.
+4. **Summarize** — drive a headless coding agent (`agent.cli`, e.g. `agy`) to
    produce a structured summary in the configured language and sections.
-6. **Publish & disseminate** — create a Notion subpage under the configured
+5. **Publish & disseminate** — create a Notion subpage under the configured
    parent page, optionally sync the recording to S3 (`stages.s3_sync`), and post
    a notification to Telegram (topic-routed where configured).
 
@@ -43,8 +41,8 @@ only and resolved at use time; S3 uses a named AWS profile.
 
 See ready-to-adopt examples in [`examples/`](./examples):
 
-- [`examples/example.config.yaml`](./examples/example.config.yaml) — slides +
-  transcript parse, English summaries, single Telegram chat, no S3.
+- [`examples/example.config.yaml`](./examples/example.config.yaml) — slides on,
+  English summaries, single Telegram chat, no S3.
 - [`examples/acme.config.yaml`](./examples/acme.config.yaml) — S3 sync via a
   named profile, original-language summaries, topic-routed Telegram.
 
@@ -54,7 +52,6 @@ See ready-to-adopt examples in [`examples/`](./examples):
 | --- | --- | --- |
 | `recordings_dir` | string | Directory watched for new `*.mp4` files. |
 | `stages.slides` | bool | Enable slide/scene extraction. |
-| `stages.parse_transcript` | bool | Enable transcript normalization. |
 | `stages.s3_sync` | bool | Enable S3 upload of recordings. |
 | `transcribe.model_id` | string | ElevenLabs model id (e.g. `scribe_v1`). |
 | `summary.language` | `"en"` \| `"original"` | Summary language. |
@@ -77,7 +74,6 @@ Example (YAML):
 recordings_dir: ./recordings
 stages:
   slides: true
-  parse_transcript: true
   s3_sync: false
 transcribe:
   model_id: scribe_v1

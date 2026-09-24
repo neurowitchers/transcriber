@@ -132,7 +132,7 @@ def build_prompt(
 
     Args:
         config: The loaded :class:`~transcriber.config.Config`.
-        transcript_path: Path to the parsed ``.txt`` (or ``.jsonl``) transcript.
+        transcript_path: Path to the ``.txt`` transcript.
         slide_image_paths: Slide image paths. When empty/None, slide-description
             sections are omitted entirely.
         output_file: The resolved summary output filename agy must write. When

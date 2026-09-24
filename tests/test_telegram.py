@@ -41,7 +41,7 @@ def make_config(
 ) -> Config:
     return Config(
         recordings_dir="./recordings",
-        stages=Stages(slides=False, parse_transcript=False, s3_sync=False),
+        stages=Stages(slides=False, s3_sync=False),
         transcribe=Transcribe(model_id="scribe_v1"),
         summary=Summary(language="en", sections=[]),
         agent=Agent(cli="kiro", extra_args=[], output_file="{basename}.md"),

@@ -39,7 +39,6 @@ class MissingEnvVarError(RuntimeError):
 @dataclass
 class Stages:
     slides: bool
-    parse_transcript: bool
     s3_sync: bool
 
 

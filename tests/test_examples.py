@@ -27,7 +27,6 @@ def test_example_config_loads(filename):
 def test_simple_example_shape():
     cfg = load(str(EXAMPLES_DIR / "example.config.yaml"))
     assert cfg.stages.slides is True
-    assert cfg.stages.parse_transcript is True
     assert cfg.stages.s3_sync is False
     assert cfg.summary.language == "en"
     assert cfg.notion.server == "notion-example"

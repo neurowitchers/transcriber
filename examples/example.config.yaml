@@ -4,14 +4,13 @@
 # secrets — the Telegram bot token is referenced by env-var NAME only and
 # resolved at use time.
 #
-# Behavior: slide extraction on, transcript parsing on, no S3 sync, English
-# summaries, single Telegram chat, Notion subpage insertion under a parent page.
+# Behavior: slide extraction on, no S3 sync, English summaries, single Telegram
+# chat, Notion subpage insertion under a parent page.
 
 recordings_dir: ./recordings
 
 stages:
   slides: true
-  parse_transcript: true
   s3_sync: false
 
 transcribe:

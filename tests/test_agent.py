@@ -30,7 +30,7 @@ SECTIONS = ["Decisions", "Action Items", "Plans", "Identified Risks"]
 def make_config(language: str = "en", sections=None) -> Config:
     return Config(
         recordings_dir="./recordings",
-        stages=Stages(slides=True, parse_transcript=True, s3_sync=False),
+        stages=Stages(slides=True, s3_sync=False),
         transcribe=Transcribe(model_id="scribe_v1"),
         summary=Summary(language=language, sections=sections or list(SECTIONS)),
         agent=Agent(cli="agy", extra_args=[], output_file="{basename}.md"),

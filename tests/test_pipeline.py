@@ -34,13 +34,12 @@ def make_config(
     recordings_dir: Path,
     *,
     slides: bool = False,
-    parse_transcript: bool = False,
     model_id: str = "scribe_v1",
     timeouts: Optional[Timeouts] = None,
 ) -> Config:
     return Config(
         recordings_dir=str(recordings_dir),
-        stages=Stages(slides=slides, parse_transcript=parse_transcript, s3_sync=False),
+        stages=Stages(slides=slides, s3_sync=False),
         transcribe=Transcribe(model_id=model_id),
         summary=Summary(language="en", sections=["overview"]),
         agent=Agent(cli="agy", extra_args=[], output_file="{basename}.md"),
@@ -142,13 +141,13 @@ def test_transcribe_command_line_and_stdout_redirect(
         "--model-id",
         "scribe_v2",
         "--format",
-        "jsonl",
+        "text",
     ]
-    # stdout is redirected to the .jsonl artifact.
-    assert Path(call.stdout_path) == tmp_path / "talk.jsonl"
+    # stdout is redirected to the .txt artifact.
+    assert Path(call.stdout_path) == tmp_path / "talk.txt"
     assert call.timeout == 33
     assert result.skipped_artifacts.count("mp3") == 1
-    assert "jsonl" in result.new_artifacts
+    assert "txt" in result.new_artifacts
 
 
 def test_slides_command_line_when_enabled(recorder: Recorder, tmp_path: Path) -> None:
@@ -193,68 +192,20 @@ def test_slides_skipped_when_disabled(recorder: Recorder, tmp_path: Path) -> Non
 
 
 # --------------------------------------------------------------------------- #
-# parse_transcript toggle (calls transcriber.parse, not a child process)
-# --------------------------------------------------------------------------- #
-def test_parse_transcript_when_enabled(
-    recorder: Recorder, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    mp4 = touch(tmp_path / "rec.mp4")
-    touch(tmp_path / "rec.mp3")
-    touch(tmp_path / "rec.jsonl")  # transcript already present -> parse runs
-    cfg = make_config(tmp_path, parse_transcript=True)
-
-    parse_calls: list[tuple[Path, Path]] = []
-
-    def fake_parse(jsonl_path, output_path=None, interval=15):
-        parse_calls.append((Path(jsonl_path), Path(output_path)))
-        Path(output_path).write_text("parsed", encoding="utf-8")
-        return "parsed"
-
-    monkeypatch.setattr(pipeline.parse, "parse_jsonl_transcript", fake_parse)
-
-    result = pipeline.process_recording(mp4, cfg)
-
-    assert parse_calls == [(tmp_path / "rec.jsonl", tmp_path / "rec.txt")]
-    assert "txt" in result.new_artifacts
-
-
-def test_parse_transcript_skipped_when_disabled(
-    recorder: Recorder, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    mp4 = touch(tmp_path / "rec.mp4")
-    touch(tmp_path / "rec.mp3")
-    touch(tmp_path / "rec.jsonl")
-    cfg = make_config(tmp_path, parse_transcript=False)
-
-    called = False
-
-    def fake_parse(*args, **kwargs):
-        nonlocal called
-        called = True
-
-    monkeypatch.setattr(pipeline.parse, "parse_jsonl_transcript", fake_parse)
-
-    result = pipeline.process_recording(mp4, cfg)
-    assert called is False
-    assert "txt" not in result.new_artifacts
-
-
-# --------------------------------------------------------------------------- #
 # Idempotent per-artifact skip logic
 # --------------------------------------------------------------------------- #
 def test_all_artifacts_existing_is_noop(recorder: Recorder, tmp_path: Path) -> None:
     mp4 = touch(tmp_path / "done.mp4")
     touch(tmp_path / "done.mp3")
-    touch(tmp_path / "done.jsonl")
     touch(tmp_path / "done.txt")
     (tmp_path / "extracted_slides.done").mkdir()
-    cfg = make_config(tmp_path, slides=True, parse_transcript=True)
+    cfg = make_config(tmp_path, slides=True)
 
     result = pipeline.process_recording(mp4, cfg)
 
     assert recorder.calls == []
     assert result.new_artifacts == []
-    assert set(result.skipped_artifacts) == {"mp3", "slides", "jsonl", "txt"}
+    assert set(result.skipped_artifacts) == {"mp3", "slides", "txt"}
 
 
 def test_existing_mp3_skips_ffmpeg_only(recorder: Recorder, tmp_path: Path) -> None:
@@ -267,7 +218,7 @@ def test_existing_mp3_skips_ffmpeg_only(recorder: Recorder, tmp_path: Path) -> N
     assert not any(c.argv[0] == "ffmpeg" for c in recorder.calls)
     assert any(c.argv[0] == "elevenlabs" for c in recorder.calls)
     assert "mp3" in result.skipped_artifacts
-    assert "jsonl" in result.new_artifacts
+    assert "txt" in result.new_artifacts
 
 
 def test_existing_slides_dir_skips_scenedetect(
@@ -293,14 +244,14 @@ def test_process_all_detects_new_recordings(
     touch(tmp_path / "b.mp4")
     # b already has all outputs -> b is a no-op; a is new.
     touch(tmp_path / "b.mp3")
-    touch(tmp_path / "b.jsonl")
+    touch(tmp_path / "b.txt")
     cfg = make_config(tmp_path)
 
     results = pipeline.process_all(cfg)
 
     by_name = {r.name: r for r in results}
     assert set(by_name) == {"a", "b"}
-    assert by_name["a"].new_artifacts == ["mp3", "jsonl"]
+    assert by_name["a"].new_artifacts == ["mp3", "txt"]
     assert by_name["b"].new_artifacts == []
     # Deterministic ordering by file name.
     assert [r.name for r in results] == ["a", "b"]
@@ -393,7 +344,7 @@ def test_run_command_applies_stdout_path(
 
     monkeypatch.setattr(pipeline.duct, "cmd", lambda *argv: expr)
 
-    out = tmp_path / "o.jsonl"
+    out = tmp_path / "o.txt"
     pipeline._run_command(["elevenlabs"], timeout=900, stdout_path=out)
 
     assert expr.stdout_path_arg == str(out)

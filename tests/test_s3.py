@@ -27,7 +27,7 @@ from transcriber.publish import s3 as s3_mod
 def _make_config(*, s3_sync: bool, with_s3: bool, s3_timeout: int = 500) -> Config:
     return Config(
         recordings_dir="./recordings",
-        stages=Stages(slides=True, parse_transcript=True, s3_sync=s3_sync),
+        stages=Stages(slides=True, s3_sync=s3_sync),
         transcribe=Transcribe(model_id="scribe_v1"),
         summary=Summary(language="en", sections=["overview"]),
         agent=Agent(cli="kiro", extra_args=[], output_file="{basename}.md"),
