@@ -5,7 +5,8 @@ to keep the recordings directory tidy. The **durable outputs are preserved**:
 
 - KEEP: the source ``<name>.mp4`` and the final ``<name>.md`` summary.
 - DELETE: ``<name>.mp3``, ``<name>.txt``, ``<name>.telegram.md``,
-  ``<name>.slides.md`` (the intermediate slide-description artifact), and the
+  ``<name>.slides.md`` (the intermediate slide-description artifact),
+  ``<name>.notion_published.json`` (the ``agno`` publish record), and the
   ``extracted_slides.<name>/`` directory (which also holds
   ``<name>.scenes.csv``).
 
@@ -58,6 +59,7 @@ def intermediate_paths(recording: Path) -> list[Path]:
         slides_dir / f"{name}.scenes.csv",
         directory / f"{name}.telegram.md",  # concise Telegram digest
         directory / f"{name}.slides.md",  # intermediate slide descriptions
+        directory / f"{name}.notion_published.json",  # agno publish record
         slides_dir,  # directory
     ]
     return candidates

@@ -300,6 +300,41 @@ def test_openrouter_over_byte_ceiling_raises_before_http(
     assert calls == []
 
 
+def test_openrouter_whole_deck_byte_ceiling_trips_across_batches_before_http(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression (Copilot #6): the encoded-byte ceiling is a WHOLE-DECK bound.
+
+    With batching, each individual batch can stay under the ceiling while the
+    deck total exceeds it. The preflight must reject the deck **before any HTTP
+    call** rather than sending earlier under-ceiling batches.
+    """
+    calls = _capture_vision(monkeypatch, "md")
+    cfg = make_config()
+    cfg.openrouter.max_slides = 200
+    cfg.openrouter.slides_batch_size = 2  # small batches, each well under ceiling
+
+    n_slides = 10
+    # base64 inflates raw bytes by ~4/3. Size each image so a 2-slide batch is
+    # comfortably under the ceiling (~0.33x) but the 10-slide deck exceeds it
+    # (~1.67x), proving the ceiling is enforced deck-wide, not per batch.
+    per_image = slides_mod.MAX_TOTAL_ENCODED_BYTES // 8
+    big = b"x" * per_image
+    monkeypatch.setattr(
+        slides_mod, "_downscale_jpeg_to_bytes", lambda path, m: big
+    )
+
+    slides = [
+        SlideInput(image_path=tmp_path / f"s{i}.jpg", timestamp="unknown")
+        for i in range(n_slides)
+    ]
+    with pytest.raises(SlideDescribeError) as exc:
+        OpenRouterSlidesBackend().describe(slides, "t", cfg, timeout=5)
+    assert "encoded payload" in str(exc.value)
+    # The deck hard-fails in the preflight: NOT a single batch was sent.
+    assert calls == []
+
+
 def test_openrouter_missing_config_raises(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -351,28 +386,37 @@ def test_agy_backend_writes_and_returns_markdown(
     (slides_dir / "a.jpg").write_bytes(b"x")
 
     written = tmp_path / f"{name}.slides.md"
+    captured: dict = {}
 
-    def fake_run_agent(config, transcript_path, recording_dir, image_paths):
-        # agy would write the slide markdown; simulate it.
-        written.write_text("## Slide Descriptions\ndone", encoding="utf-8")
-        # image paths are passed through.
-        assert image_paths == [str(slides_dir / "a.jpg")]
-        return written
+    def fake_run_slide_agent(
+        config, transcript_path, recording_dir, image_paths, *, output_file, timeout
+    ):
+        # agy would write the slide markdown to <name>.slides.md; simulate it.
+        Path(output_file).write_text("## Slide Descriptions\ndone", encoding="utf-8")
+        captured["image_paths"] = list(image_paths)
+        captured["output_file"] = str(output_file)
+        captured["timeout"] = timeout
+        return Path(output_file)
 
-    monkeypatch.setattr(slides_mod, "run_agent", fake_run_agent)
+    monkeypatch.setattr(slides_mod, "run_slide_agent", fake_run_slide_agent)
 
     slides = [SlideInput(image_path=slides_dir / "a.jpg", timestamp="00:00 - 00:05")]
     result = AgySlidesBackend().describe(slides, "transcript", make_config(), timeout=5)
     assert result == "## Slide Descriptions\ndone"
+    # Image paths are passed through; output targets <name>.slides.md, NOT the
+    # summary output file; the timeout is forwarded.
+    assert captured["image_paths"] == [str(slides_dir / "a.jpg")]
+    assert captured["output_file"] == str(written)
+    assert captured["timeout"] == 5
 
 
 def test_agy_backend_empty_slides_returns_empty_no_run(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def fail(*a, **k):  # pragma: no cover - must not be called
-        raise AssertionError("run_agent should not be called for empty slides")
+        raise AssertionError("run_slide_agent should not be called for empty slides")
 
-    monkeypatch.setattr(slides_mod, "run_agent", fail)
+    monkeypatch.setattr(slides_mod, "run_slide_agent", fail)
     assert AgySlidesBackend().describe([], "t", make_config(), timeout=5) == ""
 
 
@@ -387,7 +431,7 @@ def test_pipeline_process_recording_makes_no_slides_backend_call(
         raise AssertionError("pipeline must not call a slides backend")
 
     monkeypatch.setattr(slides_mod, "_openrouter_vision", boom)
-    monkeypatch.setattr(slides_mod, "run_agent", boom)
+    monkeypatch.setattr(slides_mod, "run_slide_agent", boom)
     monkeypatch.setattr(
         OpenRouterSlidesBackend, "describe", lambda *a, **k: boom()
     )

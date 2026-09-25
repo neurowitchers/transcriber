@@ -70,7 +70,15 @@ class SlidesBackend(Protocol):
 
 @runtime_checkable
 class SummarizeBackend(Protocol):
-    """Produce ``<name>.md`` + ``<name>.telegram.md`` and publish to Notion."""
+    """Produce ``<name>.md`` + ``<name>.telegram.md`` and publish to Notion.
+
+    Notion publishing is **backend-specific** (not always MCP):
+
+    * ``agy`` — publishes via ``agy``'s own Notion MCP as part of its run.
+    * ``agno`` — the engine publishes the subpage directly via the Notion REST
+      API (:func:`transcriber.backends.notion_publish.publish_to_notion`); no
+      MCP, no model tool-calling.
+    """
 
     def summarize(
         self,
@@ -82,7 +90,9 @@ class SummarizeBackend(Protocol):
         """Write both files and publish the Notion subpage.
 
         ``slides_markdown`` is embedded when non-empty and omitted when
-        ``None``/empty/whitespace (R3). Notion publishing is always via MCP
-        (R11).
+        ``None``/empty/whitespace (R3). The Notion publish path is
+        backend-specific: the ``agy`` backend publishes via MCP; the ``agno``
+        backend publishes directly via the Notion REST API (see the class
+        docstring).
         """
         ...

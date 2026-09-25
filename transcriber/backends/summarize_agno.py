@@ -33,6 +33,7 @@ Design constraints (Spec R10/R11/R19/R21/R22/R22b):
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 from pathlib import Path
@@ -46,7 +47,10 @@ from transcriber.agent import (
 from transcriber.backends.errors import SummarizeError
 from transcriber.backends.interfaces import SummaryResult
 from transcriber.backends.notion_mcp import AgnoImportError
-from transcriber.backends.notion_publish import publish_to_notion
+from transcriber.backends.notion_publish import (
+    DEFAULT_NOTION_TIMEOUT,
+    publish_to_notion,
+)
 from transcriber.config import Config, resolve_env
 
 logger = logging.getLogger(__name__)
@@ -81,22 +85,34 @@ def _summarize_timeout(config: Config) -> float:
     return float(config.timeouts.agy)
 
 
+def _notion_request_timeout(config: Config) -> float:
+    """Bounded per-request Notion socket timeout for the publish phase.
+
+    Capped by the summarize-stage budget so a single stuck request can never
+    outlive the stage; falls back to the module default when that budget is
+    larger (a request should fail fast, not consume the whole budget).
+    """
+    return min(_summarize_timeout(config), DEFAULT_NOTION_TIMEOUT)
+
+
 async def _run_agent(
     summarize_prompt: str,
     config: Config,
-    title: str,
 ) -> "tuple[str, Optional[str]]":
-    """Produce the summary + digest with Agno, then publish via the Notion API.
+    """Produce the summary + digest with Agno (no Notion publish here).
 
-    Two plain-text model calls (captured via ``get_content_as_string()``), then
-    a **deterministic engine-side** Notion REST publish:
+    Two plain-text model calls (captured via ``get_content_as_string()``):
 
     * Phase 1 (no tools): produce the full Markdown summary.
     * Phase 1b (no tools): produce the short Telegram digest from that summary.
-    * Publish: :func:`transcriber.backends.notion_publish.publish_to_notion`
-      creates the subpage under the parent and writes the summary as native
-      Notion blocks — no MCP, no model tool-calling (the official Notion MCP's
-      tool schemas break tool-calling on Gemini/Mistral over OpenRouter).
+
+    Notion publishing is deliberately **not** done here. The caller writes the
+    local artifacts (``<name>.md`` / ``<name>.telegram.md``) **first**, then
+    publishes via :func:`transcriber.backends.notion_publish.publish_to_notion`.
+    Persisting artifacts before publishing means a crash after a successful
+    publish (but before the manifest is marked) leaves the local files intact,
+    so a retry does not regenerate the summary and create a duplicate Notion
+    page (see :func:`_publish_record_path`).
 
     The engine writes ``<name>.md`` + ``<name>.telegram.md`` from the returned
     ``(summary, digest)``.
@@ -126,13 +142,18 @@ async def _run_agent(
     dout = await digester.arun(build_agno_digest_prompt(config, summary))
     digest = (dout.get_content_as_string() or "").strip() or None
 
-    # --- Publish: engine-side direct Notion REST (no MCP, no tool-calling) --- #
-    logger.info("agno summarize: publishing to Notion (title=%r)", title)
-    # Runs blocking urllib in a worker thread so we don't stall the event loop
-    # and the outer asyncio.wait_for timeout can still cancel it.
-    await asyncio.to_thread(publish_to_notion, config, title, summary)
-
     return summary, digest
+
+
+def _publish_record_path(summary_path: Path) -> Path:
+    """Sidecar recording that the Notion subpage was already published.
+
+    ``<dir>/<name>.md`` -> ``<dir>/<name>.notion_published.json``. Its presence
+    means a prior run already created the Notion page for this summary, so a
+    retry (after a crash between publish and the manifest mark) must NOT publish
+    again — otherwise it would create a duplicate page.
+    """
+    return summary_path.with_suffix(".notion_published.json")
 
 
 class AgnoSummarizeBackend:
@@ -188,7 +209,7 @@ class AgnoSummarizeBackend:
 
         try:
             summary_text, digest_text = asyncio.run(
-                asyncio.wait_for(_run_agent(prompt, config, basename), timeout)
+                asyncio.wait_for(_run_agent(prompt, config), timeout)
             )
         except AgnoImportError:
             # Actionable "install the agno extra" error — surface as-is (R14/R19).
@@ -210,19 +231,33 @@ class AgnoSummarizeBackend:
                 f"agno summarize failed: {type(exc).__name__}"
             ) from exc
 
-        # The ENGINE writes the artifacts from the agent's STRUCTURED output
-        # (option 1): the Agno agent has only the Notion MCP and no filesystem
-        # tool, so it cannot write <name>.md / <name>.telegram.md itself.
+        # The ENGINE writes the artifacts from the model output: the Agno agent
+        # has no filesystem tool, so it cannot write <name>.md / .telegram.md.
         if not summary_text or not summary_text.strip():
             # Truncated/failed run with no usable summary → fail the stage (R22).
             raise SummarizeError(
                 f"agno summarize produced no usable summary for {output_path.name}"
             )
 
+        # --- Persist artifacts BEFORE publishing (R21 / duplicate-page fix) --- #
+        # Writing the local files first means a crash *after* a successful
+        # Notion publish (but before the manifest is marked) still leaves valid
+        # local artifacts, so a retry regenerates nothing and — guarded by the
+        # publish record below — does not create a duplicate Notion page.
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(summary_text.strip() + "\n", encoding="utf-8")
+
+        # Digest: write when non-empty, otherwise CLEAR any stale digest so a
+        # retry/reprocess never disseminates an old digest. The telegram stage
+        # falls back to the full summary when the digest file is missing.
         if digest_text and digest_text.strip():
             digest_path.write_text(digest_text.strip() + "\n", encoding="utf-8")
+        elif digest_path.exists():
+            logger.info(
+                "agno summarize: empty digest, removing stale %s",
+                digest_path.name,
+            )
+            digest_path.unlink()
 
         # Non-empty <name>.md post-condition (R22): defensive re-check.
         if not output_path.exists() or not output_path.read_text(
@@ -230,6 +265,39 @@ class AgnoSummarizeBackend:
         ).strip():
             raise SummarizeError(
                 f"agno did not write the expected summary file: {output_path}"
+            )
+
+        # --- Publish to Notion (idempotent) ---------------------------------- #
+        # Skip if a prior run already created the page (crash-between-publish-
+        # and-mark recovery): re-publishing would create a duplicate subpage.
+        record_path = _publish_record_path(output_path)
+        if record_path.exists():
+            logger.info(
+                "agno summarize: Notion page already published (%s), skipping "
+                "publish to avoid a duplicate",
+                record_path.name,
+            )
+        else:
+            notion_timeout = _notion_request_timeout(config)
+            logger.info("agno summarize: publishing to Notion (title=%r)", basename)
+            # Blocking urllib in a worker thread so the outer wait_for does not
+            # stall the loop; the bounded per-request socket timeout is what
+            # actually caps the Notion phase.
+            page_url = asyncio.run(
+                asyncio.wait_for(
+                    asyncio.to_thread(
+                        publish_to_notion,
+                        config,
+                        basename,
+                        summary_text.strip(),
+                        timeout=notion_timeout,
+                    ),
+                    timeout,
+                )
+            )
+            # Record the successful publish so a retry never duplicates it.
+            record_path.write_text(
+                json.dumps({"url": page_url}) + "\n", encoding="utf-8"
             )
 
         elapsed = time.monotonic() - started

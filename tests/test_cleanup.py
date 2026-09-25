@@ -121,6 +121,7 @@ def test_intermediate_paths_excludes_durable(tmp_path):
         f"{NAME}.scenes.csv",
         f"{NAME}.telegram.md",
         f"{NAME}.slides.md",
+        f"{NAME}.notion_published.json",
         f"extracted_slides.{NAME}",
     }
     # The scenes CSV candidate must live inside the extracted-slides dir, not

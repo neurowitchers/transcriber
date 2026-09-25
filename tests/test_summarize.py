@@ -174,8 +174,8 @@ class _RecordingPublish:
         self.calls: list[tuple] = []
         self.exc: Exception | None = None
 
-    def __call__(self, config, title, summary_markdown):
-        self.calls.append((title, summary_markdown))
+    def __call__(self, config, title, summary_markdown, *, timeout=None):
+        self.calls.append((title, summary_markdown, timeout))
         if self.exc is not None:
             raise self.exc
         return "https://app.notion.com/p/new-page-123"
@@ -306,7 +306,7 @@ def test_agno_builds_model_and_publishes_to_notion(tmp_path, monkeypatch):
     # Engine published once via the Notion REST helper, with the summary text
     # and the recording basename as the page title.
     assert len(publish.calls) == 1
-    title, summary_md = publish.calls[0]
+    title, summary_md, _timeout = publish.calls[0]
     assert title == tp.stem
     assert "Body." in summary_md
 
@@ -369,6 +369,93 @@ def test_agno_notion_publish_failure_fails_stage(tmp_path, monkeypatch):
 
     with pytest.raises(SummarizeError, match="Notion API"):
         backend.summarize(tp, None, rec_dir, cfg)
+
+
+def test_agno_persists_summary_before_publish(tmp_path, monkeypatch):
+    """Regression (Copilot #7): local artifacts are written BEFORE publishing.
+
+    A publish failure must still leave the summary file on disk, so a retry
+    regenerates nothing (and — with the publish record — never duplicates the
+    Notion page).
+    """
+    monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
+    monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
+    backend = _agno_backend(monkeypatch)
+    publish = _patch_publish(monkeypatch)
+    publish.exc = SummarizeError("Notion API create page failed: HTTP 500 boom")
+
+    cfg = make_config(backend="agno")
+    rec_dir = tmp_path / "rec"
+    rec_dir.mkdir()
+    tp = write_transcript(rec_dir)
+
+    with pytest.raises(SummarizeError):
+        backend.summarize(tp, None, rec_dir, cfg)
+
+    # Summary file is present despite the publish failure.
+    summary_file = rec_dir / "meeting.md"
+    assert summary_file.exists()
+    assert "Body." in summary_file.read_text(encoding="utf-8")
+    # No publish record: the publish did not succeed, so a retry WILL publish.
+    assert not (rec_dir / "meeting.notion_published.json").exists()
+
+
+def test_agno_publish_is_idempotent_via_record(tmp_path, monkeypatch):
+    """Regression (Copilot #7): a prior publish record prevents a duplicate page.
+
+    Simulates a crash after a successful publish but before the manifest was
+    marked: on retry the publish record already exists, so the engine skips the
+    publish (no duplicate Notion page) while still refreshing local files.
+    """
+    monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
+    monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
+    backend = _agno_backend(monkeypatch)
+    publish = _patch_publish(monkeypatch)
+
+    cfg = make_config(backend="agno")
+    rec_dir = tmp_path / "rec"
+    rec_dir.mkdir()
+    tp = write_transcript(rec_dir)
+
+    # First run publishes once and drops a publish record.
+    backend.summarize(tp, None, rec_dir, cfg)
+    assert len(publish.calls) == 1
+    record = rec_dir / "meeting.notion_published.json"
+    assert record.exists()
+
+    # Reset the model fakes for a clean second run (retry).
+    FakeAgent.instances = []
+    FakeAgent._plain_calls = 0
+    FakeOpenRouterModel.instances = []
+
+    # Second run (retry): publish is SKIPPED because the record exists.
+    backend.summarize(tp, None, rec_dir, cfg)
+    assert len(publish.calls) == 1  # still only the first publish
+
+
+def test_agno_empty_digest_clears_stale_telegram_file(tmp_path, monkeypatch):
+    """Regression (Copilot #8): an empty digest removes any stale digest file."""
+    monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
+    monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
+    backend = _agno_backend(monkeypatch)
+    _patch_publish(monkeypatch)
+
+    # A stale digest from an earlier run.
+    rec_dir = tmp_path / "rec"
+    rec_dir.mkdir()
+    stale = rec_dir / "meeting.telegram.md"
+    stale.write_text("OLD STALE DIGEST\n", encoding="utf-8")
+
+    # This run's model returns an empty digest.
+    FakeAgent.digest_text = "   "
+    tp = write_transcript(rec_dir)
+    cfg = make_config(backend="agno")
+
+    result = backend.summarize(tp, None, rec_dir, cfg)
+
+    # The stale digest is removed rather than left to be re-disseminated.
+    assert not stale.exists()
+    assert result.summary_path.read_text(encoding="utf-8").strip() != ""
 
 
 def test_agno_timeout_fails_stage(tmp_path, monkeypatch):

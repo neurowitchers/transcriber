@@ -476,6 +476,64 @@ def test_disabled_s3_toggle_skips_s3(stage_calls, monkeypatch, tmp_path):
     assert ("s3", "-") not in calls
 
 
+def test_disabled_slides_ignores_stale_slides_md(stage_calls, monkeypatch, tmp_path):
+    """Regression (Copilot #4): with slides disabled, a stale ``<name>.slides.md``
+    must NOT be fed into the summary — the summarize backend receives ``None``.
+    """
+    recordings_dir = tmp_path / "rec"
+    mp4 = make_recording(recordings_dir, "a")
+
+    # A stale slide-description artifact left over from a prior slides-on run.
+    (recordings_dir / "a.slides.md").write_text(
+        "### STALE SLIDE DESCRIPTIONS\n", encoding="utf-8"
+    )
+
+    # A slides-DISABLED config file.
+    config_path = tmp_path / "c.yaml"
+    config_path.write_text(
+        f"""recordings_dir: {recordings_dir.as_posix()}
+stages:
+  slides:
+    enabled: false
+    backend: agy
+  s3_sync: false
+transcribe:
+  model_id: scribe_v1
+summary:
+  language: en
+  sections: [overview]
+  backend: agy
+agent:
+  cli: agy
+  extra_args: []
+  output_file: "{{basename}}.md"
+notion:
+  server: notion-x
+  parent_page_id: pid
+  insert: subpage
+telegram:
+  bot_token_env: TG_TOKEN
+  default_chat_id: "123"
+  routing: {{}}
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setenv("TG_TOKEN", "abc")
+
+    rc = main_mod.main(["--config", str(config_path)])
+    assert rc == 0
+
+    # describe_slides did not run (disabled) ...
+    assert not any(c[0] == "describe_slides" for c in stage_calls["calls"])
+    # ... and the summarize backend saw slides_markdown=None, NOT the stale file.
+    summarize_seen = stage_calls["summarize_seen"]
+    assert summarize_seen, "summarize backend should have run"
+    _name, slides_markdown = summarize_seen[0]
+    assert slides_markdown is None
+
+
 def test_disabled_slides_use_txt_and_no_slides(monkeypatch, tmp_path):
     recordings_dir = tmp_path / "rec"
     mp4 = make_recording(recordings_dir, "a")

@@ -356,9 +356,11 @@ def _process_one(
                 config.summary.backend,
             )
             # Read the prepared slide markdown (empty/whitespace -> treated as
-            # no slides by the backend). Absent file -> None.
+            # no slides by the backend). Absent file -> None. When slides are
+            # disabled, never feed a stale <name>.slides.md into the summary —
+            # treat it exactly like slides-off (Spec R3).
             slides_markdown: Optional[str] = None
-            if slides_md_path.exists():
+            if config.stages.slides.enabled and slides_md_path.exists():
                 slides_markdown = slides_md_path.read_text(encoding="utf-8")
             summarize_backend = backends_mod.get_summarize_backend(config)
             summarize_backend.summarize(

@@ -42,6 +42,7 @@ __all__ = [
     "markdown_to_blocks",
     "publish_to_notion",
     "NOTION_VERSION",
+    "DEFAULT_NOTION_TIMEOUT",
 ]
 
 #: Notion API version pinned for stable block/page shapes.
@@ -52,6 +53,13 @@ _MAX_CHILDREN_PER_REQUEST = 100
 
 #: Notion rejects rich-text content longer than 2000 chars per text object.
 _MAX_TEXT_LEN = 2000
+
+#: Default bounded per-request timeout (seconds) for Notion REST calls. Without
+#: this, ``urlopen`` blocks indefinitely; because the publish runs inside
+#: ``asyncio.to_thread``, cancelling the outer ``wait_for`` cannot stop a stuck
+#: urllib worker, so ``timeouts.summarize`` would not be a hard bound for the
+#: Notion phase. A bounded socket timeout makes each request fail fast instead.
+DEFAULT_NOTION_TIMEOUT = 60.0
 
 _UUID_RE = re.compile(r"([0-9a-fA-F]{32})")
 _HYPHENATED_RE = re.compile(
@@ -186,7 +194,12 @@ def markdown_to_blocks(markdown: str) -> list[dict[str, Any]]:
 
 
 def _notion_request(
-    url: str, token: str, payload: Optional[dict], method: str
+    url: str,
+    token: str,
+    payload: Optional[dict],
+    method: str,
+    *,
+    timeout: float = DEFAULT_NOTION_TIMEOUT,
 ) -> dict[str, Any]:
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(
@@ -200,7 +213,7 @@ def _notion_request(
         },
     )
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode())
     except urllib.error.HTTPError as exc:
         # Body may carry a Notion error code but never the token (not echoed).
@@ -209,15 +222,40 @@ def _notion_request(
             f"Notion API {method} {url.rsplit('/', 1)[-1]} failed: "
             f"HTTP {exc.code} {body}"
         ) from exc
+    except TimeoutError as exc:
+        # Bounded socket timeout tripped (urllib raises socket.timeout, an
+        # alias of the builtin TimeoutError on 3.10+). Surface as a retryable
+        # SummarizeError so the stage fails fast rather than hanging.
+        raise SummarizeError(
+            f"Notion API {method} {url.rsplit('/', 1)[-1]} timed out "
+            f"after {timeout:.0f}s"
+        ) from exc
     except urllib.error.URLError as exc:
+        # A socket timeout can also surface wrapped in URLError.
+        if isinstance(exc.reason, TimeoutError):
+            raise SummarizeError(
+                f"Notion API {method} {url.rsplit('/', 1)[-1]} timed out "
+                f"after {timeout:.0f}s"
+            ) from exc
         raise SummarizeError(f"Notion API request failed: {exc.reason}") from exc
 
 
-def publish_to_notion(config: Config, title: str, summary_markdown: str) -> str:
+def publish_to_notion(
+    config: Config,
+    title: str,
+    summary_markdown: str,
+    *,
+    timeout: float = DEFAULT_NOTION_TIMEOUT,
+) -> str:
     """Create a Notion subpage under the parent and write the summary.
 
     Returns the new page URL. Raises ``SummarizeError`` on any failure so the
     summarize stage fails (retryable) rather than silently dropping the publish.
+
+    ``timeout`` bounds each individual REST request (seconds). Because this runs
+    in a worker thread under the outer summarize ``wait_for``, a bounded socket
+    timeout is what actually caps the Notion phase — a cancelled ``wait_for``
+    cannot interrupt a blocked ``urlopen`` worker.
     """
     if not config.notion.token_env:
         raise SummarizeError(
@@ -247,7 +285,11 @@ def publish_to_notion(config: Config, title: str, summary_markdown: str) -> str:
         len(blocks),
     )
     page = _notion_request(
-        "https://api.notion.com/v1/pages", token, create_payload, "POST"
+        "https://api.notion.com/v1/pages",
+        token,
+        create_payload,
+        "POST",
+        timeout=timeout,
     )
     page_id = page.get("id")
     page_url = page.get("url", "")
@@ -262,6 +304,7 @@ def publish_to_notion(config: Config, title: str, summary_markdown: str) -> str:
             token,
             {"children": chunk},
             "PATCH",
+            timeout=timeout,
         )
 
     logger.info("notion publish: created page url=%s", page_url)

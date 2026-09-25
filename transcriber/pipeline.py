@@ -245,7 +245,7 @@ def process_recording(mp4: Path, config: "Config") -> RecordingResult:
         have_mp3 = True
 
     # 2. Slide/scene extraction (optional).
-    if config.stages.slides:
+    if config.stages.slides.enabled:
         if slides_dir.exists():
             result.skipped_artifacts.append("slides")
         else:

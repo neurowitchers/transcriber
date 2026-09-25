@@ -44,9 +44,9 @@ import csv
 import logging
 import time
 from pathlib import Path
-from typing import Sequence
+from typing import Optional, Sequence
 
-from transcriber.agent import run_agent
+from transcriber.agent import run_slide_agent
 from transcriber.backends.errors import SlideDescribeError
 from transcriber.backends.interfaces import SlideInput
 from transcriber.backends.openrouter import _openrouter_vision
@@ -276,20 +276,57 @@ def _downscale_jpeg_to_bytes(image_path: Path, max_long_edge: int) -> bytes:
     return buf.tobytes()
 
 
+def _encode_slide(slide: SlideInput) -> str:
+    """Downscale + base64-encode one slide's JPEG (R25). Never logs bytes."""
+    jpeg_bytes = _downscale_jpeg_to_bytes(slide.image_path, MAX_IMAGE_LONG_EDGE)
+    return base64.b64encode(jpeg_bytes).decode("ascii")
+
+
+def _preflight_deck_encoded_bytes(
+    config: Config, slides: Sequence[SlideInput]
+) -> dict[Path, str]:
+    """Encode every slide once and enforce the **whole-deck** byte ceiling (R23).
+
+    Returns a ``{image_path: base64}`` cache so the per-batch message build does
+    not re-encode. Raises ``SlideDescribeError`` if the deck's *total* encoded
+    size exceeds :data:`MAX_TOTAL_ENCODED_BYTES` — **before** any HTTP call, so
+    an over-ceiling deck hard-fails before a single image is sent (the batching
+    loop must not reset the accumulator per batch).
+    """
+    cache: dict[Path, str] = {}
+    total_encoded = 0
+    for slide in slides:
+        b64 = _encode_slide(slide)
+        cache[slide.image_path] = b64
+        total_encoded += len(b64)
+        if total_encoded > MAX_TOTAL_ENCODED_BYTES:
+            raise SlideDescribeError(
+                "slide deck exceeds the maximum encoded payload of "
+                f"{MAX_TOTAL_ENCODED_BYTES} bytes; raise the ceiling, split "
+                "the recording, or use slides.backend=agy for this host"
+            )
+    return cache
+
+
 def _build_messages(
     config: Config,
     slides: Sequence[SlideInput],
     transcript_text: str,
     *,
     check_slide_ceiling: bool = True,
+    encoded_cache: Optional[dict[Path, str]] = None,
 ) -> tuple[list[dict], int]:
-    """Build the single user message and return (messages, total_encoded_bytes).
+    """Build the single user message and return (messages, batch_encoded_bytes).
 
     Enforces the deterministic ceiling (R23) **before** returning: too many
-    slides (when ``check_slide_ceiling``), or too many total encoded bytes,
-    raises ``SlideDescribeError``. Batched callers pass
-    ``check_slide_ceiling=False`` because they enforce the total-deck ceiling
-    themselves before splitting into batches.
+    slides (when ``check_slide_ceiling``), or — for the unbatched single call —
+    too many total encoded bytes, raises ``SlideDescribeError``.
+
+    Batched callers pass ``check_slide_ceiling=False`` **and** an
+    ``encoded_cache`` from :func:`_preflight_deck_encoded_bytes`; that preflight
+    already enforced the whole-deck byte ceiling across all batches, so this
+    function does not re-check (nor re-encode) per batch — the returned int is
+    just this batch's encoded size (for logging), not a fresh accumulator.
     """
     max_slides = getattr(config.openrouter, "max_slides", MAX_SLIDES)
     if check_slide_ceiling and len(slides) > max_slides:
@@ -304,12 +341,18 @@ def _build_messages(
         {"type": "text", "text": _leading_text(config, transcript_text)}
     ]
 
+    # Whole-deck byte enforcement happens in the preflight for batched callers.
+    # For an unbatched single call (no cache), enforce the ceiling here.
+    enforce_bytes = encoded_cache is None
+
     total_encoded = 0
     for slide in slides:
-        jpeg_bytes = _downscale_jpeg_to_bytes(slide.image_path, MAX_IMAGE_LONG_EDGE)
-        b64 = base64.b64encode(jpeg_bytes).decode("ascii")
+        if encoded_cache is not None and slide.image_path in encoded_cache:
+            b64 = encoded_cache[slide.image_path]
+        else:
+            b64 = _encode_slide(slide)
         total_encoded += len(b64)
-        if total_encoded > MAX_TOTAL_ENCODED_BYTES:
+        if enforce_bytes and total_encoded > MAX_TOTAL_ENCODED_BYTES:
             raise SlideDescribeError(
                 "slide deck exceeds the maximum encoded payload of "
                 f"{MAX_TOTAL_ENCODED_BYTES} bytes; raise the ceiling, split "
@@ -376,12 +419,23 @@ class OpenRouterSlidesBackend:
         # Batch the images so a large deck never overflows the model context.
         batch_size = max(1, getattr(config.openrouter, "slides_batch_size", 20))
         started = time.monotonic()
+
+        # Whole-deck encoded-byte ceiling (R23): encode every slide once and
+        # enforce the TOTAL across all batches BEFORE any HTTP call, so an
+        # over-ceiling deck hard-fails before a single image is sent. The cache
+        # is reused per batch so images are not re-encoded.
+        encoded_cache = _preflight_deck_encoded_bytes(config, slides)
+
         parts: list[str] = []
         n_batches = (len(slides) + batch_size - 1) // batch_size
         for bi in range(n_batches):
             batch = slides[bi * batch_size : (bi + 1) * batch_size]
             messages, total_encoded = _build_messages(
-                config, batch, transcript_text, check_slide_ceiling=False
+                config,
+                batch,
+                transcript_text,
+                check_slide_ceiling=False,
+                encoded_cache=encoded_cache,
             )
             logger.info(
                 "describe_slides[openrouter]: model=%s batch=%d/%d slides=%d "
@@ -441,6 +495,7 @@ class AgySlidesBackend:
         name = slides_dir.name.split("extracted_slides.", 1)[-1]
 
         image_paths = [str(s.image_path) for s in slides]
+        slides_md_path = recording_dir / f"{name}.slides.md"
 
         logger.info(
             "describe_slides[agy]: cli=%s slides=%d", config.agent.cli, len(slides)
@@ -449,11 +504,13 @@ class AgySlidesBackend:
         transcript_path = _write_transcript_scratch(
             recording_dir, name, transcript_text
         )
-        output_path = run_agent(
+        output_path = run_slide_agent(
             config,
             transcript_path,
             recording_dir,
             image_paths,
+            output_file=slides_md_path,
+            timeout=timeout,
         )
         elapsed = time.monotonic() - started
         logger.info(

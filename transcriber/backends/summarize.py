@@ -8,12 +8,17 @@ Two backends implement :class:`~transcriber.backends.interfaces.SummarizeBackend
   is unchanged from the pre-split engine.
 * ``AgnoSummarizeBackend`` — lives in :mod:`transcriber.backends.summarize_agno`
   and is imported **only when selected** (so the optional ``agno`` extra is not
-  a base dependency). Use :func:`get_summarize_backend` to obtain the configured
-  backend without importing ``agno`` on the default path.
+  a base dependency). It produces the summary + digest with an Agno/OpenRouter
+  model, then the **engine** publishes the Notion subpage directly via the
+  Notion REST API (:func:`transcriber.backends.notion_publish.publish_to_notion`)
+  — no MCP, no model tool-calling. Use :func:`get_summarize_backend` to obtain
+  the configured backend without importing ``agno`` on the default path.
 
-Both backends produce the same artifacts and both publish Notion via **MCP**
-(Spec R6/R10/R11). Selection is a pure function of ``config.summary.backend``;
-there is **no silent cross-backend fallback** (Spec R19).
+Both backends produce the same artifacts, but the Notion publish path is
+**backend-specific**: ``agy`` publishes via its own MCP, while ``agno``
+publishes engine-side via the Notion REST API (Spec R6/R10/R11; see README).
+Selection is a pure function of ``config.summary.backend``; there is **no
+silent cross-backend fallback** (Spec R19).
 """
 
 from __future__ import annotations

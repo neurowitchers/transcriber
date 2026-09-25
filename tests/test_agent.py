@@ -404,3 +404,63 @@ def test_run_agent_timeout_without_file_reraises_with_partial(tmp_path: Path, mo
     with pytest.raises(AgyTimeoutError) as excinfo:
         run_agent(cfg, tp, rec_dir, slides_markdown=None)
     assert excinfo.value.partial == "some partial work"
+
+
+
+# --------------------------------------------------------------------------- #
+# describe_slides (agy) runner — build_slide_prompt (Copilot #1)
+# --------------------------------------------------------------------------- #
+def test_build_slide_prompt_targets_slides_md_and_images(tmp_path: Path) -> None:
+    """Regression (Copilot #1): the agy slides runner must produce a dedicated
+    slide-description prompt that writes ``<name>.slides.md`` from the slide
+    IMAGES — not reuse the summary runner (which expects slide markdown text and
+    publishes to Notion)."""
+    cfg = make_config()
+    tp = write_transcript(tmp_path)
+    images = [tmp_path / "extracted_slides.meeting" / "a.jpg",
+              tmp_path / "extracted_slides.meeting" / "b.jpg"]
+    out = tmp_path / "meeting.slides.md"
+
+    prompt = agent.build_slide_prompt(cfg, tp, images, output_file=out)
+
+    # It writes the slide-description FILE.
+    assert str(out.resolve()) in prompt
+    # It references the slide images.
+    assert "a.jpg" in prompt
+    assert "b.jpg" in prompt
+    # It reads the transcript by path.
+    assert str(tp.resolve()) in prompt
+    # It must NOT publish to Notion (that is the summarize stage's job).
+    assert "Notion" in prompt  # only the "Do NOT publish ... to Notion" line
+    assert cfg.notion.parent_page_id not in prompt
+    assert "create a new" not in prompt.lower()
+
+
+def test_run_slide_agent_writes_and_returns_slides_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``run_slide_agent`` drives agy to write ``<name>.slides.md`` and returns
+    that path (file-is-source-of-truth), independent of the summary runner."""
+    cfg = make_config()
+    rec_dir = tmp_path / "recordings"
+    rec_dir.mkdir()
+    tp = rec_dir / "meeting.txt"
+    tp.write_text("transcript", encoding="utf-8")
+    out = rec_dir / "meeting.slides.md"
+    images = [rec_dir / "extracted_slides.meeting" / "a.jpg"]
+
+    captured = {}
+
+    def fake_run(prompt, *, add_dirs, extra_args, timeout, idle_timeout):
+        captured["prompt"] = prompt
+        captured["timeout"] = timeout
+        out.write_text("### Slide 1\ncontent", encoding="utf-8")
+
+    monkeypatch.setattr(agent, "run", fake_run)
+
+    result = agent.run_slide_agent(
+        cfg, tp, rec_dir, [str(p) for p in images], output_file=out, timeout=77
+    )
+    assert result == out
+    assert out.read_text(encoding="utf-8") == "### Slide 1\ncontent"
+    assert captured["timeout"] == 77
