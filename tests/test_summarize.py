@@ -51,6 +51,21 @@ NOTION_TOKEN_VALUE = "ntn_secret_should_not_leak"
 IMAGE_BYTES_SENTINEL = "QUJDREVGR0hJSktMTU5PUA=="  # fake base64 "image bytes"
 
 
+def _agno_response(summary: str = "# Summary\n\nBody.", digest: str | None = "Title\n- Decision") -> str:
+    """Build a valid sentinel-delimited Agno response the engine can parse."""
+    from transcriber.agent import (
+        _AGNO_SUMMARY_BEGIN,
+        _AGNO_SUMMARY_END,
+        _AGNO_DIGEST_BEGIN,
+        _AGNO_DIGEST_END,
+    )
+
+    parts = [f"{_AGNO_SUMMARY_BEGIN}\n{summary}\n{_AGNO_SUMMARY_END}"]
+    if digest is not None:
+        parts.append(f"{_AGNO_DIGEST_BEGIN}\n{digest}\n{_AGNO_DIGEST_END}")
+    return "\n".join(parts)
+
+
 def make_config(
     *,
     backend: str = "agno",
@@ -121,11 +136,20 @@ class FakeOpenRouterModel:
         FakeOpenRouterModel.instances.append(self)
 
 
+class FakeRunOutput:
+    def __init__(self, content: str) -> None:
+        self._content = content
+
+    def get_content_as_string(self) -> str:
+        return self._content
+
+
 class FakeAgent:
     instances: list["FakeAgent"] = []
 
-    # Set by tests to control what arun does (write file / raise / hang).
-    behavior = None  # callable(prompt) -> None (may be async-run)
+    # Set by tests to control what arun returns/does. A callable(prompt) that
+    # may be async; its return value (a str) becomes the agent's response text.
+    behavior = None
 
     def __init__(self, *, model, tools) -> None:
         self.model = model
@@ -133,10 +157,13 @@ class FakeAgent:
         self.arun_called_with = None
         FakeAgent.instances.append(self)
 
-    async def arun(self, prompt: str) -> None:
+    async def arun(self, prompt: str):
         self.arun_called_with = prompt
+        content = ""
         if FakeAgent.behavior is not None:
-            await FakeAgent.behavior(prompt)
+            result = await FakeAgent.behavior(prompt)
+            content = result if isinstance(result, str) else ""
+        return FakeRunOutput(content)
 
 
 @pytest.fixture(autouse=True)
@@ -272,7 +299,7 @@ def test_agno_builds_model_and_attaches_notion_mcp(tmp_path, monkeypatch):
     tp = write_transcript(rec_dir)
 
     async def behavior(prompt):
-        (rec_dir / "meeting.md").write_text("# Summary\n", encoding="utf-8")
+        return _agno_response()
 
     FakeAgent.behavior = staticmethod(behavior)
 
@@ -296,9 +323,12 @@ def test_agno_builds_model_and_attaches_notion_mcp(tmp_path, monkeypatch):
     assert agent.model is model
     assert mcp in agent.tools
 
-    # Shared prompt run + non-empty file post-condition satisfied.
+    # Engine wrote the files from the agent's returned text (option 1).
     assert isinstance(result, SummaryResult)
-    assert result.summary_path.read_text(encoding="utf-8").strip()
+    assert "Body." in result.summary_path.read_text(encoding="utf-8")
+    assert result.telegram_path.read_text(encoding="utf-8").strip() == (
+        "Title\n- Decision"
+    )
     assert mcp.closed is True  # closed on the success path
 
 
@@ -314,19 +344,18 @@ def test_agno_runs_shared_prompt_with_slide_markdown(tmp_path, monkeypatch):
     slides_md = "### Slide 1\n**Timestamp:** 00:00 - 00:10\n\nIntro.\n"
 
     async def behavior(prompt):
-        (rec_dir / "meeting.md").write_text("# Summary\n", encoding="utf-8")
+        return _agno_response()
 
     FakeAgent.behavior = staticmethod(behavior)
     backend.summarize(tp, slides_md, rec_dir, cfg)
 
     prompt = FakeAgent.instances[0].arun_called_with
-    # Same prompt contract as agy: Notion publish + digest + slide markdown.
+    # Agno prompt contract: Notion publish + digest instructions + slide markdown.
     assert "PARENT-PAGE-ID-123" in prompt
-    assert "meeting.telegram.md" in prompt
     assert slides_md in prompt
 
 
-def test_agno_empty_summary_file_fails_stage(tmp_path, monkeypatch):
+def test_agno_empty_summary_block_fails_stage(tmp_path, monkeypatch):
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
     backend = _agno_backend(monkeypatch)
@@ -337,15 +366,15 @@ def test_agno_empty_summary_file_fails_stage(tmp_path, monkeypatch):
     tp = write_transcript(rec_dir)
 
     async def behavior(prompt):
-        # Agent left a whitespace-only file (truncated/failed run).
-        (rec_dir / "meeting.md").write_text("   \n", encoding="utf-8")
+        # Sentinels present but the summary body is whitespace-only.
+        return _agno_response(summary="   ", digest=None)
 
     FakeAgent.behavior = staticmethod(behavior)
-    with pytest.raises(SummarizeError, match="empty"):
+    with pytest.raises(SummarizeError, match="no usable summary"):
         backend.summarize(tp, None, rec_dir, cfg)
 
 
-def test_agno_absent_summary_file_fails_stage(tmp_path, monkeypatch):
+def test_agno_missing_summary_block_fails_stage(tmp_path, monkeypatch):
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
     backend = _agno_backend(monkeypatch)
@@ -355,8 +384,12 @@ def test_agno_absent_summary_file_fails_stage(tmp_path, monkeypatch):
     rec_dir.mkdir()
     tp = write_transcript(rec_dir)
 
-    # behavior=None -> agent writes nothing.
-    with pytest.raises(SummarizeError, match="did not write"):
+    async def behavior(prompt):
+        # Response with no sentinels at all (truncated/off-format).
+        return "I published the page but forgot the sentinels."
+
+    FakeAgent.behavior = staticmethod(behavior)
+    with pytest.raises(SummarizeError, match="no usable summary"):
         backend.summarize(tp, None, rec_dir, cfg)
 
 
@@ -463,7 +496,7 @@ def test_agno_log_hygiene_no_secrets(tmp_path, monkeypatch, caplog):
     tp = write_transcript(rec_dir)
 
     async def behavior(prompt):
-        (rec_dir / "meeting.md").write_text("# Summary\n", encoding="utf-8")
+        return _agno_response()
 
     FakeAgent.behavior = staticmethod(behavior)
 

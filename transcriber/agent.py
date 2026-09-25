@@ -218,6 +218,105 @@ def build_prompt(
     return directives + body
 
 
+# --------------------------------------------------------------------------- #
+# Agno backend prompt/response contract
+# --------------------------------------------------------------------------- #
+# Sentinels delimiting the two returned artifacts in the Agno agent's final
+# message. Chosen to be extremely unlikely to appear in transcript-derived
+# prose. The engine (not the model) writes the files from these blocks.
+_AGNO_SUMMARY_BEGIN = "===TRANSCRIBER_SUMMARY_BEGIN==="
+_AGNO_SUMMARY_END = "===TRANSCRIBER_SUMMARY_END==="
+_AGNO_DIGEST_BEGIN = "===TRANSCRIBER_TELEGRAM_BEGIN==="
+_AGNO_DIGEST_END = "===TRANSCRIBER_TELEGRAM_END==="
+
+
+def build_agno_prompt(
+    config: Config,
+    transcript_path: str | os.PathLike[str],
+    slides_markdown: Optional[str] = None,
+) -> str:
+    """Assemble the prompt for the Agno summarize backend.
+
+    Unlike the ``agy`` prompt (which instructs a file-tool-capable agent to
+    *write* the summary/digest files), the Agno agent has only the Notion MCP
+    and cannot touch the local filesystem. So this prompt:
+
+    * **inlines** the transcript (+ slide markdown) as text — the agent has no
+      file-read tool, and Agno sends the prompt over HTTP (no command-line
+      length limit as with the ``agy`` CLI), so inlining is safe;
+    * asks the agent to **publish to Notion via MCP**; and
+    * asks the agent to **return** the full summary and the short Telegram
+      digest as two sentinel-delimited blocks, which the **engine** parses and
+      writes to ``<name>.md`` / ``<name>.telegram.md`` (Spec option 1: engine
+      writes files, agent publishes Notion).
+    """
+    summary_template = _read_template("summary.md")
+    body = summary_template.format(
+        language_instruction=_language_instruction(config.summary.language),
+        sections_block=_sections_block(config.summary.sections),
+        slide_block=_slide_block(slides_markdown),
+        transcript_fence=_transcript_fence(
+            _load_transcript(Path(transcript_path))
+        ),
+    )
+
+    directives = (
+        "# Task\n"
+        "Summarize the meeting transcript below and publish the result to "
+        "Notion, then return the artifacts as instructed. Follow the steps in "
+        "order.\n\n"
+        "## Step 1: Publish to Notion\n"
+        f"Using your `{config.notion.server}` MCP, create a new "
+        f"{config.notion.insert} under the parent page "
+        f"`{config.notion.parent_page_id}` containing the full Markdown "
+        "summary. Then add a link to the newly created subpage at the **TOP** "
+        "of the parent page.\n\n"
+        "## Step 2: Return the artifacts\n"
+        "As your FINAL message, return BOTH artifacts as plain text, each "
+        "wrapped in its exact sentinel lines (no code fences around the "
+        "sentinels, nothing else after the last sentinel):\n\n"
+        f"{_AGNO_SUMMARY_BEGIN}\n"
+        "<the complete Markdown summary — identical to what you published to "
+        f"Notion>\n{_AGNO_SUMMARY_END}\n"
+        f"{_AGNO_DIGEST_BEGIN}\n"
+        "<a very concise Telegram digest: a one-line meeting title, then just "
+        "the key Decisions and Action Items as a few short bullet points. No "
+        "slide descriptions, no long prose, no verbatim quotes. Under 1500 "
+        f"characters. Same language as the summary.>\n{_AGNO_DIGEST_END}\n\n"
+        "---\n\n"
+    )
+
+    return directives + body
+
+
+def _extract_block(text: str, begin: str, end: str) -> Optional[str]:
+    start = text.find(begin)
+    if start == -1:
+        return None
+    start += len(begin)
+    stop = text.find(end, start)
+    if stop == -1:
+        return None
+    return text[start:stop].strip()
+
+
+def parse_agno_response(text: str) -> tuple[str, Optional[str]]:
+    """Extract ``(summary, digest)`` from the Agno agent's final message.
+
+    Returns the summary (required) and the digest (optional — ``None`` when the
+    digest block is absent/empty). Raises :class:`ValueError` when the summary
+    block cannot be found or is empty, so the caller can fail the stage.
+    """
+    summary = _extract_block(text, _AGNO_SUMMARY_BEGIN, _AGNO_SUMMARY_END)
+    if not summary:
+        raise ValueError(
+            "Agno response did not contain a non-empty summary block "
+            f"(expected {_AGNO_SUMMARY_BEGIN} ... {_AGNO_SUMMARY_END})"
+        )
+    digest = _extract_block(text, _AGNO_DIGEST_BEGIN, _AGNO_DIGEST_END)
+    return summary, (digest or None)
+
+
 def run_agent(
     config: Config,
     transcript_path: str | os.PathLike[str],

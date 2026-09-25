@@ -41,7 +41,7 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
-from transcriber.agent import build_prompt, digest_path_for
+from transcriber.agent import build_agno_prompt, digest_path_for, parse_agno_response
 from transcriber.backends.errors import SummarizeError
 from transcriber.backends.interfaces import SummaryResult
 from transcriber.backends.notion_mcp import AgnoImportError, notion_mcp_tools
@@ -79,8 +79,12 @@ def _summarize_timeout(config: Config) -> float:
     return float(config.timeouts.agy)
 
 
-async def _run_agent(prompt: str, config: Config) -> None:
+async def _run_agent(prompt: str, config: Config) -> str:
     """Run the Agno agent with the Notion MCP attached, then close it.
+
+    Returns the agent's final message text (the engine parses it for the
+    summary + digest blocks and writes the files — the Agno agent has only the
+    Notion MCP and cannot write local files).
 
     ``MCPTools`` is entered as an async context manager so it is closed on the
     success, exception, and (via the caller's timeout cancellation) timeout
@@ -101,7 +105,8 @@ async def _run_agent(prompt: str, config: Config) -> None:
             "agno summarize: invoking Notion MCP publish via agent (model=%s)",
             model_id,
         )
-        await agent.arun(prompt)
+        output = await agent.arun(prompt)
+        return output.get_content_as_string() or ""
 
 
 class AgnoSummarizeBackend:
@@ -130,17 +135,14 @@ class AgnoSummarizeBackend:
 
         digest_path = digest_path_for(output_path)
 
-        # Same prompt contract as the agy backend: instruct the agent to write
-        # the summary + digest files and publish the Notion subpage. The
-        # transcript is referenced by file path (not inlined) — identical to
-        # run_agent — so the model reads it via its file tools.
-        prompt = build_prompt(
+        # Agno-specific prompt: transcript inlined (the agent has no file-read
+        # tool), agent publishes to Notion via MCP and RETURNS the summary +
+        # digest as sentinel-delimited text. The ENGINE writes the files from
+        # the returned text (the agent cannot touch the local filesystem).
+        prompt = build_agno_prompt(
             config,
             transcript_path.resolve(),
             slides_markdown,
-            output_file=str(output_path),
-            digest_file=str(digest_path),
-            inline_transcript=False,
         )
 
         timeout = _summarize_timeout(config)
@@ -157,7 +159,9 @@ class AgnoSummarizeBackend:
         )
 
         try:
-            asyncio.run(asyncio.wait_for(_run_agent(prompt, config), timeout))
+            response = asyncio.run(
+                asyncio.wait_for(_run_agent(prompt, config), timeout)
+            )
         except AgnoImportError:
             # Actionable "install the agno extra" error — surface as-is (R14/R19).
             raise
@@ -178,15 +182,30 @@ class AgnoSummarizeBackend:
                 f"agno summarize failed: {type(exc).__name__}"
             ) from exc
 
-        # Non-empty <name>.md post-condition (R22): a truncated/failed run that
-        # left an empty/absent file fails the stage (retryable).
-        if not output_path.exists():
+        # The ENGINE writes the artifacts from the agent's returned text
+        # (option 1): the Agno agent has only the Notion MCP and no filesystem
+        # tool, so it cannot write <name>.md / <name>.telegram.md itself.
+        try:
+            summary_text, digest_text = parse_agno_response(response)
+        except ValueError as exc:
+            # Truncated/malformed response with no usable summary → fail the
+            # stage (R22). Do not log the response body (R16/E8).
+            raise SummarizeError(
+                f"agno summarize produced no usable summary block: {exc}"
+            ) from exc
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(summary_text.strip() + "\n", encoding="utf-8")
+        if digest_text and digest_text.strip():
+            digest_path.write_text(digest_text.strip() + "\n", encoding="utf-8")
+
+        # Non-empty <name>.md post-condition (R22): defensive — parse guarantees
+        # a non-empty summary, but re-check the written file.
+        if not output_path.exists() or not output_path.read_text(
+            encoding="utf-8"
+        ).strip():
             raise SummarizeError(
                 f"agno did not write the expected summary file: {output_path}"
-            )
-        if not output_path.read_text(encoding="utf-8").strip():
-            raise SummarizeError(
-                f"agno wrote an empty summary file: {output_path}"
             )
 
         elapsed = time.monotonic() - started
