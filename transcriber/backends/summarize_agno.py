@@ -2,10 +2,11 @@
 
 This module drives an `Agno <https://docs.agno.com>`_ agent with a configurable
 OpenRouter model and the **official Notion MCP server attached as a tool**. The
-agent is given the *same* summary/digest+Notion prompt as the ``agy`` backend
-(reused verbatim from :mod:`transcriber.agent`), so both summarize backends
-share one prompt contract and produce the same observable outputs:
-``<name>.md`` + ``<name>.telegram.md`` plus a published Notion subpage.
+agent publishes the Notion subpage via MCP and returns the summary + digest via
+its **structured output schema**; the **engine** writes ``<name>.md`` +
+``<name>.telegram.md`` from those fields (the agent has only the Notion MCP and
+no filesystem tool). Structured output is used instead of in-band sentinels
+because models/Agno strip delimiter-looking lines from returned content.
 
 Design constraints (Spec R10/R11/R19/R21/R22/R22b):
 
@@ -41,7 +42,7 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
-from transcriber.agent import build_agno_prompt, digest_path_for, parse_agno_response
+from transcriber.agent import build_agno_prompt, digest_path_for
 from transcriber.backends.errors import SummarizeError
 from transcriber.backends.interfaces import SummaryResult
 from transcriber.backends.notion_mcp import AgnoImportError, notion_mcp_tools
@@ -50,23 +51,24 @@ from transcriber.config import Config, resolve_env
 logger = logging.getLogger(__name__)
 
 
-def _import_agno() -> "tuple[Any, Any]":
-    """Import Agno's ``Agent`` and OpenRouter model lazily.
+def _import_agno() -> "tuple[Any, Any, Any, Any]":
+    """Import Agno's ``Agent`` + OpenRouter model and pydantic lazily.
 
-    Returns ``(Agent, OpenRouter_model_cls)``. Raises
+    Returns ``(Agent, OpenRouter_model_cls, BaseModel, Field)``. Raises
     :class:`AgnoImportError` with an actionable install hint when the optional
-    ``agno`` extra is not installed.
+    ``agno`` extra (which brings pydantic) is not installed.
     """
     try:
         from agno.agent import Agent  # noqa: WPS433 (intentional lazy import)
         from agno.models.openrouter import OpenRouter as AgnoOpenRouter  # noqa: WPS433
+        from pydantic import BaseModel, Field  # noqa: WPS433 (agno depends on pydantic)
     except ImportError as exc:  # pragma: no cover - exercised via monkeypatch
         raise AgnoImportError(
             "The 'agno' extra is required for summary.backend == 'agno' "
             "(Agno agent + OpenRouter + Notion MCP). Install it with: "
             "`uv sync --extra agno` (or `pip install 'transcriber[agno]'`)."
         ) from exc
-    return Agent, AgnoOpenRouter
+    return Agent, AgnoOpenRouter, BaseModel, Field
 
 
 def _summarize_timeout(config: Config) -> float:
@@ -79,18 +81,30 @@ def _summarize_timeout(config: Config) -> float:
     return float(config.timeouts.agy)
 
 
-async def _run_agent(prompt: str, config: Config) -> str:
+async def _run_agent(prompt: str, config: Config) -> "tuple[str, Optional[str]]":
     """Run the Agno agent with the Notion MCP attached, then close it.
 
-    Returns the agent's final message text (the engine parses it for the
-    summary + digest blocks and writes the files — the Agno agent has only the
-    Notion MCP and cannot write local files).
+    Returns ``(summary, digest)`` extracted from the agent's **structured
+    output** (an ``AgnoSummary`` with ``summary`` + ``digest`` fields). The
+    engine writes the files from these values — the Agno agent has only the
+    Notion MCP and cannot write local files. Structured output is used instead
+    of in-band sentinels because models/Agno strip delimiter-looking lines from
+    returned content.
 
     ``MCPTools`` is entered as an async context manager so it is closed on the
     success, exception, and (via the caller's timeout cancellation) timeout
     paths — no orphaned Notion MCP subprocess (R22b/E3).
     """
-    Agent, AgnoOpenRouter = _import_agno()
+    Agent, AgnoOpenRouter, BaseModel, Field = _import_agno()
+
+    class AgnoSummary(BaseModel):
+        summary: str = Field(
+            description="The complete Markdown meeting summary."
+        )
+        digest: str = Field(
+            default="",
+            description="A very concise Telegram digest (under 1500 chars).",
+        )
 
     # Resolve secrets at use time (by env-var name); never logged.
     api_key = resolve_env(config.openrouter.api_key_env)
@@ -100,13 +114,22 @@ async def _run_agent(prompt: str, config: Config) -> str:
     mcp = notion_mcp_tools(config)  # unconnected; we own its lifecycle here.
     async with mcp:
         model = AgnoOpenRouter(id=model_id, api_key=api_key, base_url=base_url)
-        agent = Agent(model=model, tools=[mcp])
+        agent = Agent(model=model, tools=[mcp], output_schema=AgnoSummary)
         logger.info(
             "agno summarize: invoking Notion MCP publish via agent (model=%s)",
             model_id,
         )
         output = await agent.arun(prompt)
-        return output.get_content_as_string() or ""
+        content = output.content
+        # Duck-typed extraction: the structured object exposes .summary/.digest;
+        # some providers may return a dict instead.
+        if content is None:
+            return "", None
+        if isinstance(content, dict):
+            return content.get("summary", ""), (content.get("digest") or None)
+        summary = getattr(content, "summary", "")
+        digest = getattr(content, "digest", None)
+        return (summary or ""), (digest or None)
 
 
 class AgnoSummarizeBackend:
@@ -159,7 +182,7 @@ class AgnoSummarizeBackend:
         )
 
         try:
-            response = asyncio.run(
+            summary_text, digest_text = asyncio.run(
                 asyncio.wait_for(_run_agent(prompt, config), timeout)
             )
         except AgnoImportError:
@@ -182,25 +205,21 @@ class AgnoSummarizeBackend:
                 f"agno summarize failed: {type(exc).__name__}"
             ) from exc
 
-        # The ENGINE writes the artifacts from the agent's returned text
+        # The ENGINE writes the artifacts from the agent's STRUCTURED output
         # (option 1): the Agno agent has only the Notion MCP and no filesystem
         # tool, so it cannot write <name>.md / <name>.telegram.md itself.
-        try:
-            summary_text, digest_text = parse_agno_response(response)
-        except ValueError as exc:
-            # Truncated/malformed response with no usable summary → fail the
-            # stage (R22). Do not log the response body (R16/E8).
+        if not summary_text or not summary_text.strip():
+            # Truncated/failed run with no usable summary → fail the stage (R22).
             raise SummarizeError(
-                f"agno summarize produced no usable summary block: {exc}"
-            ) from exc
+                f"agno summarize produced no usable summary for {output_path.name}"
+            )
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(summary_text.strip() + "\n", encoding="utf-8")
         if digest_text and digest_text.strip():
             digest_path.write_text(digest_text.strip() + "\n", encoding="utf-8")
 
-        # Non-empty <name>.md post-condition (R22): defensive — parse guarantees
-        # a non-empty summary, but re-check the written file.
+        # Non-empty <name>.md post-condition (R22): defensive re-check.
         if not output_path.exists() or not output_path.read_text(
             encoding="utf-8"
         ).strip():
