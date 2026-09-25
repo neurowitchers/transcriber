@@ -43,6 +43,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from transcriber.agent import (
+    build_agno_digest_prompt,
     build_agno_publish_prompt,
     build_agno_summarize_prompt,
     digest_path_for,
@@ -89,31 +90,22 @@ async def _run_agent(
     summarize_prompt: str,
     config: Config,
 ) -> "tuple[str, Optional[str]]":
-    """Two-phase Agno run: structured summarize, then Notion publish.
+    """Three-call Agno run: plain-text summary, plain-text digest, MCP publish.
 
-    Phase 1 (no tools, structured output): a plain model call with an
-    ``AgnoSummary`` output schema returns ``(summary, digest)``. Keeping tools
-    out of this call makes structured-output coercion reliable.
+    Structured ``output_schema`` proved unreliable on mid-tier OpenRouter models
+    (long summaries truncated the JSON string -> parse failures), so all model
+    calls use **plain text** captured via ``get_content_as_string()``:
 
-    Phase 2 (agent + Notion MCP, no schema): publish the phase-1 summary to
-    Notion via the MCP. A tool-driven free-form call — no structured output to
-    coerce, so the tool round-trips don't corrupt the result. ``MCPTools`` is an
-    async context manager, closed on success/error/timeout (no orphaned
-    subprocess, R22b/E3).
+    * Phase 1 (no tools): produce the full Markdown summary.
+    * Phase 1b (no tools): produce the short Telegram digest from that summary.
+    * Phase 2 (agent + Notion MCP, no schema): publish the summary to Notion.
 
-    The engine writes the files from phase 1's ``(summary, digest)`` — the Agno
-    agent has only the Notion MCP and cannot write local files.
+    The engine writes the files from the phase-1/1b text — the Agno agent has
+    only the Notion MCP and cannot write local files. ``MCPTools`` is an async
+    context manager, closed on success/error/timeout (no orphaned subprocess,
+    R22b/E3).
     """
-    Agent, AgnoOpenRouter, BaseModel, Field = _import_agno()
-
-    class AgnoSummary(BaseModel):
-        summary: str = Field(
-            description="The complete Markdown meeting summary."
-        )
-        digest: str = Field(
-            default="",
-            description="A very concise Telegram digest (under 1500 chars).",
-        )
+    Agent, AgnoOpenRouter, _BaseModel, _Field = _import_agno()
 
     # Resolve secrets at use time (by env-var name); never logged.
     api_key = resolve_env(config.openrouter.api_key_env)
@@ -123,25 +115,22 @@ async def _run_agent(
     def _model():
         return AgnoOpenRouter(id=model_id, api_key=api_key, base_url=base_url)
 
-    # --- Phase 1: structured summarize (NO tools) ---------------------------- #
-    logger.info("agno summarize: phase 1 (summarize, model=%s)", model_id)
-    summarizer = Agent(model=_model(), output_schema=AgnoSummary)
+    # --- Phase 1: plain-text summary (NO tools, NO schema) ------------------- #
+    logger.info("agno summarize: phase 1 (summary, model=%s)", model_id)
+    summarizer = Agent(model=_model())
     out = await summarizer.arun(summarize_prompt)
-    content = out.content
-    if content is None:
-        return "", None
-    if isinstance(content, dict):
-        summary = content.get("summary", "")
-        digest = content.get("digest") or None
-    else:
-        summary = getattr(content, "summary", "") or ""
-        digest = getattr(content, "digest", None) or None
-
-    if not summary.strip():
+    summary = (out.get_content_as_string() or "").strip()
+    if not summary:
         # Nothing to publish or write — let the caller fail the stage (R22).
-        return summary, digest
+        return "", None
 
-    # --- Phase 2: publish to Notion via MCP (NO output schema) --------------- #
+    # --- Phase 1b: plain-text digest (NO tools, NO schema) ------------------- #
+    logger.info("agno summarize: phase 1b (digest, model=%s)", model_id)
+    digester = Agent(model=_model())
+    dout = await digester.arun(build_agno_digest_prompt(config, summary))
+    digest = (dout.get_content_as_string() or "").strip() or None
+
+    # --- Phase 2: publish to Notion via MCP (NO schema) ---------------------- #
     publish_prompt = build_agno_publish_prompt(config, summary)
     mcp = notion_mcp_tools(config)  # unconnected; we own its lifecycle here.
     async with mcp:

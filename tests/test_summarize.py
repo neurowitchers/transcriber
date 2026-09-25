@@ -137,19 +137,20 @@ class FakeRunOutput:
 class FakeAgent:
     instances: list["FakeAgent"] = []
 
-    # Phase-1 (summarize) behavior: callable(prompt) -> content object with
-    # .summary/.digest (or None). Phase-2 (publish) uses `publish_behavior`.
-    behavior = None
+    # summary_text / digest_text: plain-text returned by the two no-tool calls
+    # (phase 1 summary, phase 1b digest). publish_behavior: optional callable
+    # for the phase-2 (MCP tools) publish call.
+    summary_text = "# Summary\n\nBody."
+    digest_text = "Title\n- Decision"
     publish_behavior = None
+    _plain_calls = 0
 
     def __init__(self, *, model, tools=None, output_schema=None) -> None:
         self.model = model
         self.tools = tools or []
         self.output_schema = output_schema
         self.arun_called_with = None
-        # Phase 1 has an output_schema and no tools; phase 2 has tools and no
-        # output_schema.
-        self.is_publish = output_schema is None and bool(self.tools)
+        self.is_publish = bool(self.tools)
         FakeAgent.instances.append(self)
 
     async def arun(self, prompt: str):
@@ -157,12 +158,15 @@ class FakeAgent:
         if self.is_publish:
             if FakeAgent.publish_behavior is not None:
                 await FakeAgent.publish_behavior(prompt)
-            return FakeRunOutput(None)
-        # Phase 1: structured summarize.
-        content = None
-        if FakeAgent.behavior is not None:
-            content = await FakeAgent.behavior(prompt)
-        return FakeRunOutput(content)
+            return FakeRunOutput("published ok")
+        # No-tool calls: first is the summary, second is the digest.
+        FakeAgent._plain_calls += 1
+        text = (
+            FakeAgent.summary_text
+            if FakeAgent._plain_calls == 1
+            else FakeAgent.digest_text
+        )
+        return FakeRunOutput(text)
 
 
 @pytest.fixture(autouse=True)
@@ -170,11 +174,13 @@ def _reset_fakes():
     FakeMCPTools.instances = []
     FakeOpenRouterModel.instances = []
     FakeAgent.instances = []
-    FakeAgent.behavior = None
+    FakeAgent.summary_text = "# Summary\n\nBody."
+    FakeAgent.digest_text = "Title\n- Decision"
     FakeAgent.publish_behavior = None
+    FakeAgent._plain_calls = 0
     yield
-    FakeAgent.behavior = None
     FakeAgent.publish_behavior = None
+    FakeAgent._plain_calls = 0
 
 
 def _install_fake_agno(monkeypatch) -> None:
@@ -313,45 +319,39 @@ def test_agno_builds_model_and_attaches_notion_mcp(tmp_path, monkeypatch):
     rec_dir.mkdir()
     tp = write_transcript(rec_dir)
 
-    async def behavior(prompt):
-        return _summary_content()
-
-    FakeAgent.behavior = staticmethod(behavior)
-
     result = backend.summarize(tp, None, rec_dir, cfg)
 
-    # Two model instances built (phase 1 summarize + phase 2 publish), both
-    # with summary_model + resolved key/base_url.
-    assert len(FakeOpenRouterModel.instances) == 2
+    # Three model instances built (summary + digest + publish), all with the
+    # configured summary_model + resolved key/base_url.
+    assert len(FakeOpenRouterModel.instances) == 3
     for model in FakeOpenRouterModel.instances:
         assert model.id == "anthropic/claude-3.5-sonnet"
         assert model.api_key == OPENROUTER_KEY_VALUE
         assert model.base_url == "https://openrouter.ai/api/v1"
 
-    # Notion MCP attached (phase 2) with the token resolved by env-var name.
+    # Notion MCP attached (publish phase) with the token resolved by env name.
     assert len(FakeMCPTools.instances) == 1
     mcp = FakeMCPTools.instances[0]
     assert mcp.command == NOTION_MCP_COMMAND
     assert mcp.env[NOTION_MCP_TOKEN_ENV] == NOTION_TOKEN_VALUE
 
-    # Two agents: phase 1 (output_schema, no tools) + phase 2 (MCP tool, publish).
-    assert len(FakeAgent.instances) == 2
-    phase1 = [a for a in FakeAgent.instances if not a.is_publish]
-    phase2 = [a for a in FakeAgent.instances if a.is_publish]
-    assert len(phase1) == 1 and len(phase2) == 1
-    assert phase1[0].output_schema is not None
-    assert mcp in phase2[0].tools
+    # Three agents: two no-tool (summary, digest) + one publish (MCP tool).
+    assert len(FakeAgent.instances) == 3
+    plain = [a for a in FakeAgent.instances if not a.is_publish]
+    publish = [a for a in FakeAgent.instances if a.is_publish]
+    assert len(plain) == 2 and len(publish) == 1
+    assert mcp in publish[0].tools
 
-    # Engine wrote the files from phase 1's structured output (option 1).
+    # Engine wrote the files from the plain-text summary + digest.
     assert isinstance(result, SummaryResult)
     assert "Body." in result.summary_path.read_text(encoding="utf-8")
     assert result.telegram_path.read_text(encoding="utf-8").strip() == (
         "Title\n- Decision"
     )
-    assert mcp.closed is True  # closed on the publish (phase 2) path
+    assert mcp.closed is True  # closed on the publish path
 
 
-def test_agno_runs_shared_prompt_with_slide_markdown(tmp_path, monkeypatch):
+def test_agno_prompts_carry_slides_and_notion_id(tmp_path, monkeypatch):
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
     backend = _agno_backend(monkeypatch)
@@ -362,22 +362,18 @@ def test_agno_runs_shared_prompt_with_slide_markdown(tmp_path, monkeypatch):
     tp = write_transcript(rec_dir)
     slides_md = "### Slide 1\n**Timestamp:** 00:00 - 00:10\n\nIntro.\n"
 
-    async def behavior(prompt):
-        return _summary_content()
-
-    FakeAgent.behavior = staticmethod(behavior)
     backend.summarize(tp, slides_md, rec_dir, cfg)
 
-    phase1 = [a for a in FakeAgent.instances if not a.is_publish][0]
-    phase2 = [a for a in FakeAgent.instances if a.is_publish][0]
-    # Phase 1 (summarize): transcript + slide markdown inlined, no Notion id.
-    assert slides_md in phase1.arun_called_with
-    # Phase 2 (publish): the Notion parent-page id + the produced summary.
-    assert "PARENT-PAGE-ID-123" in phase2.arun_called_with
-    assert "Body." in phase2.arun_called_with
+    plain = [a for a in FakeAgent.instances if not a.is_publish]
+    publish = [a for a in FakeAgent.instances if a.is_publish][0]
+    # Phase 1 (first no-tool call): transcript + slide markdown inlined.
+    assert slides_md in plain[0].arun_called_with
+    # Publish phase: the Notion parent-page id + the produced summary text.
+    assert "PARENT-PAGE-ID-123" in publish.arun_called_with
+    assert "Body." in publish.arun_called_with
 
 
-def test_agno_empty_summary_block_fails_stage(tmp_path, monkeypatch):
+def test_agno_empty_summary_fails_stage(tmp_path, monkeypatch):
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
     backend = _agno_backend(monkeypatch)
@@ -387,32 +383,12 @@ def test_agno_empty_summary_block_fails_stage(tmp_path, monkeypatch):
     rec_dir.mkdir()
     tp = write_transcript(rec_dir)
 
-    async def behavior(prompt):
-        # Structured output present but the summary field is whitespace-only.
-        return _summary_content(summary="   ", digest="")
-
-    FakeAgent.behavior = staticmethod(behavior)
+    # Phase-1 summary comes back whitespace-only -> fail before publishing.
+    FakeAgent.summary_text = "   "
     with pytest.raises(SummarizeError, match="no usable summary"):
         backend.summarize(tp, None, rec_dir, cfg)
-
-
-def test_agno_missing_summary_block_fails_stage(tmp_path, monkeypatch):
-    monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
-    monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
-    backend = _agno_backend(monkeypatch)
-
-    cfg = make_config(backend="agno")
-    rec_dir = tmp_path / "rec"
-    rec_dir.mkdir()
-    tp = write_transcript(rec_dir)
-
-    async def behavior(prompt):
-        # No structured content at all (truncated/off-format run).
-        return None
-
-    FakeAgent.behavior = staticmethod(behavior)
-    with pytest.raises(SummarizeError, match="no usable summary"):
-        backend.summarize(tp, None, rec_dir, cfg)
+    # Publish MCP never constructed (we bailed before phase 2).
+    assert len(FakeMCPTools.instances) == 0
 
 
 def test_agno_mcp_closed_on_exception_path(tmp_path, monkeypatch):
@@ -425,13 +401,9 @@ def test_agno_mcp_closed_on_exception_path(tmp_path, monkeypatch):
     rec_dir.mkdir()
     tp = write_transcript(rec_dir)
 
-    async def behavior(prompt):
-        return _summary_content()
-
     async def publish_behavior(prompt):
         raise RuntimeError("publish boom mid-run")
 
-    FakeAgent.behavior = staticmethod(behavior)
     FakeAgent.publish_behavior = staticmethod(publish_behavior)
     with pytest.raises(SummarizeError):
         backend.summarize(tp, None, rec_dir, cfg)
@@ -446,8 +418,6 @@ def test_agno_timeout_closes_mcp_and_fails_stage(tmp_path, monkeypatch):
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
     backend = _agno_backend(monkeypatch)
 
-    # A small positive bound so the coroutine starts (MCP constructed + entered)
-    # before the agent's long sleep trips the timeout.
     import transcriber.backends.summarize_agno as sa
 
     monkeypatch.setattr(sa, "_summarize_timeout", lambda config: 0.05)
@@ -457,13 +427,9 @@ def test_agno_timeout_closes_mcp_and_fails_stage(tmp_path, monkeypatch):
     rec_dir.mkdir()
     tp = write_transcript(rec_dir)
 
-    async def behavior(prompt):
-        return _summary_content()  # phase 1 completes quickly
-
     async def publish_behavior(prompt):
-        await asyncio.sleep(5)  # phase 2 (MCP open) exceeds the 0.05s bound
+        await asyncio.sleep(5)  # publish (MCP open) exceeds the 0.05s bound
 
-    FakeAgent.behavior = staticmethod(behavior)
     FakeAgent.publish_behavior = staticmethod(publish_behavior)
     with pytest.raises(SummarizeError, match="timed out"):
         backend.summarize(tp, None, rec_dir, cfg)
@@ -524,11 +490,6 @@ def test_agno_log_hygiene_no_secrets(tmp_path, monkeypatch, caplog):
     rec_dir = tmp_path / "rec"
     rec_dir.mkdir()
     tp = write_transcript(rec_dir)
-
-    async def behavior(prompt):
-        return _summary_content()
-
-    FakeAgent.behavior = staticmethod(behavior)
 
     with caplog.at_level(logging.DEBUG):
         backend.summarize(tp, None, rec_dir, cfg)
