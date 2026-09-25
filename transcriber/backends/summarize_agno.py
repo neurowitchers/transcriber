@@ -1,35 +1,31 @@
 """Agno summarize backend (imported only when ``summary.backend == "agno"``).
 
 This module drives an `Agno <https://docs.agno.com>`_ agent with a configurable
-OpenRouter model and the **official Notion MCP server attached as a tool**. The
-agent publishes the Notion subpage via MCP and returns the summary + digest via
-its **structured output schema**; the **engine** writes ``<name>.md`` +
-``<name>.telegram.md`` from those fields (the agent has only the Notion MCP and
-no filesystem tool). Structured output is used instead of in-band sentinels
-because models/Agno strip delimiter-looking lines from returned content.
+OpenRouter model to produce the meeting **summary** and a short **digest** as
+plain text. The **engine** then publishes a Notion subpage by calling the Notion
+REST API directly (see :mod:`transcriber.backends.notion_publish`) and writes
+``<name>.md`` + ``<name>.telegram.md`` from the model output.
 
 Design constraints (Spec R10/R11/R19/R21/R22/R22b):
 
-* **Notion via MCP only** — the Notion subpage is created through the official
-  Notion MCP server (launched by :mod:`transcriber.backends.notion_mcp`), never
-  a hand-rolled REST client (R11).
+* **Notion via the REST API** — the subpage is created by the engine through the
+  Notion REST API, not by a model tool-call. The official Notion MCP's tool
+  schemas (``oneOf``/``anyOf``/``$ref``) break tool-calling on Gemini/Mistral
+  over OpenRouter (empty ``null`` completions, zero tool calls), so a
+  deterministic engine-side publish is used instead.
 * **Optional import** — ``agno`` and its OpenRouter model provider are imported
   lazily *inside* this module so the base engine never needs the ``agno`` extra
   unless this backend is selected. A missing import raises the actionable
   :class:`~transcriber.backends.notion_mcp.AgnoImportError`.
-* **Hard time bound + subprocess cleanup (R22b/E2/E3)** — the async agent run is
-  wrapped in :func:`asyncio.run` under a timeout equal to the summarize-stage
-  timeout (``timeouts.summarize`` when set, else ``timeouts.agy`` — R13/E9).
-  ``MCPTools`` is opened as an async context manager and therefore closed on
-  **every** path (success, error, and timeout), so the spawned Notion MCP
-  subprocess (``npx``/node) is never orphaned.
+* **Hard time bound (R22b/E2)** — the async run is wrapped in :func:`asyncio.run`
+  under a timeout equal to the summarize-stage timeout (``timeouts.summarize``
+  when set, else ``timeouts.agy`` — R13/E9). The blocking Notion publish runs in
+  a worker thread so the timeout can still cancel the run.
 * **Non-empty post-condition (R22)** — after the run, the engine re-uses the
   same non-empty ``<name>.md`` success check as the ``agy`` path: an empty or
-  absent summary file fails the stage (retryable). A truncated model turn thus
-  fails rather than persisting a partial summary.
-* **Agent-run atomicity (R21)** — summary write + Notion publish happen inside a
-  single agent run, so a Notion failure fails the whole ``summarize``+``notion``
-  stage, exactly like ``agy``.
+  absent summary file fails the stage (retryable).
+* **Atomicity (R21)** — summarize + Notion publish happen in a single run, so a
+  Notion failure fails the whole ``summarize``+``notion`` stage, like ``agy``.
 * **Log hygiene (R16/E8)** — the OpenRouter key, the Notion token, and any
   content payload are never logged. Only stage/model/size/elapsed are logged.
 """
@@ -44,36 +40,35 @@ from typing import Any, Optional
 
 from transcriber.agent import (
     build_agno_digest_prompt,
-    build_agno_publish_prompt,
     build_agno_summarize_prompt,
     digest_path_for,
 )
 from transcriber.backends.errors import SummarizeError
 from transcriber.backends.interfaces import SummaryResult
-from transcriber.backends.notion_mcp import AgnoImportError, notion_mcp_tools
+from transcriber.backends.notion_mcp import AgnoImportError
+from transcriber.backends.notion_publish import publish_to_notion
 from transcriber.config import Config, resolve_env
 
 logger = logging.getLogger(__name__)
 
 
-def _import_agno() -> "tuple[Any, Any, Any, Any]":
-    """Import Agno's ``Agent`` + OpenRouter model and pydantic lazily.
+def _import_agno() -> "tuple[Any, Any]":
+    """Import Agno's ``Agent`` + OpenRouter model lazily.
 
-    Returns ``(Agent, OpenRouter_model_cls, BaseModel, Field)``. Raises
-    :class:`AgnoImportError` with an actionable install hint when the optional
-    ``agno`` extra (which brings pydantic) is not installed.
+    Returns ``(Agent, OpenRouter_model_cls)``. Raises :class:`AgnoImportError`
+    with an actionable install hint when the optional ``agno`` extra is not
+    installed.
     """
     try:
         from agno.agent import Agent  # noqa: WPS433 (intentional lazy import)
         from agno.models.openrouter import OpenRouter as AgnoOpenRouter  # noqa: WPS433
-        from pydantic import BaseModel, Field  # noqa: WPS433 (agno depends on pydantic)
     except ImportError as exc:  # pragma: no cover - exercised via monkeypatch
         raise AgnoImportError(
             "The 'agno' extra is required for summary.backend == 'agno' "
-            "(Agno agent + OpenRouter + Notion MCP). Install it with: "
+            "(Agno agent + OpenRouter). Install it with: "
             "`uv sync --extra agno` (or `pip install 'transcriber[agno]'`)."
         ) from exc
-    return Agent, AgnoOpenRouter, BaseModel, Field
+    return Agent, AgnoOpenRouter
 
 
 def _summarize_timeout(config: Config) -> float:
@@ -91,22 +86,22 @@ async def _run_agent(
     config: Config,
     title: str,
 ) -> "tuple[str, Optional[str]]":
-    """Three-call Agno run: plain-text summary, plain-text digest, MCP publish.
+    """Produce the summary + digest with Agno, then publish via the Notion API.
 
-    Structured ``output_schema`` proved unreliable on mid-tier OpenRouter models
-    (long summaries truncated the JSON string -> parse failures), so all model
-    calls use **plain text** captured via ``get_content_as_string()``:
+    Two plain-text model calls (captured via ``get_content_as_string()``), then
+    a **deterministic engine-side** Notion REST publish:
 
     * Phase 1 (no tools): produce the full Markdown summary.
     * Phase 1b (no tools): produce the short Telegram digest from that summary.
-    * Phase 2 (agent + Notion MCP, no schema): publish the summary to Notion.
+    * Publish: :func:`transcriber.backends.notion_publish.publish_to_notion`
+      creates the subpage under the parent and writes the summary as native
+      Notion blocks — no MCP, no model tool-calling (the official Notion MCP's
+      tool schemas break tool-calling on Gemini/Mistral over OpenRouter).
 
-    The engine writes the files from the phase-1/1b text — the Agno agent has
-    only the Notion MCP and cannot write local files. ``MCPTools`` is an async
-    context manager, closed on success/error/timeout (no orphaned subprocess,
-    R22b/E3).
+    The engine writes ``<name>.md`` + ``<name>.telegram.md`` from the returned
+    ``(summary, digest)``.
     """
-    Agent, AgnoOpenRouter, _BaseModel, _Field = _import_agno()
+    Agent, AgnoOpenRouter = _import_agno()
 
     # Resolve secrets at use time (by env-var name); never logged.
     api_key = resolve_env(config.openrouter.api_key_env)
@@ -116,7 +111,7 @@ async def _run_agent(
     def _model():
         return AgnoOpenRouter(id=model_id, api_key=api_key, base_url=base_url)
 
-    # --- Phase 1: plain-text summary (NO tools, NO schema) ------------------- #
+    # --- Phase 1: plain-text summary ----------------------------------------- #
     logger.info("agno summarize: phase 1 (summary, model=%s)", model_id)
     summarizer = Agent(model=_model())
     out = await summarizer.arun(summarize_prompt)
@@ -125,55 +120,27 @@ async def _run_agent(
         # Nothing to publish or write — let the caller fail the stage (R22).
         return "", None
 
-    # --- Phase 1b: plain-text digest (NO tools, NO schema) ------------------- #
+    # --- Phase 1b: plain-text digest ----------------------------------------- #
     logger.info("agno summarize: phase 1b (digest, model=%s)", model_id)
     digester = Agent(model=_model())
     dout = await digester.arun(build_agno_digest_prompt(config, summary))
     digest = (dout.get_content_as_string() or "").strip() or None
 
-    # --- Phase 2: publish to Notion via MCP (NO schema) ---------------------- #
-    publish_prompt = build_agno_publish_prompt(config, summary, title)
-    mcp = notion_mcp_tools(config)  # unconnected; we own its lifecycle here.
-    async with mcp:
-        publisher = Agent(model=_model(), tools=[mcp])
-        logger.info(
-            "agno summarize: phase 2 (Notion MCP publish, model=%s)", model_id
-        )
-        pout = await publisher.arun(publish_prompt)
-        _verify_published(pout)
+    # --- Publish: engine-side direct Notion REST (no MCP, no tool-calling) --- #
+    logger.info("agno summarize: publishing to Notion (title=%r)", title)
+    # Runs blocking urllib in a worker thread so we don't stall the event loop
+    # and the outer asyncio.wait_for timeout can still cancel it.
+    await asyncio.to_thread(publish_to_notion, config, title, summary)
 
     return summary, digest
 
 
-def _verify_published(run_output) -> None:
-    """Fail (retryable) unless a Notion MCP tool actually executed successfully.
-
-    A free-form publish agent may reply "done" in prose without calling any
-    tool, or invoke a hallucinated tool name that the MCP rejects — in both
-    cases nothing is created. We refuse to report success unless at least one
-    Notion tool call ran without a ``tool_call_error`` (R22b: no silent no-op
-    publish).
-    """
-    tools = getattr(run_output, "tools", None) or []
-    successful = [
-        t for t in tools if not getattr(t, "tool_call_error", False)
-    ]
-    if not successful:
-        attempted = [
-            (getattr(t, "tool_name", None) or getattr(t, "name", None))
-            for t in tools
-        ]
-        raise SummarizeError(
-            "agno publish made no successful Notion MCP tool call "
-            f"(attempted={attempted!r}); nothing was published"
-        )
-
-
 class AgnoSummarizeBackend:
-    """Summarize via an Agno agent (OpenRouter model + Notion MCP).
+    """Summarize via an Agno/OpenRouter model + direct Notion REST publish.
 
-    Implements :class:`~transcriber.backends.interfaces.SummarizeBackend`. Same
-    file-is-source-of-truth + Notion-via-MCP contract as the ``agy`` backend.
+    Implements :class:`~transcriber.backends.interfaces.SummarizeBackend`. The
+    model produces the summary + digest; the engine writes the files and
+    publishes the Notion subpage via the REST API (no MCP).
     """
 
     def summarize(
