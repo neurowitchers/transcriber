@@ -102,9 +102,10 @@ def write_transcript(tmp_path, text="[00:00] hello world"):
 class FakeMCPTools:
     instances: list["FakeMCPTools"] = []
 
-    def __init__(self, *, command: str, env: dict) -> None:
+    def __init__(self, *, command: str, env: dict, include_tools=None) -> None:
         self.command = command
         self.env = env
+        self.include_tools = include_tools
         self.closed = False
         FakeMCPTools.instances.append(self)
 

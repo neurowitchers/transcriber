@@ -66,9 +66,12 @@ class FakeMCPTools:
 
     instances: list["FakeMCPTools"] = []
 
-    def __init__(self, *, command: str, env: dict[str, str]) -> None:
+    def __init__(
+        self, *, command: str, env: dict[str, str], include_tools=None
+    ) -> None:
         self.command = command
         self.env = env
+        self.include_tools = include_tools
         self.closed = False
         self.connected = False
         FakeMCPTools.instances.append(self)
@@ -184,6 +187,11 @@ def test_factory_launches_official_notion_mcp_with_env_merged_token(monkeypatch)
     # Env is merged: sentinel survives AND token present under official name.
     assert mcp.env["PATH_SENTINEL_XYZ"] == "keep-me"
     assert mcp.env[NOTION_MCP_TOKEN_ENV] == NOTION_TOKEN_VALUE
+    # Toolset restricted to the publish tools (avoids overwhelming the model).
+    from transcriber.backends.notion_mcp import NOTION_MCP_PUBLISH_TOOLS
+
+    assert mcp.include_tools == list(NOTION_MCP_PUBLISH_TOOLS)
+    assert "API-post-page" in mcp.include_tools
 
 
 # --------------------------------------------------------------------------- #

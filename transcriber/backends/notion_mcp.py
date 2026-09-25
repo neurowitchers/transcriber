@@ -63,6 +63,20 @@ NOTION_MCP_PACKAGE = "@notionhq/notion-mcp-server"
 #: (The recommended ``NOTION_TOKEN`` form, not the advanced ``OPENAPI_MCP_HEADERS``.)
 NOTION_MCP_TOKEN_ENV = "NOTION_TOKEN"
 
+#: The **only** Notion MCP tools the publish step needs. The official server
+#: exposes ~25 tools with large OpenAPI-derived JSON schemas; handing all of
+#: them to the model over OpenRouter overflows/derails tool selection (the model
+#: returns an empty/`null` completion with zero tool calls). Restricting the
+#: toolset to this handful shrinks the schema payload and makes the create+write
+#: publish reliable.
+NOTION_MCP_PUBLISH_TOOLS = [
+    "API-post-page",  # create the new subpage under the parent
+    "API-patch-block-children",  # write body blocks / append the parent link
+    "API-update-page-markdown",  # alt: write the page body as markdown
+    "API-post-search",  # locate the parent if needed
+    "API-retrieve-a-page",  # confirm/inspect a page
+]
+
 
 def _npx_executable() -> str:
     """Return a Windows-launchable ``npx`` command name.
@@ -148,4 +162,10 @@ def notion_mcp_tools(config: Config) -> "MCPTools":
     mcptools_cls: Any = _import_mcptools()
     command = notion_mcp_command()
     env = notion_mcp_env(config)
-    return mcptools_cls(command=command, env=env)
+    # Restrict to the publish toolset so the model isn't overwhelmed by ~25
+    # large tool schemas (which causes empty/`null`, zero-tool-call completions).
+    return mcptools_cls(
+        command=command,
+        env=env,
+        include_tools=list(NOTION_MCP_PUBLISH_TOOLS),
+    )
