@@ -137,20 +137,28 @@ class FakeRunOutput:
 class FakeAgent:
     instances: list["FakeAgent"] = []
 
-    # Set by tests to control what arun returns/does. A callable(prompt) that
-    # may be async; its return value becomes the RunOutput.content (an object
-    # with .summary/.digest, or None).
+    # Phase-1 (summarize) behavior: callable(prompt) -> content object with
+    # .summary/.digest (or None). Phase-2 (publish) uses `publish_behavior`.
     behavior = None
+    publish_behavior = None
 
-    def __init__(self, *, model, tools, output_schema=None) -> None:
+    def __init__(self, *, model, tools=None, output_schema=None) -> None:
         self.model = model
-        self.tools = tools
+        self.tools = tools or []
         self.output_schema = output_schema
         self.arun_called_with = None
+        # Phase 1 has an output_schema and no tools; phase 2 has tools and no
+        # output_schema.
+        self.is_publish = output_schema is None and bool(self.tools)
         FakeAgent.instances.append(self)
 
     async def arun(self, prompt: str):
         self.arun_called_with = prompt
+        if self.is_publish:
+            if FakeAgent.publish_behavior is not None:
+                await FakeAgent.publish_behavior(prompt)
+            return FakeRunOutput(None)
+        # Phase 1: structured summarize.
         content = None
         if FakeAgent.behavior is not None:
             content = await FakeAgent.behavior(prompt)
@@ -163,8 +171,10 @@ def _reset_fakes():
     FakeOpenRouterModel.instances = []
     FakeAgent.instances = []
     FakeAgent.behavior = None
+    FakeAgent.publish_behavior = None
     yield
     FakeAgent.behavior = None
+    FakeAgent.publish_behavior = None
 
 
 def _install_fake_agno(monkeypatch) -> None:
@@ -310,31 +320,35 @@ def test_agno_builds_model_and_attaches_notion_mcp(tmp_path, monkeypatch):
 
     result = backend.summarize(tp, None, rec_dir, cfg)
 
-    # Model built with summary_model + resolved key/base_url.
-    assert len(FakeOpenRouterModel.instances) == 1
-    model = FakeOpenRouterModel.instances[0]
-    assert model.id == "anthropic/claude-3.5-sonnet"
-    assert model.api_key == OPENROUTER_KEY_VALUE
-    assert model.base_url == "https://openrouter.ai/api/v1"
+    # Two model instances built (phase 1 summarize + phase 2 publish), both
+    # with summary_model + resolved key/base_url.
+    assert len(FakeOpenRouterModel.instances) == 2
+    for model in FakeOpenRouterModel.instances:
+        assert model.id == "anthropic/claude-3.5-sonnet"
+        assert model.api_key == OPENROUTER_KEY_VALUE
+        assert model.base_url == "https://openrouter.ai/api/v1"
 
-    # Notion MCP attached with the token resolved by env-var name.
+    # Notion MCP attached (phase 2) with the token resolved by env-var name.
     assert len(FakeMCPTools.instances) == 1
     mcp = FakeMCPTools.instances[0]
     assert mcp.command == NOTION_MCP_COMMAND
     assert mcp.env[NOTION_MCP_TOKEN_ENV] == NOTION_TOKEN_VALUE
-    # Agent got the model + the MCP tool.
-    assert len(FakeAgent.instances) == 1
-    agent = FakeAgent.instances[0]
-    assert agent.model is model
-    assert mcp in agent.tools
 
-    # Engine wrote the files from the agent's returned text (option 1).
+    # Two agents: phase 1 (output_schema, no tools) + phase 2 (MCP tool, publish).
+    assert len(FakeAgent.instances) == 2
+    phase1 = [a for a in FakeAgent.instances if not a.is_publish]
+    phase2 = [a for a in FakeAgent.instances if a.is_publish]
+    assert len(phase1) == 1 and len(phase2) == 1
+    assert phase1[0].output_schema is not None
+    assert mcp in phase2[0].tools
+
+    # Engine wrote the files from phase 1's structured output (option 1).
     assert isinstance(result, SummaryResult)
     assert "Body." in result.summary_path.read_text(encoding="utf-8")
     assert result.telegram_path.read_text(encoding="utf-8").strip() == (
         "Title\n- Decision"
     )
-    assert mcp.closed is True  # closed on the success path
+    assert mcp.closed is True  # closed on the publish (phase 2) path
 
 
 def test_agno_runs_shared_prompt_with_slide_markdown(tmp_path, monkeypatch):
@@ -354,10 +368,13 @@ def test_agno_runs_shared_prompt_with_slide_markdown(tmp_path, monkeypatch):
     FakeAgent.behavior = staticmethod(behavior)
     backend.summarize(tp, slides_md, rec_dir, cfg)
 
-    prompt = FakeAgent.instances[0].arun_called_with
-    # Agno prompt contract: Notion publish + digest instructions + slide markdown.
-    assert "PARENT-PAGE-ID-123" in prompt
-    assert slides_md in prompt
+    phase1 = [a for a in FakeAgent.instances if not a.is_publish][0]
+    phase2 = [a for a in FakeAgent.instances if a.is_publish][0]
+    # Phase 1 (summarize): transcript + slide markdown inlined, no Notion id.
+    assert slides_md in phase1.arun_called_with
+    # Phase 2 (publish): the Notion parent-page id + the produced summary.
+    assert "PARENT-PAGE-ID-123" in phase2.arun_called_with
+    assert "Body." in phase2.arun_called_with
 
 
 def test_agno_empty_summary_block_fails_stage(tmp_path, monkeypatch):
@@ -409,9 +426,13 @@ def test_agno_mcp_closed_on_exception_path(tmp_path, monkeypatch):
     tp = write_transcript(rec_dir)
 
     async def behavior(prompt):
-        raise RuntimeError("agent boom mid-run")
+        return _summary_content()
+
+    async def publish_behavior(prompt):
+        raise RuntimeError("publish boom mid-run")
 
     FakeAgent.behavior = staticmethod(behavior)
+    FakeAgent.publish_behavior = staticmethod(publish_behavior)
     with pytest.raises(SummarizeError):
         backend.summarize(tp, None, rec_dir, cfg)
 
@@ -437,9 +458,13 @@ def test_agno_timeout_closes_mcp_and_fails_stage(tmp_path, monkeypatch):
     tp = write_transcript(rec_dir)
 
     async def behavior(prompt):
-        await asyncio.sleep(5)  # exceeds the 0.05s bound -> TimeoutError
+        return _summary_content()  # phase 1 completes quickly
+
+    async def publish_behavior(prompt):
+        await asyncio.sleep(5)  # phase 2 (MCP open) exceeds the 0.05s bound
 
     FakeAgent.behavior = staticmethod(behavior)
+    FakeAgent.publish_behavior = staticmethod(publish_behavior)
     with pytest.raises(SummarizeError, match="timed out"):
         backend.summarize(tp, None, rec_dir, cfg)
 

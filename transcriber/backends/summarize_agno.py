@@ -42,7 +42,11 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
-from transcriber.agent import build_agno_prompt, digest_path_for
+from transcriber.agent import (
+    build_agno_publish_prompt,
+    build_agno_summarize_prompt,
+    digest_path_for,
+)
 from transcriber.backends.errors import SummarizeError
 from transcriber.backends.interfaces import SummaryResult
 from transcriber.backends.notion_mcp import AgnoImportError, notion_mcp_tools
@@ -81,19 +85,24 @@ def _summarize_timeout(config: Config) -> float:
     return float(config.timeouts.agy)
 
 
-async def _run_agent(prompt: str, config: Config) -> "tuple[str, Optional[str]]":
-    """Run the Agno agent with the Notion MCP attached, then close it.
+async def _run_agent(
+    summarize_prompt: str,
+    config: Config,
+) -> "tuple[str, Optional[str]]":
+    """Two-phase Agno run: structured summarize, then Notion publish.
 
-    Returns ``(summary, digest)`` extracted from the agent's **structured
-    output** (an ``AgnoSummary`` with ``summary`` + ``digest`` fields). The
-    engine writes the files from these values — the Agno agent has only the
-    Notion MCP and cannot write local files. Structured output is used instead
-    of in-band sentinels because models/Agno strip delimiter-looking lines from
-    returned content.
+    Phase 1 (no tools, structured output): a plain model call with an
+    ``AgnoSummary`` output schema returns ``(summary, digest)``. Keeping tools
+    out of this call makes structured-output coercion reliable.
 
-    ``MCPTools`` is entered as an async context manager so it is closed on the
-    success, exception, and (via the caller's timeout cancellation) timeout
-    paths — no orphaned Notion MCP subprocess (R22b/E3).
+    Phase 2 (agent + Notion MCP, no schema): publish the phase-1 summary to
+    Notion via the MCP. A tool-driven free-form call — no structured output to
+    coerce, so the tool round-trips don't corrupt the result. ``MCPTools`` is an
+    async context manager, closed on success/error/timeout (no orphaned
+    subprocess, R22b/E3).
+
+    The engine writes the files from phase 1's ``(summary, digest)`` — the Agno
+    agent has only the Notion MCP and cannot write local files.
     """
     Agent, AgnoOpenRouter, BaseModel, Field = _import_agno()
 
@@ -111,25 +120,38 @@ async def _run_agent(prompt: str, config: Config) -> "tuple[str, Optional[str]]"
     base_url = config.openrouter.base_url
     model_id = config.openrouter.summary_model
 
+    def _model():
+        return AgnoOpenRouter(id=model_id, api_key=api_key, base_url=base_url)
+
+    # --- Phase 1: structured summarize (NO tools) ---------------------------- #
+    logger.info("agno summarize: phase 1 (summarize, model=%s)", model_id)
+    summarizer = Agent(model=_model(), output_schema=AgnoSummary)
+    out = await summarizer.arun(summarize_prompt)
+    content = out.content
+    if content is None:
+        return "", None
+    if isinstance(content, dict):
+        summary = content.get("summary", "")
+        digest = content.get("digest") or None
+    else:
+        summary = getattr(content, "summary", "") or ""
+        digest = getattr(content, "digest", None) or None
+
+    if not summary.strip():
+        # Nothing to publish or write — let the caller fail the stage (R22).
+        return summary, digest
+
+    # --- Phase 2: publish to Notion via MCP (NO output schema) --------------- #
+    publish_prompt = build_agno_publish_prompt(config, summary)
     mcp = notion_mcp_tools(config)  # unconnected; we own its lifecycle here.
     async with mcp:
-        model = AgnoOpenRouter(id=model_id, api_key=api_key, base_url=base_url)
-        agent = Agent(model=model, tools=[mcp], output_schema=AgnoSummary)
+        publisher = Agent(model=_model(), tools=[mcp])
         logger.info(
-            "agno summarize: invoking Notion MCP publish via agent (model=%s)",
-            model_id,
+            "agno summarize: phase 2 (Notion MCP publish, model=%s)", model_id
         )
-        output = await agent.arun(prompt)
-        content = output.content
-        # Duck-typed extraction: the structured object exposes .summary/.digest;
-        # some providers may return a dict instead.
-        if content is None:
-            return "", None
-        if isinstance(content, dict):
-            return content.get("summary", ""), (content.get("digest") or None)
-        summary = getattr(content, "summary", "")
-        digest = getattr(content, "digest", None)
-        return (summary or ""), (digest or None)
+        await publisher.arun(publish_prompt)
+
+    return summary, digest
 
 
 class AgnoSummarizeBackend:
@@ -159,10 +181,11 @@ class AgnoSummarizeBackend:
         digest_path = digest_path_for(output_path)
 
         # Agno-specific prompt: transcript inlined (the agent has no file-read
-        # tool), agent publishes to Notion via MCP and RETURNS the summary +
-        # digest as sentinel-delimited text. The ENGINE writes the files from
-        # the returned text (the agent cannot touch the local filesystem).
-        prompt = build_agno_prompt(
+        # Phase 1 prompt: summarize the inlined transcript into structured
+        # output (no Notion here). Phase 2 (publish) is driven inside _run_agent
+        # from the phase-1 summary. The ENGINE writes the files (the agent has
+        # only the Notion MCP and cannot touch the local filesystem).
+        prompt = build_agno_summarize_prompt(
             config,
             transcript_path.resolve(),
             slides_markdown,
