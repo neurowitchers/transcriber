@@ -19,6 +19,7 @@ from transcriber.config import (
     Agent,
     Config,
     Notion,
+    SlidesStage,
     Stages,
     Summary,
     Telegram,
@@ -39,7 +40,7 @@ def make_config(
 ) -> Config:
     return Config(
         recordings_dir=str(recordings_dir),
-        stages=Stages(slides=slides, s3_sync=False),
+        stages=Stages(slides=SlidesStage(enabled=slides), s3_sync=False),
         transcribe=Transcribe(model_id=model_id),
         summary=Summary(language="en", sections=["overview"]),
         agent=Agent(cli="agy", extra_args=[], output_file="{basename}.md"),
@@ -73,6 +74,12 @@ class Recorder:
         self.calls.append(
             Call(argv=list(argv), timeout=timeout, stdout_path=stdout_path)
         )
+        # Simulate the elevenlabs CLI: write a JSON transcript payload to the
+        # redirected stdout file so _transcribe's decode step has valid input.
+        if stdout_path is not None and argv and argv[0] == "elevenlabs":
+            Path(stdout_path).write_text(
+                '{"text": "hello world transcript"}', encoding="utf-8"
+            )
 
 
 @pytest.fixture
@@ -141,13 +148,17 @@ def test_transcribe_command_line_and_stdout_redirect(
         "--model-id",
         "scribe_v2",
         "--format",
-        "text",
+        "json",
     ]
-    # stdout is redirected to the .txt artifact.
+    # stdout is redirected to the .txt artifact, then decoded to plain text.
     assert Path(call.stdout_path) == tmp_path / "talk.txt"
     assert call.timeout == 33
     assert result.skipped_artifacts.count("mp3") == 1
     assert "txt" in result.new_artifacts
+    # The JSON response is post-processed into the plain transcript text.
+    assert (tmp_path / "talk.txt").read_text(encoding="utf-8") == (
+        "hello world transcript\n"
+    )
 
 
 def test_slides_command_line_when_enabled(recorder: Recorder, tmp_path: Path) -> None:
@@ -186,6 +197,57 @@ def test_slides_skipped_when_disabled(recorder: Recorder, tmp_path: Path) -> Non
     mp4 = touch(tmp_path / "lesson.mp4")
     cfg = make_config(tmp_path, slides=False)
 
+    pipeline.process_recording(mp4, cfg)
+
+    assert not any(c.argv[0] == "scenedetect" for c in recorder.calls)
+
+
+def test_loaded_nested_slides_disabled_config_skips_scenedetect(
+    recorder: Recorder, tmp_path: Path
+) -> None:
+    """Regression (Copilot #2/#3): a LOADED nested ``stages.slides`` with
+    ``enabled: false`` must not run scenedetect.
+
+    ``SlidesStage`` is a dataclass, so the loaded object is always truthy; the
+    pipeline must gate on ``.enabled``, not on the object's truthiness.
+    """
+    from transcriber import config as config_mod
+
+    cfg_path = tmp_path / "host.config.yaml"
+    cfg_path.write_text(
+        "recordings_dir: {rec}\n"
+        "stages:\n"
+        "  slides:\n"
+        "    enabled: false\n"
+        "    backend: agy\n"
+        "  s3_sync: false\n"
+        "transcribe:\n"
+        "  model_id: scribe_v1\n"
+        "summary:\n"
+        "  language: en\n"
+        "  sections: [overview]\n"
+        "  backend: agy\n"
+        "agent:\n"
+        "  cli: agy\n"
+        "  extra_args: []\n"
+        "  output_file: '{{basename}}.md'\n"
+        "notion:\n"
+        "  server: n\n"
+        "  parent_page_id: p\n"
+        "  insert: subpage\n"
+        "telegram:\n"
+        "  bot_token_env: TELEGRAM_BOT_TOKEN\n"
+        "  default_chat_id: '1'\n"
+        "  routing: {{}}\n".format(rec=tmp_path.as_posix()),
+        encoding="utf-8",
+    )
+
+    cfg = config_mod.load(str(cfg_path))
+    # Sanity: the loaded object is a truthy dataclass with enabled=False.
+    assert cfg.stages.slides.enabled is False
+    assert bool(cfg.stages.slides) is True
+
+    mp4 = touch(tmp_path / "lesson.mp4")
     pipeline.process_recording(mp4, cfg)
 
     assert not any(c.argv[0] == "scenedetect" for c in recorder.calls)

@@ -3,7 +3,14 @@
 Wires together the independently-implemented stage modules into a single batch
 run:
 
-    pipeline -> agent (summarize + Notion) -> Telegram -> S3 -> cleanup
+    pipeline -> describe_slides -> summarize (+ Notion) -> Telegram -> S3 -> cleanup
+
+The two post-transcript stages (``describe_slides`` and ``summarize``) each run
+a backend selected purely from config (``stages.slides.backend`` /
+``summary.backend``). Backends default to ``agy`` so an unchanged config keeps
+today's behavior. Paid/network calls live only in these manifest-gated
+orchestrator steps — the ``pipeline`` stage stays media-only (ffmpeg /
+scenedetect / transcribe).
 
 Usage::
 
@@ -30,6 +37,7 @@ import argparse
 import logging
 import shutil
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Sequence
@@ -38,6 +46,7 @@ from transcriber import agent as agent_mod
 from transcriber import cleanup as cleanup_mod
 from transcriber import pipeline as pipeline_mod
 from transcriber import state as state_mod
+from transcriber import backends as backends_mod
 from transcriber.config import Config, MissingEnvVarError, load, resolve_env
 from transcriber.publish import s3 as s3_mod
 from transcriber.publish.telegram import TelegramPublisher
@@ -48,26 +57,79 @@ DEFAULT_CONFIG = "config.yaml"
 
 
 # --------------------------------------------------------------------------- #
+# Backend selection (pure functions of config)
+# --------------------------------------------------------------------------- #
+def _get_slides_backend(config: Config):
+    """Return the configured ``describe_slides`` backend instance.
+
+    Selection is a pure function of ``config.stages.slides.backend``; there is
+    no silent cross-backend fallback (Spec R19): an unknown value raises.
+    """
+    backend = config.stages.slides.backend
+    if backend == "agy":
+        return backends_mod.AgySlidesBackend()
+    if backend == "openrouter":
+        return backends_mod.OpenRouterSlidesBackend()
+    raise ValueError(
+        f"unknown stages.slides.backend {backend!r} (expected 'agy' or 'openrouter')"
+    )
+
+
+def _uses_agy(config: Config) -> bool:
+    """Return ``True`` when any enabled stage uses the ``agy`` CLI."""
+    if config.stages.slides.enabled and config.stages.slides.backend == "agy":
+        return True
+    if config.summary.backend == "agy":
+        return True
+    return False
+
+
+def _needs_openrouter(config: Config) -> bool:
+    """Return ``True`` when a stage requires the OpenRouter API key."""
+    slides_openrouter = (
+        config.stages.slides.enabled
+        and config.stages.slides.backend == "openrouter"
+    )
+    return slides_openrouter or config.summary.backend == "agno"
+
+
+# --------------------------------------------------------------------------- #
 # Pre-flight check (E2)
 # --------------------------------------------------------------------------- #
-# Binaries always required regardless of toggles.
-_ALWAYS_BINARIES = ("ffmpeg", "elevenlabs", "agy")
+# Binaries required regardless of post-transcript backend selection.
+_ALWAYS_BINARIES = ("ffmpeg", "elevenlabs")
 
 
 def _required_binaries(config: Config) -> list[str]:
     """Return the list of binaries that must be on PATH for ``config``."""
     required = list(_ALWAYS_BINARIES)
-    if config.stages.slides:
+    if config.stages.slides.enabled:
         required.append("scenedetect")
+    # ``agy`` is required only when a post-transcript stage actually uses it.
+    if _uses_agy(config):
+        required.append("agy")
     if s3_mod.is_enabled(config):
         required.append("aws")
     return required
 
 
 def _required_env_vars(config: Config) -> list[str]:
-    """Return the list of env-var names that must be set for ``config``."""
+    """Return the list of env-var names that must be set for ``config``.
+
+    Referenced by name only — secret values are never read here (Spec R16).
+    """
     # Telegram token is always needed to disseminate.
-    return [config.telegram.bot_token_env]
+    required = [config.telegram.bot_token_env]
+
+    # OpenRouter key iff slides=openrouter or summary=agno.
+    if _needs_openrouter(config) and config.openrouter is not None:
+        required.append(config.openrouter.api_key_env)
+
+    # Notion token iff summary=agno (agno launches the Notion MCP itself).
+    if config.summary.backend == "agno" and config.notion.token_env:
+        required.append(config.notion.token_env)
+
+    return required
 
 
 def preflight_check(config: Config) -> list[str]:
@@ -125,9 +187,14 @@ def _transcript_path(mp4: Path, config: Config) -> Path:
     return mp4.parent / f"{name}.txt"
 
 
+def _slides_md_path(mp4: Path, config: Config) -> Path:
+    """Return the ``<name>.slides.md`` path written by ``describe_slides``."""
+    return mp4.parent / f"{mp4.stem}.slides.md"
+
+
 def _slide_image_paths(mp4: Path, config: Config) -> list[str]:
     """Return slide image paths when slides were extracted, else empty."""
-    if not config.stages.slides:
+    if not config.stages.slides.enabled:
         return []
     slides_dir = Path(config.recordings_dir) / f"extracted_slides.{mp4.stem}"
     if not slides_dir.exists():
@@ -140,10 +207,12 @@ def _slide_image_paths(mp4: Path, config: Config) -> list[str]:
 # --------------------------------------------------------------------------- #
 def _enabled_stage_names(config: Config) -> list[str]:
     stages = ["audio-extract"]
-    if config.stages.slides:
-        stages.append("slides")
+    if config.stages.slides.enabled:
+        stages.append("scene-extract")
     stages.append("transcribe")
-    stages.append("summarize+notion")
+    if config.stages.slides.enabled:
+        stages.append(f"describe-slides [{config.stages.slides.backend}]")
+    stages.append(f"summarize+notion [{config.summary.backend}]")
     stages.append("telegram")
     if s3_mod.is_enabled(config):
         stages.append("s3-sync")
@@ -224,22 +293,86 @@ def _process_one(
             pipeline_mod.process_recording(mp4, config)
             state.mark_complete("pipeline")
 
-        # 2. Summarize + Notion (single agent run).
+        # 2. Describe slides (manifest-gated; only when slides enabled).
+        #    Runs the configured slides backend and writes <name>.slides.md.
+        current_stage = "describe_slides"
+        slides_md_path = _slides_md_path(mp4, config)
+        if not config.stages.slides.enabled:
+            logger.info("[%s] describe_slides: disabled, skipping", name)
+        elif state.is_complete("describe_slides"):
+            logger.info(
+                "[%s] describe_slides: already complete, skipping", name
+            )
+        elif slides_md_path.exists():
+            # Idempotent skip: the artifact already exists (e.g. from a prior
+            # crash after write but before mark). Do not re-issue the paid call.
+            logger.info(
+                "[%s] describe_slides: %s already present, skipping backend",
+                name,
+                slides_md_path.name,
+            )
+            state.mark_complete("describe_slides")
+        else:
+            backend = _get_slides_backend(config)
+            slides = backends_mod.build_slide_inputs(mp4.parent, name)
+            transcript_text = _transcript_path(mp4, config).read_text(
+                encoding="utf-8"
+            )
+            slides_timeout = float(config.timeouts.slides)
+            logger.info(
+                "[%s] describe_slides: running backend=%s slides=%d",
+                name,
+                config.stages.slides.backend,
+                len(slides),
+            )
+            started = time.monotonic()
+            slides_markdown = backend.describe(
+                slides,
+                transcript_text,
+                config,
+                timeout=slides_timeout,
+            )
+            elapsed = time.monotonic() - started
+            # An empty slide result writes an empty <name>.slides.md and still
+            # completes (Constraints).
+            slides_md_path.write_text(slides_markdown, encoding="utf-8")
+            logger.info(
+                "[%s] describe_slides: backend=%s wrote %d chars in %.2fs",
+                name,
+                config.stages.slides.backend,
+                len(slides_markdown),
+                elapsed,
+            )
+            state.mark_complete("describe_slides")
+
+        # 3. Summarize + Notion (single backend run).
         current_stage = "summarize"
         if state.is_complete("summarize") and state.is_complete("notion"):
             logger.info("[%s] summarize: already complete, skipping", name)
         else:
-            logger.info("[%s] summarize: running agent", name)
-            agent_mod.run_agent(
-                config,
+            logger.info(
+                "[%s] summarize: running backend=%s",
+                name,
+                config.summary.backend,
+            )
+            # Read the prepared slide markdown (empty/whitespace -> treated as
+            # no slides by the backend). Absent file -> None. When slides are
+            # disabled, never feed a stale <name>.slides.md into the summary —
+            # treat it exactly like slides-off (Spec R3).
+            slides_markdown: Optional[str] = None
+            if config.stages.slides.enabled and slides_md_path.exists():
+                slides_markdown = slides_md_path.read_text(encoding="utf-8")
+            summarize_backend = backends_mod.get_summarize_backend(config)
+            summarize_backend.summarize(
                 _transcript_path(mp4, config),
+                slides_markdown,
                 mp4.parent,
-                _slide_image_paths(mp4, config),
+                config,
             )
             state.mark_complete("summarize")
             state.mark_complete("notion")
 
-        # 3. Telegram dissemination.
+        # 4. Telegram dissemination.
         current_stage = "telegram"
         if state.is_complete("telegram"):
             logger.info("[%s] telegram: already complete, skipping", name)
@@ -260,7 +393,7 @@ def _process_one(
             TelegramPublisher(config).send(message_text)
             state.mark_complete("telegram")
 
-        # 4. S3 sync (gated).
+        # 5. S3 sync (gated).
         current_stage = "s3"
         if not s3_mod.is_enabled(config):
             logger.info("[%s] s3: disabled, skipping", name)
@@ -271,7 +404,7 @@ def _process_one(
             s3_mod.sync(mp4.parent, config)
             state.mark_complete("s3")
 
-        # 5. Cleanup (only on full success, unless kept).
+        # 6. Cleanup (only on full success, unless kept).
         current_stage = "cleanup"
         if keep_intermediates:
             logger.info("[%s] cleanup: skipped (--keep-intermediates)", name)
@@ -365,12 +498,23 @@ def _configure_logging() -> None:
 
 def _cmd_check(config: Config) -> int:
     problems = preflight_check(config)
+    # Surface the selected backend per post-transcript stage (R24).
+    slides_desc = (
+        f"describe_slides backend='{config.stages.slides.backend}'"
+        if config.stages.slides.enabled
+        else "describe_slides: disabled"
+    )
+    summarize_desc = f"summarize backend='{config.summary.backend}'"
     if problems:
         print("Pre-flight check FAILED:", file=sys.stderr)
+        print(f"  {slides_desc}", file=sys.stderr)
+        print(f"  {summarize_desc}", file=sys.stderr)
         for problem in problems:
             print(f"  - {problem}", file=sys.stderr)
         return 1
     print("Pre-flight check passed: all required binaries and env vars present.")
+    print(f"  {slides_desc}")
+    print(f"  {summarize_desc}")
     return 0
 
 

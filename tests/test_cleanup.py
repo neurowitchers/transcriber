@@ -22,19 +22,23 @@ def _make_all_artifacts(directory: Path) -> dict[str, Path]:
     md = directory / f"{NAME}.md"
     mp3 = directory / f"{NAME}.mp3"
     txt = directory / f"{NAME}.txt"
-    scenes = directory / f"{NAME}.scenes.csv"
+    slides_md = directory / f"{NAME}.slides.md"
     slides_dir = directory / f"extracted_slides.{NAME}"
 
-    for f in (mp4, md, mp3, txt, scenes):
+    for f in (mp4, md, mp3, txt, slides_md):
         f.write_text("data", encoding="utf-8")
     slides_dir.mkdir()
     (slides_dir / "slide-001.jpg").write_text("img", encoding="utf-8")
+    # The scenes CSV lives inside the extracted-slides directory.
+    scenes = slides_dir / f"{NAME}.scenes.csv"
+    scenes.write_text("data", encoding="utf-8")
 
     return {
         "mp4": mp4,
         "md": md,
         "mp3": mp3,
         "txt": txt,
+        "slides_md": slides_md,
         "scenes": scenes,
         "slides_dir": slides_dir,
     }
@@ -50,7 +54,7 @@ def test_cleanup_deletes_intermediates_and_keeps_durable(tmp_path):
     assert art["md"].exists()
 
     # Intermediates gone.
-    for key in ("mp3", "txt", "scenes", "slides_dir"):
+    for key in ("mp3", "txt", "scenes", "slides_md", "slides_dir"):
         assert not art[key].exists(), f"{key} should have been deleted"
 
     # Exactly the intermediate set was removed.
@@ -58,6 +62,7 @@ def test_cleanup_deletes_intermediates_and_keeps_durable(tmp_path):
         art["mp3"],
         art["txt"],
         art["scenes"],
+        art["slides_md"],
         art["slides_dir"],
     }
 
@@ -106,16 +111,24 @@ def test_cleanup_isolated_to_this_recording(tmp_path):
 
 def test_intermediate_paths_excludes_durable(tmp_path):
     mp4 = tmp_path / f"{NAME}.mp4"
-    candidates = {p.name for p in cleanup_mod.intermediate_paths(mp4)}
-    assert f"{NAME}.mp4" not in candidates
-    assert f"{NAME}.md" not in candidates  # durable summary must be kept
-    assert candidates == {
+    candidates = cleanup_mod.intermediate_paths(mp4)
+    names = {p.name for p in candidates}
+    assert f"{NAME}.mp4" not in names
+    assert f"{NAME}.md" not in names  # durable summary must be kept
+    assert names == {
         f"{NAME}.mp3",
         f"{NAME}.txt",
         f"{NAME}.scenes.csv",
         f"{NAME}.telegram.md",
+        f"{NAME}.slides.md",
+        f"{NAME}.notion_published.json",
         f"extracted_slides.{NAME}",
     }
+    # The scenes CSV candidate must live inside the extracted-slides dir, not
+    # the recording dir where it never existed.
+    scenes = next(p for p in candidates if p.name == f"{NAME}.scenes.csv")
+    assert scenes.parent.name == f"extracted_slides.{NAME}"
+    assert scenes == tmp_path / f"extracted_slides.{NAME}" / f"{NAME}.scenes.csv"
 
 
 def test_cleanup_deletes_digest_keeps_summary(tmp_path):
@@ -131,6 +144,34 @@ def test_cleanup_deletes_digest_keeps_summary(tmp_path):
     assert summary.exists(), "durable .md summary must be kept"
     assert not digest.exists(), "the .telegram.md digest must be deleted"
     assert mp4.exists()
+
+
+def test_cleanup_deletes_slides_md_keeps_summary(tmp_path):
+    mp4 = tmp_path / f"{NAME}.mp4"
+    mp4.write_text("video", encoding="utf-8")
+    summary = tmp_path / f"{NAME}.md"
+    summary.write_text("# full summary", encoding="utf-8")
+    slides_md = tmp_path / f"{NAME}.slides.md"
+    slides_md.write_text("## Slide 1\n...", encoding="utf-8")
+
+    removed = cleanup(mp4)
+
+    assert summary.exists(), "durable .md summary must be kept"
+    assert not slides_md.exists(), "the .slides.md artifact must be deleted"
+    assert slides_md in removed
+    assert mp4.exists()
+
+
+def test_keep_intermediates_preserves_slides_md(tmp_path):
+    mp4 = tmp_path / f"{NAME}.mp4"
+    mp4.write_text("video", encoding="utf-8")
+    slides_md = tmp_path / f"{NAME}.slides.md"
+    slides_md.write_text("## Slide 1\n...", encoding="utf-8")
+
+    removed = cleanup(mp4, keep_intermediates=True)
+
+    assert removed == []
+    assert slides_md.exists(), "--keep-intermediates must preserve .slides.md"
 
 
 # --------------------------------------------------------------------------- #

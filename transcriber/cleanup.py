@@ -4,8 +4,11 @@ After a recording finishes processing, its intermediate artifacts are removed
 to keep the recordings directory tidy. The **durable outputs are preserved**:
 
 - KEEP: the source ``<name>.mp4`` and the final ``<name>.md`` summary.
-- DELETE: ``<name>.mp3``, ``<name>.txt``,
-  the ``extracted_slides.<name>/`` directory, and ``<name>.scenes.csv``.
+- DELETE: ``<name>.mp3``, ``<name>.txt``, ``<name>.telegram.md``,
+  ``<name>.slides.md`` (the intermediate slide-description artifact),
+  ``<name>.notion_published.json`` (the ``agno`` publish record), and the
+  ``extracted_slides.<name>/`` directory (which also holds
+  ``<name>.scenes.csv``).
 
 Ordering / safety contract (requirements R12):
 
@@ -45,12 +48,19 @@ def intermediate_paths(recording: Path) -> list[Path]:
     directory = recording.parent
     name = recording.stem  # "<name>" from "<name>.mp4"
 
+    slides_dir = directory / f"extracted_slides.{name}"
+
     candidates = [
         directory / f"{name}.mp3",
         directory / f"{name}.txt",
-        directory / f"{name}.scenes.csv",
+        # The scenes CSV lives inside the extracted-slides directory, not the
+        # recording dir; the slides-dir ``rmtree`` removes it, but list the
+        # correct path explicitly for coverage/clarity.
+        slides_dir / f"{name}.scenes.csv",
         directory / f"{name}.telegram.md",  # concise Telegram digest
-        directory / f"extracted_slides.{name}",  # directory
+        directory / f"{name}.slides.md",  # intermediate slide descriptions
+        directory / f"{name}.notion_published.json",  # agno publish record
+        slides_dir,  # directory
     ]
     return candidates
 
@@ -59,8 +69,9 @@ def cleanup(recording: Path, keep_intermediates: bool = False) -> list[Path]:
     """Delete the intermediate artifacts for ``recording``.
 
     KEEPS the source ``.mp4`` and the final ``.md`` summary. Deletes any of the
-    intermediate artifacts (``.mp3``, ``.txt``, ``.scenes.csv``, and
-    the ``extracted_slides.<name>/`` directory) that exist.
+    intermediate artifacts (``.mp3``, ``.txt``, ``.telegram.md``, ``.slides.md``,
+    and the ``extracted_slides.<name>/`` directory, which holds
+    ``<name>.scenes.csv``) that exist.
 
     This function is intended to be called by the orchestrator **only after** a
     recording's successful processing — and, when S3 sync is enabled, only after
@@ -96,8 +107,8 @@ def cleanup(recording: Path, keep_intermediates: bool = False) -> list[Path]:
 
 def _has_keep_suffix(path: Path) -> bool:
     name = path.name.lower()
-    # The Telegram digest ends in ``.md`` but is an intermediate, not the
-    # durable summary — allow it to be deleted.
-    if name.endswith(".telegram.md"):
+    # The Telegram digest and the slide-description artifact both end in ``.md``
+    # but are intermediates, not the durable summary — allow them to be deleted.
+    if name.endswith(".telegram.md") or name.endswith(".slides.md"):
         return False
     return any(name.endswith(suffix) for suffix in KEEP_SUFFIXES)

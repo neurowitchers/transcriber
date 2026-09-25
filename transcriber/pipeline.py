@@ -19,6 +19,7 @@ Windows-first path handling (all paths are :class:`pathlib.Path`).
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -169,10 +170,12 @@ def _extract_slides(
 def _transcribe(mp3: Path, txt: Path, model_id: str, timeout: float) -> None:
     """Transcribe ``mp3`` into a plain-text transcript via the elevenlabs CLI.
 
-    Emits a readable transcript (no timestamp markers) with stdout redirected
-    to the ``.txt`` file:
-    ``elevenlabs speech-to-text convert --file <mp3>
-    --model-id <model_id> --format text > <name>.txt``.
+    The elevenlabs CLI has no ``text`` output format (its ``--format`` accepts
+    ``json, table, yaml, csv, raw, jsonl, http``); the transcript text lives in
+    the ``text`` field of the JSON response. We therefore request ``--format
+    json`` (stdout redirected to ``<name>.txt``) and then post-process the file
+    in place, replacing the JSON document with its decoded ``text`` value so the
+    ``.txt`` artifact is clean, readable plain text for the summarize stage.
     """
     argv = [
         "elevenlabs",
@@ -183,9 +186,24 @@ def _transcribe(mp3: Path, txt: Path, model_id: str, timeout: float) -> None:
         "--model-id",
         model_id,
         "--format",
-        "text",
+        "json",
     ]
     _run_command(argv, timeout, stdout_path=txt)
+
+    # Decode the JSON response written to ``txt`` into plain transcript text.
+    raw = txt.read_text(encoding="utf-8")
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"elevenlabs returned non-JSON output for {mp3.name}: {exc}"
+        ) from exc
+    text = payload.get("text") if isinstance(payload, dict) else None
+    if not isinstance(text, str) or not text.strip():
+        raise RuntimeError(
+            f"elevenlabs response for {mp3.name} has no usable 'text' field"
+        )
+    txt.write_text(text.strip() + "\n", encoding="utf-8")
 
 
 # --------------------------------------------------------------------------- #
@@ -227,7 +245,7 @@ def process_recording(mp4: Path, config: "Config") -> RecordingResult:
         have_mp3 = True
 
     # 2. Slide/scene extraction (optional).
-    if config.stages.slides:
+    if config.stages.slides.enabled:
         if slides_dir.exists():
             result.skipped_artifacts.append("slides")
         else:

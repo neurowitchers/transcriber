@@ -5,12 +5,18 @@
 # resolved at use time.
 #
 # Behavior: slide extraction on, no S3 sync, English summaries, single Telegram
-# chat, Notion subpage insertion under a parent page.
+# chat, Notion subpage insertion under a parent page. Both post-transcript
+# stages run on the local `agy` backend — this reproduces today's behavior with
+# no external OpenRouter/Agno egress.
 
 recordings_dir: ./recordings
 
 stages:
-  slides: true
+  # Nested shape: {enabled, backend}. The legacy bare-bool form
+  # (`slides: true`) is NOT accepted and raises a ConfigError.
+  slides:
+    enabled: true
+    backend: agy  # "agy" (local) | "openrouter" (vision API)
   s3_sync: false
 
 transcribe:
@@ -22,6 +28,7 @@ summary:
     - overview
     - key_points
     - action_items
+  backend: agy  # "agy" (local) | "agno" (OpenRouter model + Notion MCP)
 
 agent:
   cli: agy
@@ -34,6 +41,8 @@ notion:
   # Placeholder — replace with the real parent page id.
   parent_page_id: "REPLACE_WITH_PARENT_PAGE_ID"
   insert: subpage
+  # notion.token_env is only required when summary.backend == "agno"; omitted
+  # here because summarize runs on `agy` (which uses its own MCP).
 
 telegram:
   bot_token_env: TELEGRAM_BOT_TOKEN

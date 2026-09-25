@@ -24,6 +24,10 @@ except ImportError:  # pragma: no cover - PyYAML is a declared dependency
 # Default timeout (seconds) applied to any omitted timeout field.
 DEFAULT_TIMEOUT_SECONDS = 900
 
+# Allowed per-stage backend selectors.
+SLIDES_BACKENDS = ("agy", "openrouter")
+SUMMARY_BACKENDS = ("agy", "agno")
+
 
 class ConfigError(ValueError):
     """Raised when a config file is invalid (missing/invalid required fields)."""
@@ -37,8 +41,14 @@ class MissingEnvVarError(RuntimeError):
 # Model
 # --------------------------------------------------------------------------- #
 @dataclass
+class SlidesStage:
+    enabled: bool  # was stages.slides (bare bool); now nested.
+    backend: str = "agy"  # "agy" | "openrouter"
+
+
+@dataclass
 class Stages:
-    slides: bool
+    slides: SlidesStage
     s3_sync: bool
 
 
@@ -51,6 +61,7 @@ class Transcribe:
 class Summary:
     language: str  # "en" | "original"
     sections: list[str]
+    backend: str = "agy"  # "agy" | "agno"
 
 
 @dataclass
@@ -61,10 +72,29 @@ class Agent:
 
 
 @dataclass
+class OpenRouter:
+    api_key_env: str  # env-var NAME for the OpenRouter API key.
+    base_url: str = "https://openrouter.ai/api/v1"
+    slides_model: str = "google/gemini-2.0-flash-001"  # vision (slides call)
+    summary_model: str = "google/gemini-2.5-pro"  # tool-capable (agno + MCP)
+    # Deterministic slide-count ceiling for the `openrouter` slides backend.
+    # An over-ceiling deck hard-fails before any image is sent (cost guard).
+    # Optional; defaults to 60 when unset.
+    max_slides: int = 60
+    # Slides are described in batches of this many images per vision call, so a
+    # large deck never overflows the model's context window. The per-batch
+    # markdown is concatenated. Optional; defaults to 20 when unset.
+    slides_batch_size: int = 20
+
+
+@dataclass
 class Notion:
     server: str
     parent_page_id: str
     insert: str  # e.g. "subpage"
+    # env-var NAME for the Notion API key. The engine launches the Notion MCP
+    # with this key. Required when summary.backend == "agno".
+    token_env: Optional[str] = None
 
 
 @dataclass
@@ -84,8 +114,11 @@ class S3:
 class Timeouts:
     ffmpeg: int = DEFAULT_TIMEOUT_SECONDS
     scenedetect: int = DEFAULT_TIMEOUT_SECONDS
+    slides: int = DEFAULT_TIMEOUT_SECONDS  # describe_slides stage
     elevenlabs: int = DEFAULT_TIMEOUT_SECONDS
     agy: int = DEFAULT_TIMEOUT_SECONDS
+    # summarize-stage timeout; None falls back to `agy` at use time.
+    summarize: Optional[int] = None
     s3: int = DEFAULT_TIMEOUT_SECONDS
 
 
@@ -100,6 +133,7 @@ class Config:
     telegram: Telegram
     timeouts: Timeouts
     s3: Optional[S3] = None
+    openrouter: Optional[OpenRouter] = None
 
 
 # --------------------------------------------------------------------------- #
@@ -171,7 +205,18 @@ def _from_dict(data: dict[str, Any]) -> Config:
     """Build a validated :class:`Config` from a raw mapping."""
     recordings_dir = _get_required(data, "recordings_dir", "")
 
-    stages = _build_section(Stages, _get_required(data, "stages", ""), "stages")
+    stages_data = _require_mapping(_get_required(data, "stages", ""), "stages")
+    slides_raw = _get_required(stages_data, "slides", "stages")
+    if not isinstance(slides_raw, dict):
+        raise ConfigError(
+            "'stages.slides' must be a mapping with keys "
+            "{enabled, backend}; the legacy bare boolean form is not "
+            f"accepted, got {type(slides_raw).__name__}"
+        )
+    slides_stage = _build_section(SlidesStage, slides_raw, "stages.slides")
+    s3_sync = _get_required(stages_data, "s3_sync", "stages")
+    stages = Stages(slides=slides_stage, s3_sync=s3_sync)
+
     transcribe = _build_section(
         Transcribe, _get_required(data, "transcribe", ""), "transcribe"
     )
@@ -189,11 +234,46 @@ def _from_dict(data: dict[str, Any]) -> Config:
     s3_data = data.get("s3")
     s3 = _build_section(S3, s3_data, "s3") if s3_data is not None else None
 
+    # openrouter: optional (present-or-None, like s3).
+    openrouter_data = data.get("openrouter")
+    openrouter = (
+        _build_section(OpenRouter, openrouter_data, "openrouter")
+        if openrouter_data is not None
+        else None
+    )
+
     # Validate constrained values.
     if summary.language not in ("en", "original"):
         raise ConfigError(
             "'summary.language' must be 'en' or 'original', "
             f"got {summary.language!r}"
+        )
+
+    if stages.slides.backend not in SLIDES_BACKENDS:
+        raise ConfigError(
+            "'stages.slides.backend' must be one of "
+            f"{SLIDES_BACKENDS!r}, got {stages.slides.backend!r}"
+        )
+    if summary.backend not in SUMMARY_BACKENDS:
+        raise ConfigError(
+            "'summary.backend' must be one of "
+            f"{SUMMARY_BACKENDS!r}, got {summary.backend!r}"
+        )
+
+    # openrouter required iff slides use openrouter or summary uses agno.
+    needs_openrouter = (
+        stages.slides.backend == "openrouter" or summary.backend == "agno"
+    )
+    if needs_openrouter and openrouter is None:
+        raise ConfigError(
+            "'openrouter' section is required when "
+            "stages.slides.backend == 'openrouter' or summary.backend == 'agno'"
+        )
+
+    # notion.token_env required iff summary uses agno.
+    if summary.backend == "agno" and not notion.token_env:
+        raise ConfigError(
+            "'notion.token_env' is required when summary.backend == 'agno'"
         )
 
     return Config(
@@ -206,6 +286,7 @@ def _from_dict(data: dict[str, Any]) -> Config:
         telegram=telegram,
         timeouts=timeouts,
         s3=s3,
+        openrouter=openrouter,
     )
 
 
