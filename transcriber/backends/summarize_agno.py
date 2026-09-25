@@ -89,6 +89,7 @@ def _summarize_timeout(config: Config) -> float:
 async def _run_agent(
     summarize_prompt: str,
     config: Config,
+    title: str,
 ) -> "tuple[str, Optional[str]]":
     """Three-call Agno run: plain-text summary, plain-text digest, MCP publish.
 
@@ -131,16 +132,41 @@ async def _run_agent(
     digest = (dout.get_content_as_string() or "").strip() or None
 
     # --- Phase 2: publish to Notion via MCP (NO schema) ---------------------- #
-    publish_prompt = build_agno_publish_prompt(config, summary)
+    publish_prompt = build_agno_publish_prompt(config, summary, title)
     mcp = notion_mcp_tools(config)  # unconnected; we own its lifecycle here.
     async with mcp:
         publisher = Agent(model=_model(), tools=[mcp])
         logger.info(
             "agno summarize: phase 2 (Notion MCP publish, model=%s)", model_id
         )
-        await publisher.arun(publish_prompt)
+        pout = await publisher.arun(publish_prompt)
+        _verify_published(pout)
 
     return summary, digest
+
+
+def _verify_published(run_output) -> None:
+    """Fail (retryable) unless a Notion MCP tool actually executed successfully.
+
+    A free-form publish agent may reply "done" in prose without calling any
+    tool, or invoke a hallucinated tool name that the MCP rejects — in both
+    cases nothing is created. We refuse to report success unless at least one
+    Notion tool call ran without a ``tool_call_error`` (R22b: no silent no-op
+    publish).
+    """
+    tools = getattr(run_output, "tools", None) or []
+    successful = [
+        t for t in tools if not getattr(t, "tool_call_error", False)
+    ]
+    if not successful:
+        attempted = [
+            (getattr(t, "tool_name", None) or getattr(t, "name", None))
+            for t in tools
+        ]
+        raise SummarizeError(
+            "agno publish made no successful Notion MCP tool call "
+            f"(attempted={attempted!r}); nothing was published"
+        )
 
 
 class AgnoSummarizeBackend:
@@ -195,7 +221,7 @@ class AgnoSummarizeBackend:
 
         try:
             summary_text, digest_text = asyncio.run(
-                asyncio.wait_for(_run_agent(prompt, config), timeout)
+                asyncio.wait_for(_run_agent(prompt, config, basename), timeout)
             )
         except AgnoImportError:
             # Actionable "install the agno extra" error — surface as-is (R14/R19).

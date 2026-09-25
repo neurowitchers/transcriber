@@ -126,9 +126,16 @@ class FakeOpenRouterModel:
         FakeOpenRouterModel.instances.append(self)
 
 
+class _FakeToolCall:
+    def __init__(self, name: str, error=False) -> None:
+        self.tool_name = name
+        self.tool_call_error = error
+
+
 class FakeRunOutput:
-    def __init__(self, content) -> None:
+    def __init__(self, content, tools=None) -> None:
         self.content = content
+        self.tools = tools or []
 
     def get_content_as_string(self) -> str:
         return self.content if isinstance(self.content, str) else ""
@@ -143,6 +150,9 @@ class FakeAgent:
     summary_text = "# Summary\n\nBody."
     digest_text = "Title\n- Decision"
     publish_behavior = None
+    # Tool calls the publish agent "made"; default is one successful create so
+    # _verify_published passes. Tests can set [] (no-op) or an errored call.
+    publish_tools = None
     _plain_calls = 0
 
     def __init__(self, *, model, tools=None, output_schema=None) -> None:
@@ -158,7 +168,10 @@ class FakeAgent:
         if self.is_publish:
             if FakeAgent.publish_behavior is not None:
                 await FakeAgent.publish_behavior(prompt)
-            return FakeRunOutput("published ok")
+            tools = FakeAgent.publish_tools
+            if tools is None:
+                tools = [_FakeToolCall("API-post-page")]
+            return FakeRunOutput("published ok", tools=tools)
         # No-tool calls: first is the summary, second is the digest.
         FakeAgent._plain_calls += 1
         text = (
@@ -177,9 +190,11 @@ def _reset_fakes():
     FakeAgent.summary_text = "# Summary\n\nBody."
     FakeAgent.digest_text = "Title\n- Decision"
     FakeAgent.publish_behavior = None
+    FakeAgent.publish_tools = None
     FakeAgent._plain_calls = 0
     yield
     FakeAgent.publish_behavior = None
+    FakeAgent.publish_tools = None
     FakeAgent._plain_calls = 0
 
 
@@ -371,6 +386,8 @@ def test_agno_prompts_carry_slides_and_notion_id(tmp_path, monkeypatch):
     # Publish phase: the Notion parent-page id + the produced summary text.
     assert "PARENT-PAGE-ID-123" in publish.arun_called_with
     assert "Body." in publish.arun_called_with
+    # Publish prompt names the real MCP create tool (no hallucinated names).
+    assert "API-post-page" in publish.arun_called_with
 
 
 def test_agno_empty_summary_fails_stage(tmp_path, monkeypatch):
@@ -438,6 +455,40 @@ def test_agno_timeout_closes_mcp_and_fails_stage(tmp_path, monkeypatch):
     # the async-with body -> __aexit__ runs).
     assert len(FakeMCPTools.instances) == 1
     assert FakeMCPTools.instances[0].closed is True
+
+
+def test_agno_no_tool_call_fails_stage(tmp_path, monkeypatch):
+    monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
+    monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
+    backend = _agno_backend(monkeypatch)
+
+    cfg = make_config(backend="agno")
+    rec_dir = tmp_path / "rec"
+    rec_dir.mkdir()
+    tp = write_transcript(rec_dir)
+
+    # Publish agent replies in prose but calls no tool -> nothing published.
+    FakeAgent.publish_tools = []
+    with pytest.raises(SummarizeError, match="no successful Notion MCP tool call"):
+        backend.summarize(tp, None, rec_dir, cfg)
+    # MCP still closed (lifecycle intact) even though we reject the result.
+    assert FakeMCPTools.instances[0].closed is True
+
+
+def test_agno_errored_tool_call_fails_stage(tmp_path, monkeypatch):
+    monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
+    monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
+    backend = _agno_backend(monkeypatch)
+
+    cfg = make_config(backend="agno")
+    rec_dir = tmp_path / "rec"
+    rec_dir.mkdir()
+    tp = write_transcript(rec_dir)
+
+    # Only an errored tool call (e.g. hallucinated tool name rejected by MCP).
+    FakeAgent.publish_tools = [_FakeToolCall("post_page", error=True)]
+    with pytest.raises(SummarizeError, match="no successful Notion MCP tool call"):
+        backend.summarize(tp, None, rec_dir, cfg)
 
 
 def test_agno_uses_summarize_timeout_when_set(monkeypatch):
