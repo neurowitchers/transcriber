@@ -1,3 +1,22 @@
+> **Implementation update (supersedes the Notion-MCP publish design below).**
+> During integration the `agno` backend's Notion publish was changed from a
+> model-driven **Notion MCP** tool call to a **direct Notion REST API** publish
+> performed by the engine. The official Notion MCP's tool schemas
+> (`oneOf`/`anyOf`/`$ref`) break tool-calling on Gemini/Mistral over OpenRouter
+> (the model returns an empty `null` completion with zero tool calls), so MCP
+> publishing proved unreliable across economical models. The `agno` backend now:
+> (1) makes a plain OpenRouter call for the Markdown summary, (2) a plain call
+> for the Telegram digest, then (3) the **engine** creates the Notion subpage via
+> the REST API (`transcriber/backends/notion_publish.py`: `extract_page_id`,
+> `markdown_to_blocks`, `publish_to_notion`). Consequences: **no Notion MCP and
+> no Node.js/`npx` prerequisite** for `agno`; `notion.token_env` is still
+> required (used for the REST call); `notion.parent_page_id` accepts a full
+> Notion URL or a bare/hyphenated id. Requirements below that mandate "Notion MCP
+> publishing" for `agno` (e.g. R11 and related) are superseded by this direct-API
+> approach; the *non-negotiable* intent (every `agno` run publishes to Notion or
+> fails the stage) is preserved. The `agy` backend is unchanged (still MCP).
+
+
 # Spec: Two Pluggable Post-Transcript Stages (Slide Description + Summarize) with Selectable Backends
 
 ## Problem Statement

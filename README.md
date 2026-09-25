@@ -24,8 +24,10 @@ through the following stages:
    markdown block. Runs on the configured **slides backend**.
 5. **Summarize** — turn the transcript (+ the `<name>.slides.md` block) into the
    final `<name>.md` summary and `<name>.telegram.md` digest, and publish a
-   Notion subpage. Runs on the configured **summarize backend**. Notion is always
-   published via its MCP server (non-negotiable) regardless of backend.
+   Notion subpage. Runs on the configured **summarize backend**. For the `agy`
+   backend Notion is published via its MCP server; for the `agno` backend the
+   **engine publishes the Notion subpage directly via the Notion REST API** (no
+   MCP, no `npx`).
 6. **Disseminate** — optionally sync the recording to S3 (`stages.s3_sync`), and
    post a notification to Telegram (topic-routed where configured).
 
@@ -39,7 +41,7 @@ The two post-transcript stages each run on an independently selected **backend**
 | Stage | Config | Backends | Notes |
 | --- | --- | --- | --- |
 | `describe_slides` | `stages.slides.backend` | `agy` \| `openrouter` | `agy` = local CLI agent (today); `openrouter` = a direct OpenRouter vision call. |
-| `summarize` | `summary.backend` | `agy` \| `agno` | `agy` = local CLI agent (today); `agno` = an Agno agent on an OpenRouter model with the **Notion MCP** attached. A bare API call is not an option here because Notion MCP publishing is mandatory. |
+| `summarize` | `summary.backend` | `agy` \| `agno` | `agy` = local CLI agent (today); `agno` = an Agno/OpenRouter model that produces the summary + digest, after which the **engine publishes the Notion subpage directly via the Notion REST API** (no MCP, no `npx`). |
 
 The two selections are **orthogonal** — any combination is valid:
 
@@ -96,19 +98,19 @@ See ready-to-adopt examples in [`examples/`](./examples):
 | `transcribe.model_id` | string | ElevenLabs model id (e.g. `scribe_v1`). |
 | `summary.language` | `"en"` \| `"original"` | Summary language. |
 | `summary.sections` | list[string] | Summary sections to generate. |
-| `summary.backend` | `"agy"` \| `"agno"` | Summarize backend. Default `"agy"`. `"agno"` runs an Agno agent on an OpenRouter model with the Notion MCP attached; requires the `openrouter` section and `notion.token_env`. |
+| `summary.backend` | `"agy"` \| `"agno"` | Summarize backend. Default `"agy"`. `"agno"` runs an Agno/OpenRouter model for the summary + digest, then the engine publishes the Notion subpage via the REST API; requires the `openrouter` section and `notion.token_env`. |
 | `agent.cli` | string | Headless agent CLI (e.g. `agy`). |
 | `agent.extra_args` | list[string] | Extra CLI args. |
 | `agent.output_file` | string | Output template, e.g. `{basename}.md`. |
 | `openrouter` | object | *(optional)* Shared OpenRouter connection. Required iff `stages.slides.backend == "openrouter"` or `summary.backend == "agno"`. Fields: `api_key_env` (**env-var name** of the API key), `base_url` (default `https://openrouter.ai/api/v1`), `slides_model` (vision, default `google/gemini-2.0-flash-001`), `summary_model` (tool-capable, default `google/gemini-2.5-pro`). |
-| `notion.server` | string | Notion MCP server name. |
+| `notion.server` | string | Notion MCP server name (used by the `agy` backend). |
 | `notion.parent_page_id` | string | Parent page for the new subpage. |
 | `notion.insert` | string | Insertion mode (e.g. `subpage`). |
-| `notion.token_env` | string | *(optional)* **Env-var name** of the Notion integration token used to launch the Notion MCP for the `agno` summarize backend. Required iff `summary.backend == "agno"`. |
+| `notion.token_env` | string | *(optional)* **Env-var name** of the Notion integration token. For the `agno` backend the engine uses it to publish the subpage via the Notion REST API. Required iff `summary.backend == "agno"`. |
 | `telegram.bot_token_env` | string | **Env-var name** of the bot token. |
 | `telegram.default_chat_id` | string | Fallback chat id. |
 | `telegram.routing` | map[string,string] | Topic → chat id routes. |
-| `timeouts` | map[string,int] | *(optional)* Per-stage timeouts (seconds); defaults to 900. Keys: `ffmpeg`, `scenedetect`, `slides` (the `describe_slides` stage), `elevenlabs`, `agy`, `summarize`, `s3`. `timeouts.summarize` is optional and **falls back to `timeouts.agy`** when unset (a networked `agno`+MCP run may need more time than a local `agy` run). |
+| `timeouts` | map[string,int] | *(optional)* Per-stage timeouts (seconds); defaults to 900. Keys: `ffmpeg`, `scenedetect`, `slides` (the `describe_slides` stage), `elevenlabs`, `agy`, `summarize`, `s3`. `timeouts.summarize` is optional and **falls back to `timeouts.agy`** when unset (a networked `agno` run may need more time than a local `agy` run). |
 | `s3` | object | *(optional)* `bucket` + `profile`. Required only when `stages.s3_sync` is true. |
 
 Example (YAML):
@@ -162,12 +164,12 @@ notion:
 
 ### Privacy / data egress
 
-Both non-`agy` backends send content to a **third party** (OpenRouter, and the
-Notion MCP for `agno`):
+Both non-`agy` backends send content to a **third party** (OpenRouter, and
+Notion for `agno`):
 
 - The slides `openrouter` backend uploads **slide imagery** plus transcript
   context; the `agno` summarize backend sends the transcript + slide markdown to
-  the OpenRouter model, and the summary to Notion via MCP.
+  the OpenRouter model, and the resulting summary to Notion via the REST API.
 - Upstream **retention is outside the engine's control**.
 - **Downscaling is a size/cost control, not redaction.** Reducing slide image
   resolution lowers—but does not eliminate—the fidelity of sensitive on-slide
@@ -196,15 +198,11 @@ Additional prerequisites apply only when you select a non-`agy` backend:
   Install the extra with `uv sync --extra agno` (or `uv pip install
   'transcriber[agno]'`). It is *not* installed by default, so the all-`agy`
   configuration pulls in no OpenRouter/Agno dependencies.
-- **Node.js / `npx`** on `PATH` — the `agno` summarize backend launches the
-  official Notion MCP server as a subprocess via `npx`. On **Windows** the engine
-  uses the Windows-launchable command form (e.g. `npx.cmd`), since a bare `npx`
-  often fails to spawn; ensure Node.js is installed and on `PATH`.
 - **Notion integration token** (env var named by `notion.token_env`) — required
-  when `summary.backend == "agno"`. The engine passes this key to the Notion MCP
-  subprocess (env-var name only in config; the value is resolved at use time and
-  never logged). The `agno` path launches its own Notion MCP server and does not
-  reuse `agy`'s MCP configuration.
+  when `summary.backend == "agno"`. The engine uses this key to publish the
+  Notion subpage via the **Notion REST API** (env-var name only in config; the
+  value is resolved at use time and never logged). No Notion MCP server or
+  Node.js/`npx` is needed for the `agno` backend.
 
 ## Usage
 
