@@ -73,6 +73,12 @@ class Recorder:
         self.calls.append(
             Call(argv=list(argv), timeout=timeout, stdout_path=stdout_path)
         )
+        # Simulate the elevenlabs CLI: write a JSON transcript payload to the
+        # redirected stdout file so _transcribe's decode step has valid input.
+        if stdout_path is not None and argv and argv[0] == "elevenlabs":
+            Path(stdout_path).write_text(
+                '{"text": "hello world transcript"}', encoding="utf-8"
+            )
 
 
 @pytest.fixture
@@ -141,13 +147,17 @@ def test_transcribe_command_line_and_stdout_redirect(
         "--model-id",
         "scribe_v2",
         "--format",
-        "text",
+        "json",
     ]
-    # stdout is redirected to the .txt artifact.
+    # stdout is redirected to the .txt artifact, then decoded to plain text.
     assert Path(call.stdout_path) == tmp_path / "talk.txt"
     assert call.timeout == 33
     assert result.skipped_artifacts.count("mp3") == 1
     assert "txt" in result.new_artifacts
+    # The JSON response is post-processed into the plain transcript text.
+    assert (tmp_path / "talk.txt").read_text(encoding="utf-8") == (
+        "hello world transcript\n"
+    )
 
 
 def test_slides_command_line_when_enabled(recorder: Recorder, tmp_path: Path) -> None:

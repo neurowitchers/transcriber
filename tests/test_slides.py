@@ -364,7 +364,9 @@ def test_pipeline_process_recording_makes_no_slides_backend_call(
     def fake_run_command(argv, timeout, stdout_path=None):
         ran.append(argv)
         if stdout_path is not None:
-            Path(stdout_path).write_text("transcript", encoding="utf-8")
+            Path(stdout_path).write_text(
+                '{"text": "transcript"}', encoding="utf-8"
+            )
 
     monkeypatch.setattr(pipeline_mod, "_run_command", fake_run_command)
 
