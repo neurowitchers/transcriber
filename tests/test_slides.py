@@ -252,13 +252,33 @@ def test_openrouter_raised_slide_ceiling_allows_bigger_deck(
     calls = _capture_vision(monkeypatch, "described")
     cfg = make_config()
     cfg.openrouter.max_slides = slides_mod.MAX_SLIDES + 25  # raise the ceiling
+    cfg.openrouter.slides_batch_size = 20
+    n = slides_mod.MAX_SLIDES + 1  # 61: over default, under raised ceiling
     slides = [
         SlideInput(image_path=tmp_path / f"s{i}.jpg", timestamp="unknown")
-        for i in range(slides_mod.MAX_SLIDES + 1)  # over default, under raised
+        for i in range(n)
     ]
     result = OpenRouterSlidesBackend().describe(slides, "t", cfg, timeout=5)
-    assert result == "described"
-    assert len(calls) == 1  # the ceiling did NOT trip; one HTTP call made
+    # Ceiling did NOT trip; deck sent in ceil(61/20) = 4 batched vision calls,
+    # and the per-batch markdown is concatenated (nothing lost).
+    assert len(calls) == 4
+    assert result == "\n\n".join(["described"] * 4)
+
+
+def test_openrouter_batches_large_deck_into_multiple_calls(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = _capture_vision(monkeypatch, "md")
+    cfg = make_config()
+    cfg.openrouter.max_slides = 200
+    cfg.openrouter.slides_batch_size = 30
+    slides = [
+        SlideInput(image_path=tmp_path / f"s{i}.jpg", timestamp="unknown")
+        for i in range(82)  # the real failing case
+    ]
+    result = OpenRouterSlidesBackend().describe(slides, "t", cfg, timeout=5)
+    assert len(calls) == 3  # ceil(82/30)
+    assert result == "\n\n".join(["md"] * 3)
 
 
 def test_openrouter_over_byte_ceiling_raises_before_http(

@@ -280,14 +280,19 @@ def _build_messages(
     config: Config,
     slides: Sequence[SlideInput],
     transcript_text: str,
+    *,
+    check_slide_ceiling: bool = True,
 ) -> tuple[list[dict], int]:
     """Build the single user message and return (messages, total_encoded_bytes).
 
     Enforces the deterministic ceiling (R23) **before** returning: too many
-    slides, or too many total encoded bytes, raises ``SlideDescribeError``.
+    slides (when ``check_slide_ceiling``), or too many total encoded bytes,
+    raises ``SlideDescribeError``. Batched callers pass
+    ``check_slide_ceiling=False`` because they enforce the total-deck ceiling
+    themselves before splitting into batches.
     """
     max_slides = getattr(config.openrouter, "max_slides", MAX_SLIDES)
-    if len(slides) > max_slides:
+    if check_slide_ceiling and len(slides) > max_slides:
         raise SlideDescribeError(
             f"slide deck exceeds the maximum of {max_slides} slides "
             f"({len(slides)} provided); raise the ceiling "
@@ -357,29 +362,52 @@ class OpenRouterSlidesBackend:
             )
 
         model = config.openrouter.slides_model
-        # Build (and ceiling-check) the payload BEFORE any network call (R23).
-        messages, total_encoded = _build_messages(config, slides, transcript_text)
 
+        # Total-deck ceiling check (R23), once, before any network call.
+        max_slides = getattr(config.openrouter, "max_slides", MAX_SLIDES)
+        if len(slides) > max_slides:
+            raise SlideDescribeError(
+                f"slide deck exceeds the maximum of {max_slides} slides "
+                f"({len(slides)} provided); raise the ceiling "
+                "(openrouter.max_slides), split the recording, or use "
+                "slides.backend=agy for this host"
+            )
+
+        # Batch the images so a large deck never overflows the model context.
+        batch_size = max(1, getattr(config.openrouter, "slides_batch_size", 20))
         started = time.monotonic()
-        logger.info(
-            "describe_slides[openrouter]: model=%s slides=%d encoded_bytes=%d",
-            model,
-            len(slides),
-            total_encoded,
-        )
-        content = _openrouter_vision(config, messages, model, timeout=timeout)
+        parts: list[str] = []
+        n_batches = (len(slides) + batch_size - 1) // batch_size
+        for bi in range(n_batches):
+            batch = slides[bi * batch_size : (bi + 1) * batch_size]
+            messages, total_encoded = _build_messages(
+                config, batch, transcript_text, check_slide_ceiling=False
+            )
+            logger.info(
+                "describe_slides[openrouter]: model=%s batch=%d/%d slides=%d "
+                "encoded_bytes=%d",
+                model,
+                bi + 1,
+                n_batches,
+                len(batch),
+                total_encoded,
+            )
+            content = _openrouter_vision(config, messages, model, timeout=timeout)
+            if content.strip():
+                parts.append(content.strip())
+
         elapsed = time.monotonic() - started
         logger.info(
-            "describe_slides[openrouter]: model=%s slides=%d elapsed=%.2fs",
+            "describe_slides[openrouter]: model=%s slides=%d batches=%d "
+            "elapsed=%.2fs",
             model,
             len(slides),
+            n_batches,
             elapsed,
         )
 
-        # A valid empty/whitespace response is not an error (R9).
-        if not content.strip():
-            return ""
-        return content
+        # A valid empty/whitespace response across all batches is not an error.
+        return "\n\n".join(parts)
 
 
 class AgySlidesBackend:

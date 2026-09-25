@@ -81,6 +81,10 @@ class OpenRouter:
     # An over-ceiling deck hard-fails before any image is sent (cost guard).
     # Optional; defaults to 60 when unset.
     max_slides: int = 60
+    # Slides are described in batches of this many images per vision call, so a
+    # large deck never overflows the model's context window. The per-batch
+    # markdown is concatenated. Optional; defaults to 20 when unset.
+    slides_batch_size: int = 20
 
 
 @dataclass
