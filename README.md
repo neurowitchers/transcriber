@@ -102,7 +102,7 @@ See ready-to-adopt examples in [`examples/`](./examples):
 | `agent.cli` | string | Headless agent CLI (e.g. `agy`). |
 | `agent.extra_args` | list[string] | Extra CLI args. |
 | `agent.output_file` | string | Output template, e.g. `{basename}.md`. |
-| `openrouter` | object | *(optional)* Shared OpenRouter connection. Required iff `stages.slides.backend == "openrouter"` or `summary.backend == "agno"`. Fields: `api_key_env` (**env-var name** of the API key), `base_url` (default `https://openrouter.ai/api/v1`), `slides_model` (vision, default `google/gemini-2.0-flash-001`), `summary_model` (tool-capable, default `google/gemini-2.5-pro`). |
+| `openrouter` | object | *(optional)* Shared OpenRouter connection. Required iff `stages.slides.backend == "openrouter"` or `summary.backend == "agno"`. Fields: `api_key_env` (**env-var name** of the API key), `base_url` (default `https://openrouter.ai/api/v1`), `slides_model` (vision, default `google/gemini-2.0-flash-001`), `summary_model` (tool-capable, default `google/gemini-2.5-pro`), `max_slides` (deterministic slide-count ceiling for the `openrouter` slides backend; an over-ceiling deck hard-fails before any image is sent; default `60`). |
 | `notion.server` | string | Notion MCP server name (used by the `agy` backend). |
 | `notion.parent_page_id` | string | Parent page for the new subpage. |
 | `notion.insert` | string | Insertion mode (e.g. `subpage`). |

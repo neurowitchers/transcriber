@@ -77,6 +77,10 @@ class OpenRouter:
     base_url: str = "https://openrouter.ai/api/v1"
     slides_model: str = "google/gemini-2.0-flash-001"  # vision (slides call)
     summary_model: str = "google/gemini-2.5-pro"  # tool-capable (agno + MCP)
+    # Deterministic slide-count ceiling for the `openrouter` slides backend.
+    # An over-ceiling deck hard-fails before any image is sent (cost guard).
+    # Optional; defaults to 60 when unset.
+    max_slides: int = 60
 
 
 @dataclass

@@ -246,6 +246,21 @@ def test_openrouter_over_slide_ceiling_raises_before_http(
     assert calls == []  # no HTTP call before the ceiling raise
 
 
+def test_openrouter_raised_slide_ceiling_allows_bigger_deck(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = _capture_vision(monkeypatch, "described")
+    cfg = make_config()
+    cfg.openrouter.max_slides = slides_mod.MAX_SLIDES + 25  # raise the ceiling
+    slides = [
+        SlideInput(image_path=tmp_path / f"s{i}.jpg", timestamp="unknown")
+        for i in range(slides_mod.MAX_SLIDES + 1)  # over default, under raised
+    ]
+    result = OpenRouterSlidesBackend().describe(slides, "t", cfg, timeout=5)
+    assert result == "described"
+    assert len(calls) == 1  # the ceiling did NOT trip; one HTTP call made
+
+
 def test_openrouter_over_byte_ceiling_raises_before_http(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

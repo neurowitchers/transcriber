@@ -66,6 +66,7 @@ _JPEG_QUALITY = 85
 
 # Deterministic payload ceiling (R23). Set generously so it only trips on
 # genuinely pathological inputs; over-ceiling decks HARD-FAIL before any send.
+# MAX_SLIDES is the DEFAULT — a host may override it via openrouter.max_slides.
 MAX_SLIDES = 60
 MAX_TOTAL_ENCODED_BYTES = 48 * 1024 * 1024  # 48 MiB of base64 image data
 
@@ -285,11 +286,13 @@ def _build_messages(
     Enforces the deterministic ceiling (R23) **before** returning: too many
     slides, or too many total encoded bytes, raises ``SlideDescribeError``.
     """
-    if len(slides) > MAX_SLIDES:
+    max_slides = getattr(config.openrouter, "max_slides", MAX_SLIDES)
+    if len(slides) > max_slides:
         raise SlideDescribeError(
-            f"slide deck exceeds the maximum of {MAX_SLIDES} slides "
-            f"({len(slides)} provided); raise the ceiling, split the "
-            "recording, or use slides.backend=agy for this host"
+            f"slide deck exceeds the maximum of {max_slides} slides "
+            f"({len(slides)} provided); raise the ceiling "
+            "(openrouter.max_slides), split the recording, or use "
+            "slides.backend=agy for this host"
         )
 
     content: list[dict] = [
