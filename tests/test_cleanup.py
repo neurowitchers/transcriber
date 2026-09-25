@@ -1,8 +1,8 @@
 """Tests for transcriber.cleanup using real temporary files.
 
 Verifies that cleanup deletes exactly the intermediate artifact set, preserves
-``.mp4`` and ``.md``, honors ``keep_intermediates``, and documents/enforces the
-sync-before-delete ordering as a caller contract.
+``.mp4``, ``.md``, and the ``.txt`` transcript, honors ``keep_intermediates``,
+and documents/enforces the sync-before-delete ordering as a caller contract.
 """
 
 from __future__ import annotations
@@ -52,15 +52,15 @@ def test_cleanup_deletes_intermediates_and_keeps_durable(tmp_path):
     # Durable outputs preserved.
     assert art["mp4"].exists()
     assert art["md"].exists()
+    assert art["txt"].exists()  # speech-to-text transcript is kept
 
     # Intermediates gone.
-    for key in ("mp3", "txt", "scenes", "slides_md", "slides_dir"):
+    for key in ("mp3", "scenes", "slides_md", "slides_dir"):
         assert not art[key].exists(), f"{key} should have been deleted"
 
-    # Exactly the intermediate set was removed.
+    # Exactly the intermediate set was removed (not the .txt transcript).
     assert set(removed) == {
         art["mp3"],
-        art["txt"],
         art["scenes"],
         art["slides_md"],
         art["slides_dir"],
@@ -72,6 +72,8 @@ def test_cleanup_never_touches_mp4_or_md(tmp_path):
     cleanup(art["mp4"])
     assert art["mp4"].read_text(encoding="utf-8") == "data"
     assert art["md"].read_text(encoding="utf-8") == "data"
+    # The .txt speech-to-text transcript is a durable output too.
+    assert art["txt"].read_text(encoding="utf-8") == "data"
 
 
 def test_keep_intermediates_disables_all_deletion(tmp_path):
@@ -115,9 +117,9 @@ def test_intermediate_paths_excludes_durable(tmp_path):
     names = {p.name for p in candidates}
     assert f"{NAME}.mp4" not in names
     assert f"{NAME}.md" not in names  # durable summary must be kept
+    assert f"{NAME}.txt" not in names  # speech-to-text transcript must be kept
     assert names == {
         f"{NAME}.mp3",
-        f"{NAME}.txt",
         f"{NAME}.scenes.csv",
         f"{NAME}.telegram.md",
         f"{NAME}.slides.md",
@@ -129,6 +131,23 @@ def test_intermediate_paths_excludes_durable(tmp_path):
     scenes = next(p for p in candidates if p.name == f"{NAME}.scenes.csv")
     assert scenes.parent.name == f"extracted_slides.{NAME}"
     assert scenes == tmp_path / f"extracted_slides.{NAME}" / f"{NAME}.scenes.csv"
+
+
+def test_cleanup_keeps_txt_transcript(tmp_path):
+    """The ``<name>.txt`` speech-to-text transcript must survive cleanup."""
+    mp4 = tmp_path / f"{NAME}.mp4"
+    mp4.write_text("video", encoding="utf-8")
+    txt = tmp_path / f"{NAME}.txt"
+    txt.write_text("hello world transcript", encoding="utf-8")
+    mp3 = tmp_path / f"{NAME}.mp3"
+    mp3.write_text("audio", encoding="utf-8")
+
+    removed = cleanup(mp4)
+
+    assert txt.exists(), "the .txt transcript must be kept"
+    assert txt not in removed
+    assert not mp3.exists(), "the .mp3 must still be deleted"
+    assert mp3 in removed
 
 
 def test_cleanup_deletes_digest_keeps_summary(tmp_path):

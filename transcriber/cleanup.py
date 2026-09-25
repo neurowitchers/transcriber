@@ -3,8 +3,9 @@
 After a recording finishes processing, its intermediate artifacts are removed
 to keep the recordings directory tidy. The **durable outputs are preserved**:
 
-- KEEP: the source ``<name>.mp4`` and the final ``<name>.md`` summary.
-- DELETE: ``<name>.mp3``, ``<name>.txt``, ``<name>.telegram.md``,
+- KEEP: the source ``<name>.mp4``, the final ``<name>.md`` summary, and the
+  ``<name>.txt`` speech-to-text transcript.
+- DELETE: ``<name>.mp3``, ``<name>.telegram.md``,
   ``<name>.slides.md`` (the intermediate slide-description artifact),
   ``<name>.notion_published.json`` (the ``agno`` publish record), and the
   ``extracted_slides.<name>/`` directory (which also holds
@@ -27,10 +28,11 @@ import shutil
 from pathlib import Path
 
 # Suffixes that are safe to delete after a successful run.
-INTERMEDIATE_SUFFIXES = (".mp3", ".txt", ".scenes.csv")
+INTERMEDIATE_SUFFIXES = (".mp3", ".scenes.csv")
 
-# Suffixes that must NEVER be deleted.
-KEEP_SUFFIXES = (".mp4", ".md")
+# Suffixes that must NEVER be deleted. ``.txt`` is the speech-to-text transcript
+# and is preserved as a durable output alongside the ``.md`` summary.
+KEEP_SUFFIXES = (".mp4", ".md", ".txt")
 
 
 def intermediate_paths(recording: Path) -> list[Path]:
@@ -42,7 +44,8 @@ def intermediate_paths(recording: Path) -> list[Path]:
             parent directory are used to derive sibling artifacts.
 
     The returned paths are candidates; callers should check existence before
-    deleting. Never includes the ``.mp4`` source or the ``.md`` summary.
+    deleting. Never includes the ``.mp4`` source, the ``.md`` summary, or the
+    ``.txt`` transcript.
     """
     recording = Path(recording)
     directory = recording.parent
@@ -52,7 +55,8 @@ def intermediate_paths(recording: Path) -> list[Path]:
 
     candidates = [
         directory / f"{name}.mp3",
-        directory / f"{name}.txt",
+        # ``<name>.txt`` (speech-to-text transcript) is intentionally NOT a
+        # candidate: it is kept as a durable output.
         # The scenes CSV lives inside the extracted-slides directory, not the
         # recording dir; the slides-dir ``rmtree`` removes it, but list the
         # correct path explicitly for coverage/clarity.
@@ -68,8 +72,9 @@ def intermediate_paths(recording: Path) -> list[Path]:
 def cleanup(recording: Path, keep_intermediates: bool = False) -> list[Path]:
     """Delete the intermediate artifacts for ``recording``.
 
-    KEEPS the source ``.mp4`` and the final ``.md`` summary. Deletes any of the
-    intermediate artifacts (``.mp3``, ``.txt``, ``.telegram.md``, ``.slides.md``,
+    KEEPS the source ``.mp4``, the final ``.md`` summary, and the ``.txt``
+    speech-to-text transcript. Deletes any of the intermediate artifacts
+    (``.mp3``, ``.telegram.md``, ``.slides.md``, ``.notion_published.json``,
     and the ``extracted_slides.<name>/`` directory, which holds
     ``<name>.scenes.csv``) that exist.
 
