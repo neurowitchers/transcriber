@@ -25,7 +25,7 @@ except ImportError:  # pragma: no cover - PyYAML is a declared dependency
 DEFAULT_TIMEOUT_SECONDS = 900
 
 # Allowed per-stage backend selectors.
-SLIDES_BACKENDS = ("agy", "openrouter")
+SLIDES_BACKENDS = ("openrouter",)
 SUMMARY_BACKENDS = ("agy", "agno")
 
 
@@ -43,7 +43,7 @@ class MissingEnvVarError(RuntimeError):
 @dataclass
 class SlidesStage:
     enabled: bool  # was stages.slides (bare bool); now nested.
-    backend: str = "agy"  # "agy" | "openrouter"
+    backend: str = "openrouter"  # "openrouter" (the only slides backend)
 
 
 @dataclass
@@ -81,10 +81,6 @@ class OpenRouter:
     # An over-ceiling deck hard-fails before any image is sent (cost guard).
     # Optional; defaults to 60 when unset.
     max_slides: int = 60
-    # Slides are described in batches of this many images per vision call, so a
-    # large deck never overflows the model's context window. The per-batch
-    # markdown is concatenated. Optional; defaults to 20 when unset.
-    slides_batch_size: int = 20
 
 
 @dataclass
@@ -260,14 +256,17 @@ def _from_dict(data: dict[str, Any]) -> Config:
             f"{SUMMARY_BACKENDS!r}, got {summary.backend!r}"
         )
 
-    # openrouter required iff slides use openrouter or summary uses agno.
+    # openrouter required iff slides are ENABLED (the slide descriptor is an
+    # OpenRouter vision call) or summary uses agno. A disabled slides stage
+    # needs no openrouter block even though its backend defaults to openrouter.
     needs_openrouter = (
-        stages.slides.backend == "openrouter" or summary.backend == "agno"
+        (stages.slides.enabled and stages.slides.backend == "openrouter")
+        or summary.backend == "agno"
     )
     if needs_openrouter and openrouter is None:
         raise ConfigError(
-            "'openrouter' section is required when "
-            "stages.slides.backend == 'openrouter' or summary.backend == 'agno'"
+            "'openrouter' section is required when slides are enabled "
+            "(stages.slides.enabled) or summary.backend == 'agno'"
         )
 
     # notion.token_env required iff summary uses agno.

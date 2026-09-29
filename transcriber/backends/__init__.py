@@ -7,7 +7,9 @@ Public surface (Task 2):
     * The shared OpenRouter vision helper :func:`_openrouter_vision` (used by
       the slides ``openrouter`` backend in Task 3).
 
-Concrete backends (agy / openrouter / agno) and stage wiring land in Tasks 3-6.
+Concrete backends and stage wiring: the ``openrouter`` slides backend
+(:class:`OpenRouterSlidesBackend`) and the summarize backends (``agy`` /
+``agno``).
 """
 
 from __future__ import annotations
@@ -21,7 +23,6 @@ from transcriber.backends.interfaces import (
 )
 from transcriber.backends.openrouter import _openrouter_vision
 from transcriber.backends.slides import (
-    AgySlidesBackend,
     OpenRouterSlidesBackend,
     build_slide_inputs,
 )
@@ -38,7 +39,6 @@ __all__ = [
     "SummarizeBackend",
     "SummaryResult",
     "_openrouter_vision",
-    "AgySlidesBackend",
     "OpenRouterSlidesBackend",
     "build_slide_inputs",
     "AgySummarizeBackend",

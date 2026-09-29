@@ -219,7 +219,7 @@ def test_loaded_nested_slides_disabled_config_skips_scenedetect(
         "stages:\n"
         "  slides:\n"
         "    enabled: false\n"
-        "    backend: agy\n"
+        "    backend: openrouter\n"
         "  s3_sync: false\n"
         "transcribe:\n"
         "  model_id: scribe_v1\n"

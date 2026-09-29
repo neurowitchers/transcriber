@@ -1,14 +1,13 @@
-"""Slides ``describe_slides`` backends + the slide-input helper.
+"""Slides ``describe_slides`` backend + the slide-input helper.
 
-This module implements the two ``describe_slides`` backends selected by
-``config.stages.slides.backend`` (Task 3):
+This module implements the ``describe_slides`` backend (``openrouter`` is the
+only slides backend):
 
-* :class:`OpenRouterSlidesBackend` — a **single** OpenRouter vision
-  chat-completions call (via the Task 2 :func:`_openrouter_vision` helper) that
-  turns the extracted slide JPEGs (+ transcript context) into the
-  ``<name>.slides.md`` markdown block.
-* :class:`AgySlidesBackend` — a scoped ``agy`` run that reads the slide images
-  and writes/returns the same slide markdown.
+* :class:`OpenRouterSlidesBackend` — issues **one OpenRouter vision call per
+  slide** (via the :func:`_openrouter_vision` helper), turning each extracted
+  slide JPEG into part of the ``<name>.slides.md`` markdown block. The
+  descriptor is **image-only**: it never receives the transcript. Transcript
+  cross-referencing is the summarize stage's job.
 
 Plus :func:`build_slide_inputs`, which lists the extracted slide JPEGs in a
 deterministic order and joins each to its scene timing parsed from the scenes
@@ -21,9 +20,11 @@ Design invariants (Spec R7/R8/R9/R16/R17/R23):
   valid empty/whitespace backend response → ``""`` (not an error). A
   transport/format failure raises
   :class:`~transcriber.backends.errors.SlideDescribeError`.
-* **Per-slide timestamps (R8):** each slide contributes a ``Timestamp: MM:SS -
-  MM:SS`` text part placed **immediately before** its ``image_url`` part.
-  Unknown timing is passed as the literal ``unknown`` — never omitted.
+* **One call per slide:** each slide is sent in its own vision call carrying a
+  single image and no transcript; the per-slide markdown is concatenated.
+* **Per-slide timestamps (R8):** each slide's message carries a ``Timestamp:
+  MM:SS - MM:SS`` text part placed **immediately before** its ``image_url``
+  part. Unknown timing is passed as the literal ``unknown`` — never omitted.
 * **Downscale (R25):** each JPEG is downscaled to a bounded long edge before
   base64 to control size/cost. This is a size control, **not** redaction.
 * **Deterministic ceiling (R23):** module constants cap the max slide count and
@@ -31,10 +32,9 @@ Design invariants (Spec R7/R8/R9/R16/R17/R23):
   **before** any HTTP call. Over-ceiling decks hard-fail (no chunking).
 * **Log hygiene (R16/R17):** logs carry stage/model/slide-count/elapsed only —
   never the API key, headers, or image bytes.
-* **No pipeline coupling:** neither backend is called from
+* **No pipeline coupling:** the backend is not called from
   ``pipeline.process_recording`` — the pipeline stays ffmpeg + scenedetect +
-  transcribe only. These backends run in the manifest-gated orchestrator step
-  (Task 5).
+  transcribe only. It runs in the manifest-gated orchestrator step.
 """
 
 from __future__ import annotations
@@ -44,9 +44,8 @@ import csv
 import logging
 import time
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Sequence
 
-from transcriber.agent import run_slide_agent
 from transcriber.backends.errors import SlideDescribeError
 from transcriber.backends.interfaces import SlideInput
 from transcriber.backends.openrouter import _openrouter_vision
@@ -221,9 +220,15 @@ def _read_extractor_rules() -> str:
     return (_TEMPLATES_DIR / "slide_extractor.md").read_text(encoding="utf-8")
 
 
-def _leading_text(config: Config, transcript_text: str) -> str:
-    """Build the leading text part: extractor rules + language + transcript."""
-    from transcriber.agent import _language_instruction, _transcript_fence
+def _leading_text(config: Config) -> str:
+    """Build the leading text part: extractor rules + language (image-only).
+
+    The slide descriptor is **image-only**: it describes what is visually
+    present on the slide and never receives the transcript. Transcript
+    cross-referencing (speaker commentary, decisions, Q&A) is the summarize
+    stage's job, which has the full transcript plus this slide markdown.
+    """
+    from transcriber.agent import _language_instruction
 
     rules = _read_extractor_rules()
     language = _language_instruction(config.summary.language)
@@ -232,11 +237,10 @@ def _leading_text(config: Config, transcript_text: str) -> str:
         "recorded meeting. Output ONLY the slide-description markdown (no "
         "preamble, no summary sections).\n\n"
         f"Write the descriptions in {language}\n\n"
-        "Each slide image below is preceded by its `Timestamp: MM:SS - MM:SS` "
-        "scene range. Follow these per-slide extraction rules exactly:\n\n"
-        f"{rules}\n\n"
-        "Transcript context (for aligning speaker commentary to slides):\n"
-        f"{_transcript_fence(transcript_text)}"
+        "The slide image below is preceded by its `Timestamp: MM:SS - MM:SS` "
+        "scene range. Describe only what is visually present on the slide. "
+        "Follow these per-slide extraction rules exactly:\n\n"
+        f"{rules}"
     )
 
 
@@ -287,11 +291,11 @@ def _preflight_deck_encoded_bytes(
 ) -> dict[Path, str]:
     """Encode every slide once and enforce the **whole-deck** byte ceiling (R23).
 
-    Returns a ``{image_path: base64}`` cache so the per-batch message build does
+    Returns a ``{image_path: base64}`` cache so the per-slide message build does
     not re-encode. Raises ``SlideDescribeError`` if the deck's *total* encoded
     size exceeds :data:`MAX_TOTAL_ENCODED_BYTES` — **before** any HTTP call, so
-    an over-ceiling deck hard-fails before a single image is sent (the batching
-    loop must not reset the accumulator per batch).
+    an over-ceiling deck hard-fails before a single image is sent (the per-slide
+    loop must not reset the accumulator per slide).
     """
     cache: dict[Path, str] = {}
     total_encoded = 0
@@ -303,80 +307,49 @@ def _preflight_deck_encoded_bytes(
             raise SlideDescribeError(
                 "slide deck exceeds the maximum encoded payload of "
                 f"{MAX_TOTAL_ENCODED_BYTES} bytes; raise the ceiling, split "
-                "the recording, or use slides.backend=agy for this host"
+                "the recording, or disable the slides stage for this host"
             )
     return cache
 
 
-def _build_messages(
+def _build_single_slide_message(
     config: Config,
-    slides: Sequence[SlideInput],
-    transcript_text: str,
+    slide: SlideInput,
     *,
-    check_slide_ceiling: bool = True,
-    encoded_cache: Optional[dict[Path, str]] = None,
+    encoded_cache: dict[Path, str],
 ) -> tuple[list[dict], int]:
-    """Build the single user message and return (messages, batch_encoded_bytes).
+    """Build the user message for **one** slide and return (messages, bytes).
 
-    Enforces the deterministic ceiling (R23) **before** returning: too many
-    slides (when ``check_slide_ceiling``), or — for the unbatched single call —
-    too many total encoded bytes, raises ``SlideDescribeError``.
-
-    Batched callers pass ``check_slide_ceiling=False`` **and** an
-    ``encoded_cache`` from :func:`_preflight_deck_encoded_bytes`; that preflight
-    already enforced the whole-deck byte ceiling across all batches, so this
-    function does not re-check (nor re-encode) per batch — the returned int is
-    just this batch's encoded size (for logging), not a fresh accumulator.
+    The slide descriptor is image-only: the message carries the extractor rules
+    + language (no transcript), one ``Timestamp:`` text part, and one
+    ``image_url``. The base64 image is taken from ``encoded_cache`` (populated by
+    :func:`_preflight_deck_encoded_bytes`, which already enforced the whole-deck
+    byte ceiling before any HTTP call), so images are never re-encoded here.
     """
-    max_slides = getattr(config.openrouter, "max_slides", MAX_SLIDES)
-    if check_slide_ceiling and len(slides) > max_slides:
-        raise SlideDescribeError(
-            f"slide deck exceeds the maximum of {max_slides} slides "
-            f"({len(slides)} provided); raise the ceiling "
-            "(openrouter.max_slides), split the recording, or use "
-            "slides.backend=agy for this host"
-        )
-
+    b64 = encoded_cache[slide.image_path]
     content: list[dict] = [
-        {"type": "text", "text": _leading_text(config, transcript_text)}
+        {"type": "text", "text": _leading_text(config)},
+        {"type": "text", "text": f"Timestamp: {slide.timestamp}"},
+        {
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+        },
     ]
-
-    # Whole-deck byte enforcement happens in the preflight for batched callers.
-    # For an unbatched single call (no cache), enforce the ceiling here.
-    enforce_bytes = encoded_cache is None
-
-    total_encoded = 0
-    for slide in slides:
-        if encoded_cache is not None and slide.image_path in encoded_cache:
-            b64 = encoded_cache[slide.image_path]
-        else:
-            b64 = _encode_slide(slide)
-        total_encoded += len(b64)
-        if enforce_bytes and total_encoded > MAX_TOTAL_ENCODED_BYTES:
-            raise SlideDescribeError(
-                "slide deck exceeds the maximum encoded payload of "
-                f"{MAX_TOTAL_ENCODED_BYTES} bytes; raise the ceiling, split "
-                "the recording, or use slides.backend=agy for this host"
-            )
-        content.append(
-            {"type": "text", "text": f"Timestamp: {slide.timestamp}"}
-        )
-        content.append(
-            {
-                "type": "image_url",
-                "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
-            }
-        )
-
     messages = [{"role": "user", "content": content}]
-    return messages, total_encoded
+    return messages, len(b64)
 
 
 # --------------------------------------------------------------------------- #
-# Backends
+# Backend
 # --------------------------------------------------------------------------- #
 class OpenRouterSlidesBackend:
-    """``describe_slides`` via a single OpenRouter vision chat-completions call."""
+    """``describe_slides`` via one OpenRouter vision call **per slide**.
+
+    Each slide is sent in its own image-only chat-completions call (no
+    transcript context); the per-slide markdown is concatenated into the
+    ``<name>.slides.md`` block. Transcript cross-referencing is the summarize
+    stage's responsibility, which receives the full transcript plus this block.
+    """
 
     def describe(
         self,
@@ -388,11 +361,21 @@ class OpenRouterSlidesBackend:
     ) -> str:
         """Return the slide-description markdown (or ``""`` — R9).
 
-        An empty slide set returns ``""`` with **no** HTTP call. A valid empty
-        or whitespace-only backend response also resolves to ``""``. Exceeding
-        the deterministic ceiling (R23) raises ``SlideDescribeError`` **before**
-        any HTTP call. Transport/format failures raise ``SlideDescribeError``.
+        Each slide is described by a **separate** vision call carrying a single
+        image and no transcript. An empty slide set returns ``""`` with **no**
+        HTTP call. A valid empty or whitespace-only response for a slide simply
+        contributes nothing. Exceeding the deterministic ceiling (R23) — either
+        the slide-count or the whole-deck encoded-byte bound — raises
+        ``SlideDescribeError`` **before** any HTTP call. Transport/format
+        failures raise ``SlideDescribeError``.
+
+        ``transcript_text`` is accepted to satisfy the
+        :class:`~transcriber.backends.interfaces.SlidesBackend` protocol and the
+        orchestrator call site, but is intentionally **unused**: the descriptor
+        is image-only.
         """
+        del transcript_text  # image-only descriptor; intentionally unused.
+
         slides = list(slides)
         if not slides:
             logger.info("describe_slides[openrouter]: no slides, returning empty")
@@ -406,45 +389,36 @@ class OpenRouterSlidesBackend:
 
         model = config.openrouter.slides_model
 
-        # Total-deck ceiling check (R23), once, before any network call.
+        # Slide-count ceiling check (R23), once, before any network call.
         max_slides = getattr(config.openrouter, "max_slides", MAX_SLIDES)
         if len(slides) > max_slides:
             raise SlideDescribeError(
                 f"slide deck exceeds the maximum of {max_slides} slides "
                 f"({len(slides)} provided); raise the ceiling "
-                "(openrouter.max_slides), split the recording, or use "
-                "slides.backend=agy for this host"
+                "(openrouter.max_slides), split the recording, or disable the "
+                "slides stage for this host"
             )
-
-        # Batch the images so a large deck never overflows the model context.
-        batch_size = max(1, getattr(config.openrouter, "slides_batch_size", 20))
-        started = time.monotonic()
 
         # Whole-deck encoded-byte ceiling (R23): encode every slide once and
-        # enforce the TOTAL across all batches BEFORE any HTTP call, so an
-        # over-ceiling deck hard-fails before a single image is sent. The cache
-        # is reused per batch so images are not re-encoded.
+        # enforce the TOTAL BEFORE any HTTP call, so an over-ceiling deck
+        # hard-fails before a single image is sent. The cache is reused per
+        # slide so images are not re-encoded.
         encoded_cache = _preflight_deck_encoded_bytes(config, slides)
 
+        started = time.monotonic()
         parts: list[str] = []
-        n_batches = (len(slides) + batch_size - 1) // batch_size
-        for bi in range(n_batches):
-            batch = slides[bi * batch_size : (bi + 1) * batch_size]
-            messages, total_encoded = _build_messages(
-                config,
-                batch,
-                transcript_text,
-                check_slide_ceiling=False,
-                encoded_cache=encoded_cache,
+        n_slides = len(slides)
+        for i, slide in enumerate(slides):
+            messages, encoded_bytes = _build_single_slide_message(
+                config, slide, encoded_cache=encoded_cache
             )
             logger.info(
-                "describe_slides[openrouter]: model=%s batch=%d/%d slides=%d "
+                "describe_slides[openrouter]: model=%s slide=%d/%d "
                 "encoded_bytes=%d",
                 model,
-                bi + 1,
-                n_batches,
-                len(batch),
-                total_encoded,
+                i + 1,
+                n_slides,
+                encoded_bytes,
             )
             content = _openrouter_vision(config, messages, model, timeout=timeout)
             if content.strip():
@@ -452,87 +426,11 @@ class OpenRouterSlidesBackend:
 
         elapsed = time.monotonic() - started
         logger.info(
-            "describe_slides[openrouter]: model=%s slides=%d batches=%d "
-            "elapsed=%.2fs",
+            "describe_slides[openrouter]: model=%s slides=%d elapsed=%.2fs",
             model,
-            len(slides),
-            n_batches,
+            n_slides,
             elapsed,
         )
 
-        # A valid empty/whitespace response across all batches is not an error.
+        # A valid empty/whitespace response for every slide is not an error.
         return "\n\n".join(parts)
-
-
-class AgySlidesBackend:
-    """``describe_slides`` via a scoped ``agy`` run over the slide images."""
-
-    def describe(
-        self,
-        slides: Sequence[SlideInput],
-        transcript_text: str,
-        config: Config,
-        *,
-        timeout: float,
-    ) -> str:
-        """Drive ``agy`` to write the slide markdown and return its contents.
-
-        An empty slide set returns ``""`` with no ``agy`` run (R9). Otherwise a
-        scoped ``agy`` run (reusing the existing :func:`run_agent` seam) writes
-        the slide markdown to the recording directory, which is then read back
-        (file-is-source-of-truth).
-        """
-        slides = list(slides)
-        if not slides:
-            logger.info("describe_slides[agy]: no slides, returning empty")
-            return ""
-
-        # All slides live in the same recording dir; derive it from the first
-        # image (``recordings/extracted_slides.<name>/<img>.jpg`` -> recordings).
-        slides_dir = slides[0].image_path.parent
-        recording_dir = slides_dir.parent
-        # ``extracted_slides.<name>`` -> ``<name>``.
-        name = slides_dir.name.split("extracted_slides.", 1)[-1]
-
-        image_paths = [str(s.image_path) for s in slides]
-        slides_md_path = recording_dir / f"{name}.slides.md"
-
-        logger.info(
-            "describe_slides[agy]: cli=%s slides=%d", config.agent.cli, len(slides)
-        )
-        started = time.monotonic()
-        transcript_path = _write_transcript_scratch(
-            recording_dir, name, transcript_text
-        )
-        output_path = run_slide_agent(
-            config,
-            transcript_path,
-            recording_dir,
-            image_paths,
-            output_file=slides_md_path,
-            timeout=timeout,
-        )
-        elapsed = time.monotonic() - started
-        logger.info(
-            "describe_slides[agy]: cli=%s slides=%d elapsed=%.2fs",
-            config.agent.cli,
-            len(slides),
-            elapsed,
-        )
-        return Path(output_path).read_text(encoding="utf-8")
-
-
-def _write_transcript_scratch(
-    recording_dir: Path, name: str, transcript_text: str
-) -> Path:
-    """Ensure the transcript file exists for the scoped agy run.
-
-    ``run_agent`` reads the transcript by path; the orchestrator (Task 5) passes
-    the real ``<name>.txt``. When a backend is invoked with in-memory transcript
-    text (tests), write it to ``<name>.txt`` beside the recording so the seam
-    is uniform.
-    """
-    txt = Path(recording_dir) / f"{name}.txt"
-    if not txt.exists():
-        txt.write_text(transcript_text, encoding="utf-8")
-    return txt

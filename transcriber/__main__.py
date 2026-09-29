@@ -6,11 +6,11 @@ run:
     pipeline -> describe_slides -> summarize (+ Notion) -> Telegram -> S3 -> cleanup
 
 The two post-transcript stages (``describe_slides`` and ``summarize``) each run
-a backend selected purely from config (``stages.slides.backend`` /
-``summary.backend``). Backends default to ``agy`` so an unchanged config keeps
-today's behavior. Paid/network calls live only in these manifest-gated
-orchestrator steps — the ``pipeline`` stage stays media-only (ffmpeg /
-scenedetect / transcribe).
+a backend selected from config. ``describe_slides`` always runs on the
+``openrouter`` vision backend; ``summarize`` selects ``agy`` (default) or
+``agno``. Paid/network calls live only in these manifest-gated orchestrator
+steps — the ``pipeline`` stage stays media-only (ffmpeg / scenedetect /
+transcribe).
 
 Usage::
 
@@ -62,26 +62,25 @@ DEFAULT_CONFIG = "config.yaml"
 def _get_slides_backend(config: Config):
     """Return the configured ``describe_slides`` backend instance.
 
-    Selection is a pure function of ``config.stages.slides.backend``; there is
-    no silent cross-backend fallback (Spec R19): an unknown value raises.
+    ``openrouter`` is the only slides backend. Selection is validated at config
+    load (``stages.slides.backend`` must be ``"openrouter"``); an unexpected
+    value here raises rather than silently falling back (Spec R19).
     """
     backend = config.stages.slides.backend
-    if backend == "agy":
-        return backends_mod.AgySlidesBackend()
     if backend == "openrouter":
         return backends_mod.OpenRouterSlidesBackend()
     raise ValueError(
-        f"unknown stages.slides.backend {backend!r} (expected 'agy' or 'openrouter')"
+        f"unknown stages.slides.backend {backend!r} (expected 'openrouter')"
     )
 
 
 def _uses_agy(config: Config) -> bool:
-    """Return ``True`` when any enabled stage uses the ``agy`` CLI."""
-    if config.stages.slides.enabled and config.stages.slides.backend == "agy":
-        return True
-    if config.summary.backend == "agy":
-        return True
-    return False
+    """Return ``True`` when any enabled stage uses the ``agy`` CLI.
+
+    Only the summarize stage can use ``agy``; the slides stage always runs on
+    the OpenRouter vision backend.
+    """
+    return config.summary.backend == "agy"
 
 
 def _needs_openrouter(config: Config) -> bool:

@@ -5,9 +5,13 @@
 # resolved at use time.
 #
 # Behavior: slide extraction on, no S3 sync, English summaries, single Telegram
-# chat, Notion subpage insertion under a parent page. Both post-transcript
-# stages run on the local `agy` backend — this reproduces today's behavior with
-# no external OpenRouter/Agno egress.
+# chat, Notion subpage insertion under a parent page. Slide description runs on
+# the `openrouter` vision backend (the only slides backend); the summarize
+# stage runs on the local `agy` backend.
+#
+# NOTE: enabling slides requires the `openrouter` block below and its API-key
+# env var. Operators who must avoid any OpenRouter egress should keep
+# `stages.slides.enabled: false`.
 
 recordings_dir: ./recordings
 
@@ -16,7 +20,7 @@ stages:
   # (`slides: true`) is NOT accepted and raises a ConfigError.
   slides:
     enabled: true
-    backend: agy  # "agy" (local) | "openrouter" (vision API)
+    backend: openrouter  # "openrouter" (the only slides backend)
   s3_sync: false
 
 transcribe:
@@ -28,13 +32,20 @@ summary:
     - overview
     - key_points
     - action_items
-  backend: agy  # "agy" (local) | "agno" (OpenRouter model + Notion MCP)
+  backend: agy  # "agy" (local) | "agno" (OpenRouter model + Notion REST publish)
 
 agent:
   cli: agy
   extra_args:
     - --dangerously-skip-permissions
   output_file: "{basename}.md"
+
+# OpenRouter connection — required because slides are enabled (the slides
+# descriptor is an OpenRouter vision call). Secrets by env-var NAME only.
+openrouter:
+  api_key_env: OPENROUTER_API_KEY
+  # base_url defaults to https://openrouter.ai/api/v1 when omitted.
+  slides_model: google/gemini-2.0-flash-001   # cheap vision model
 
 notion:
   server: notion-example

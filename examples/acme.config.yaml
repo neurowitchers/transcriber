@@ -10,11 +10,13 @@
 # chat ids with a default fallback), Notion subpage insertion under a parent page.
 #
 # Backend mix (the primary cost-saving configuration):
-#   - describe_slides -> openrouter (a direct OpenRouter vision call)
-#   - summarize       -> agno       (an Agno agent on an OpenRouter model with
-#                                     the Notion MCP server attached as a tool)
-# Both non-`agy` paths egress content to OpenRouter — see the README privacy
-# note before enabling for sensitive content.
+#   - describe_slides -> openrouter (one OpenRouter vision call per slide;
+#                                     the only slides backend)
+#   - summarize       -> agno       (an Agno agent on an OpenRouter model, after
+#                                     which the engine publishes the Notion
+#                                     subpage via the Notion REST API)
+# Both paths egress content to OpenRouter — see the README privacy note before
+# enabling for sensitive content.
 
 recordings_dir: ./recordings
 
@@ -23,7 +25,7 @@ stages:
   # (`slides: true`) is NOT accepted and raises a ConfigError.
   slides:
     enabled: true
-    backend: openrouter  # "agy" (local) | "openrouter" (vision API)
+    backend: openrouter  # "openrouter" (the only slides backend)
   s3_sync: true
 
 transcribe:
@@ -43,21 +45,21 @@ agent:
     - --dangerously-skip-permissions
   output_file: "{basename}.md"
 
-# OpenRouter connection, shared by both non-`agy` backends (slides vision call
-# and the agno summarize agent). Secrets by env-var NAME only.
+# OpenRouter connection, shared by the slides vision calls and the agno
+# summarize agent. Secrets by env-var NAME only.
 openrouter:
   api_key_env: OPENROUTER_API_KEY
   # base_url defaults to https://openrouter.ai/api/v1 when omitted.
   slides_model: google/gemini-2.0-flash-001   # cheap vision model
-  summary_model: google/gemini-2.5-pro        # tool-capable (agno + MCP)
+  summary_model: google/gemini-2.5-pro        # tool-capable (agno)
 
 notion:
   server: notion-acme
   # Placeholder — replace with the real parent page id.
   parent_page_id: "REPLACE_WITH_PARENT_PAGE_ID"
   insert: subpage
-  # Required because summary.backend == "agno": the engine launches the Notion
-  # MCP server with this key. Env-var NAME only — no secret here.
+  # Required because summary.backend == "agno": the engine publishes the Notion
+  # subpage via the Notion REST API with this key. Env-var NAME only — no secret.
   token_env: NOTION_API_KEY
 
 telegram:

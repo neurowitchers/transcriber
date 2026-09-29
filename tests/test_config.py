@@ -24,7 +24,7 @@ from transcriber.config import (
 # to prove both formats map to the identical model.
 BASE_CONFIG: dict = {
     "recordings_dir": "./recordings",
-    "stages": {"slides": {"enabled": True, "backend": "agy"}, "s3_sync": False},
+    "stages": {"slides": {"enabled": True, "backend": "openrouter"}, "s3_sync": False},
     "transcribe": {"model_id": "scribe_v1"},
     "summary": {"language": "en", "sections": ["overview", "action_items"]},
     "agent": {
@@ -32,6 +32,7 @@ BASE_CONFIG: dict = {
         "extra_args": ["--headless"],
         "output_file": "{basename}.md",
     },
+    "openrouter": {"api_key_env": "OPENROUTER_API_KEY"},
     "notion": {
         "server": "notion-mcp",
         "parent_page_id": "abc123",
@@ -81,7 +82,7 @@ def test_yml_extension_supported(tmp_path):
 def test_model_field_values(tmp_path):
     cfg = load(_write(tmp_path / "c.json", BASE_CONFIG, "json"))
     assert cfg.stages.slides.enabled is True
-    assert cfg.stages.slides.backend == "agy"
+    assert cfg.stages.slides.backend == "openrouter"
     assert cfg.transcribe.model_id == "scribe_v1"
     assert cfg.summary.language == "en"
     assert cfg.summary.sections == ["overview", "action_items"]
@@ -179,21 +180,22 @@ def test_secrets_not_stored_in_model(tmp_path, monkeypatch):
 # --------------------------------------------------------------------------- #
 # Per-stage backends, openrouter section, notion.token_env, new timeouts
 # --------------------------------------------------------------------------- #
-def test_backends_default_to_agy(tmp_path):
-    # Omitted backends default to "agy"; no openrouter / notion.token_env needed.
+def test_slides_backend_defaults_to_openrouter_summary_to_agy(tmp_path):
+    # Omitted slides backend defaults to "openrouter" (the only slides backend);
+    # omitted summary backend defaults to "agy".
     data = json.loads(json.dumps(BASE_CONFIG))
     data["stages"]["slides"] = {"enabled": True}  # backend omitted
     # summary.backend omitted entirely
     cfg = load(_write(tmp_path / "c.json", data, "json"))
-    assert cfg.stages.slides.backend == "agy"
+    assert cfg.stages.slides.backend == "openrouter"
     assert cfg.summary.backend == "agy"
-    assert cfg.openrouter is None
     assert cfg.notion.token_env is None
 
 
 def test_slides_openrouter_without_openrouter_section_raises(tmp_path):
     data = json.loads(json.dumps(BASE_CONFIG))
     data["stages"]["slides"] = {"enabled": True, "backend": "openrouter"}
+    data.pop("openrouter", None)  # remove the required section
     with pytest.raises(ConfigError) as exc:
         load(_write(tmp_path / "c.json", data, "json"))
     assert "openrouter" in str(exc.value)
@@ -203,6 +205,10 @@ def test_summary_agno_without_openrouter_section_raises(tmp_path):
     data = json.loads(json.dumps(BASE_CONFIG))
     data["summary"]["backend"] = "agno"
     data["notion"]["token_env"] = "NOTION_TOKEN"  # present so this isn't the failing check
+    # Slides must not require openrouter, and the section must be absent, so the
+    # agno-openrouter check is the one that fires.
+    data["stages"]["slides"] = {"enabled": False}
+    data.pop("openrouter", None)
     with pytest.raises(ConfigError) as exc:
         load(_write(tmp_path / "c.json", data, "json"))
     assert "openrouter" in str(exc.value)
@@ -230,13 +236,13 @@ def test_summary_agno_valid_with_openrouter_and_token(tmp_path):
 
 def test_invalid_slides_backend_raises_with_allowed_set(tmp_path):
     data = json.loads(json.dumps(BASE_CONFIG))
-    # "agno" is valid for summary but NOT for slides.
-    data["stages"]["slides"] = {"enabled": True, "backend": "agno"}
+    # "agy" is no longer a valid slides backend (openrouter is the only one).
+    data["stages"]["slides"] = {"enabled": True, "backend": "agy"}
     with pytest.raises(ConfigError) as exc:
         load(_write(tmp_path / "c.json", data, "json"))
     msg = str(exc.value)
     assert "stages.slides.backend" in msg
-    assert "agy" in msg and "openrouter" in msg
+    assert "openrouter" in msg
 
 
 def test_invalid_summary_backend_raises_with_allowed_set(tmp_path):

@@ -28,10 +28,11 @@ def test_simple_example_shape():
     cfg = load(str(EXAMPLES_DIR / "example.config.yaml"))
     # Nested stages.slides shape parses into {enabled, backend}.
     assert cfg.stages.slides.enabled is True
-    assert cfg.stages.slides.backend == "agy"
+    # openrouter is the only slides backend.
+    assert cfg.stages.slides.backend == "openrouter"
     assert cfg.stages.s3_sync is False
     assert cfg.summary.language == "en"
-    # Both post-transcript backends default to agy (today's behavior).
+    # Summarize defaults to the local agy backend.
     assert cfg.summary.backend == "agy"
     assert cfg.notion.server == "notion-example"
     assert cfg.notion.insert == "subpage"
@@ -40,8 +41,10 @@ def test_simple_example_shape():
     assert cfg.telegram.bot_token_env == "TELEGRAM_BOT_TOKEN"
     assert cfg.telegram.routing == {}
     assert cfg.s3 is None
-    # The simple example does not use any OpenRouter backend.
-    assert cfg.openrouter is None
+    # Slides are enabled, so the openrouter block is present (vision call).
+    assert cfg.openrouter is not None
+    assert cfg.openrouter.api_key_env == "OPENROUTER_API_KEY"
+    assert cfg.openrouter.slides_model == "google/gemini-2.0-flash-001"
 
 
 def test_full_example_shape():

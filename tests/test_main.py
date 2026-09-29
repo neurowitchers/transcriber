@@ -48,7 +48,7 @@ def make_config(
     recordings_dir: Path,
     *,
     slides: bool = True,
-    slides_backend: str = "agy",
+    slides_backend: str = "openrouter",
     summary_backend: str = "agy",
     s3_sync: bool = False,
     s3_target: bool = False,
@@ -190,6 +190,7 @@ def stage_calls(monkeypatch):
 def test_preflight_fails_on_missing_binary(monkeypatch, tmp_path):
     config = make_config(tmp_path, slides=False, s3_sync=False)
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
     # All binaries missing.
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: None)
 
@@ -220,12 +221,14 @@ def test_check_subcommand_exit_codes(monkeypatch, tmp_path):
     # Passing: all present.
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
     assert main_mod.main(["check", "--config", str(config_path)]) == 0
 
 
 def test_preflight_requires_aws_only_when_s3_enabled(monkeypatch, tmp_path):
     config = make_config(tmp_path, slides=False, s3_sync=True, s3_target=True)
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
 
     def which(name):
         return None if name == "aws" else f"/usr/bin/{name}"
@@ -252,7 +255,7 @@ def _write_yaml_config(path: Path, recordings_dir: Path, *, s3_sync: bool) -> No
 stages:
   slides:
     enabled: true
-    backend: agy
+    backend: openrouter
   s3_sync: {str(s3_sync).lower()}
 transcribe:
   model_id: scribe_v1
@@ -263,6 +266,8 @@ agent:
   cli: agy
   extra_args: []
   output_file: "{{basename}}.md"
+openrouter:
+  api_key_env: OPENROUTER_API_KEY
 notion:
   server: notion-x
   parent_page_id: pid
@@ -326,6 +331,7 @@ def test_happy_path_two_recordings(stage_calls, monkeypatch, tmp_path):
 
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
 
     rc = main_mod.main(["--config", str(config_path)])
     assert rc == 0
@@ -334,12 +340,12 @@ def test_happy_path_two_recordings(stage_calls, monkeypatch, tmp_path):
     # Per-recording order (s3 disabled so no s3 stage).
     assert calls == [
         ("pipeline", "a"),
-        ("describe_slides", "agy"),
+        ("describe_slides", "openrouter"),
         ("agent", "a"),
         ("telegram", "-"),
         ("cleanup", "a"),
         ("pipeline", "b"),
-        ("describe_slides", "agy"),
+        ("describe_slides", "openrouter"),
         ("agent", "b"),
         ("telegram", "-"),
         ("cleanup", "b"),
@@ -354,13 +360,14 @@ def test_happy_path_with_s3(stage_calls, monkeypatch, tmp_path):
 
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
 
     rc = main_mod.main(["--config", str(config_path)])
     assert rc == 0
     calls = stage_calls["calls"]
     assert calls == [
         ("pipeline", "a"),
-        ("describe_slides", "agy"),
+        ("describe_slides", "openrouter"),
         ("agent", "a"),
         ("telegram", "-"),
         ("s3", "-"),
@@ -380,6 +387,7 @@ def test_failure_isolation_skips_cleanup_but_continues(stage_calls, monkeypatch,
 
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
 
     # Make the summarize backend fail for recording "a" only.
     orig_calls = stage_calls["calls"]
@@ -439,6 +447,7 @@ def test_manifest_skips_completed_stages_on_rerun(stage_calls, monkeypatch, tmp_
 
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
 
     # Pre-mark pipeline + describe_slides + summarize + notion + telegram complete.
     st = state_mod.RecordingState(mp4)
@@ -470,6 +479,7 @@ def test_disabled_s3_toggle_skips_s3(stage_calls, monkeypatch, tmp_path):
 
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
 
     main_mod.main(["--config", str(config_path)])
     calls = stage_calls["calls"]
@@ -495,7 +505,7 @@ def test_disabled_slides_ignores_stale_slides_md(stage_calls, monkeypatch, tmp_p
 stages:
   slides:
     enabled: false
-    backend: agy
+    backend: openrouter
   s3_sync: false
 transcribe:
   model_id: scribe_v1
@@ -521,6 +531,7 @@ telegram:
 
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
 
     rc = main_mod.main(["--config", str(config_path)])
     assert rc == 0
@@ -561,7 +572,7 @@ def test_enabled_toggles_include_stages(tmp_path):
     )
     stages = main_mod._enabled_stage_names(config)
     assert "scene-extract" in stages
-    assert "describe-slides [agy]" in stages
+    assert "describe-slides [openrouter]" in stages
     assert "summarize+notion [agy]" in stages
     assert "transcribe" in stages
     assert "s3-sync" in stages
@@ -642,6 +653,7 @@ def test_describe_slides_runs_configured_backend(
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
 
     outcomes = main_mod.run_batch(config, main_mod.discover_new_recordings(config))
     assert all(o.succeeded for o in outcomes)
@@ -659,6 +671,7 @@ def test_describe_slides_skipped_when_disabled(stage_calls, monkeypatch, tmp_pat
     config = make_config(recordings_dir, slides=False)
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
 
     main_mod.run_batch(config, main_mod.discover_new_recordings(config))
     assert stage_calls["slides_seen"] == []
@@ -675,6 +688,7 @@ def test_describe_slides_manifest_gated_skips_paid_call_on_rerun(
     config = make_config(recordings_dir, slides=True)
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
 
     # Pre-mark pipeline + describe_slides complete and drop the artifact +
     # transcript that a prior run would have produced.
@@ -699,6 +713,7 @@ def test_describe_slides_idempotent_skip_when_artifact_present(
     config = make_config(recordings_dir, slides=True)
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
 
     st = state_mod.RecordingState(mp4)
     st.mark_complete("pipeline")  # no describe_slides mark
@@ -721,6 +736,7 @@ def test_summarize_receives_slide_markdown(stage_calls, monkeypatch, tmp_path):
     config = make_config(recordings_dir, slides=True)
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
 
     main_mod.run_batch(config, main_mod.discover_new_recordings(config))
 
@@ -737,6 +753,7 @@ def test_summarize_receives_none_when_slides_disabled(stage_calls, monkeypatch, 
     config = make_config(recordings_dir, slides=False)
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
 
     main_mod.run_batch(config, main_mod.discover_new_recordings(config))
     # No slides.md -> summarize gets None.
@@ -749,6 +766,7 @@ def test_summarize_receives_none_when_slides_disabled(stage_calls, monkeypatch, 
 def test_preflight_openrouter_required_iff_slides_openrouter(monkeypatch, tmp_path):
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
 
     # slides=openrouter -> OpenRouter key required.
@@ -765,6 +783,7 @@ def test_preflight_openrouter_required_iff_slides_openrouter(monkeypatch, tmp_pa
 def test_preflight_openrouter_and_notion_required_iff_summary_agno(monkeypatch, tmp_path):
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.delenv("NOTION_TOKEN", raising=False)
 
@@ -788,6 +807,7 @@ def test_preflight_openrouter_and_notion_required_iff_summary_agno(monkeypatch, 
 
 def test_preflight_agy_required_iff_used(monkeypatch, tmp_path):
     monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
     monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
@@ -814,10 +834,6 @@ def test_preflight_agy_required_iff_used(monkeypatch, tmp_path):
     )
     assert any("agy" in p for p in main_mod.preflight_check(uses_agy))
 
-    # slides=agy uses agy -> required (and missing).
-    slides_agy = make_config(tmp_path, slides=True, slides_backend="agy")
-    assert any("agy" in p for p in main_mod.preflight_check(slides_agy))
-
 
 # --------------------------------------------------------------------------- #
 # Task 5: shared openrouter block, distinct models per stage
@@ -843,14 +859,14 @@ def test_shared_config_distinct_models(tmp_path):
 
 
 def test_get_slides_backend_selection(tmp_path):
-    agy = make_config(tmp_path, slides=True, slides_backend="agy")
     orr = make_config(
         tmp_path, slides=True, slides_backend="openrouter", openrouter=True
-    )
-    assert isinstance(
-        main_mod._get_slides_backend(agy), main_mod.backends_mod.AgySlidesBackend
     )
     assert isinstance(
         main_mod._get_slides_backend(orr),
         main_mod.backends_mod.OpenRouterSlidesBackend,
     )
+    # agy is no longer a valid slides backend; selection rejects it.
+    agy = make_config(tmp_path, slides=True, slides_backend="agy")
+    with pytest.raises(ValueError):
+        main_mod._get_slides_backend(agy)

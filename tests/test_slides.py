@@ -1,11 +1,10 @@
 """Tests for transcriber.backends.slides: ``build_slide_inputs`` helper plus the
-``OpenRouterSlidesBackend`` and ``AgySlidesBackend`` describe_slides backends.
+``OpenRouterSlidesBackend`` describe_slides backend (the only slides backend).
 
-No real network, no real ``agy``, no real image decoding:
+No real network, no real image decoding:
 
 * ``_downscale_jpeg_to_bytes`` is monkeypatched so tests need no real JPEGs.
 * ``_openrouter_vision`` is monkeypatched at the module seam.
-* ``run_agent`` is monkeypatched at the module seam.
 """
 
 from __future__ import annotations
@@ -18,7 +17,6 @@ import pytest
 import transcriber.backends.slides as slides_mod
 import transcriber.pipeline as pipeline_mod
 from transcriber.backends import (
-    AgySlidesBackend,
     OpenRouterSlidesBackend,
     SlideDescribeError,
     SlideInput,
@@ -178,7 +176,7 @@ def _capture_vision(monkeypatch: pytest.MonkeyPatch, return_value: str = "MD"):
     return calls
 
 
-def test_openrouter_request_shape_one_image_url_per_slide_ts_before(
+def test_openrouter_request_shape_one_call_per_slide_image_only(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     calls = _capture_vision(monkeypatch, "## Slides\nok")
@@ -189,29 +187,33 @@ def test_openrouter_request_shape_one_image_url_per_slide_ts_before(
     result = OpenRouterSlidesBackend().describe(
         slides, "transcript body", make_config(), timeout=30
     )
-    assert result == "## Slides\nok"
-    assert len(calls) == 1
-    assert calls[0]["model"] == SLIDES_MODEL
-    assert calls[0]["timeout"] == 30
+    # One vision call PER slide; per-slide markdown concatenated.
+    assert len(calls) == 2
+    assert result == "\n\n".join(["## Slides\nok", "## Slides\nok"])
+    assert all(c["model"] == SLIDES_MODEL for c in calls)
+    assert all(c["timeout"] == 30 for c in calls)
 
-    content = calls[0]["messages"][0]["content"]
-    # One leading text part.
-    assert content[0]["type"] == "text"
-    # Then per slide: Timestamp text part immediately before its image_url.
-    image_parts = [c for c in content if c["type"] == "image_url"]
-    assert len(image_parts) == 2  # one image_url per slide
-
-    # Verify each image_url is immediately preceded by its Timestamp text part.
-    for i, part in enumerate(content):
-        if part["type"] == "image_url":
-            prev = content[i - 1]
-            assert prev["type"] == "text"
-            assert prev["text"].startswith("Timestamp: ")
-            assert part["image_url"]["url"].startswith("data:image/jpeg;base64,")
-
-    # Timestamps present and in order.
-    ts_texts = [c["text"] for c in content if c.get("text", "").startswith("Timestamp:")]
-    assert ts_texts == ["Timestamp: 00:00 - 00:05", "Timestamp: 00:05 - 01:10"]
+    expected_ts = ["Timestamp: 00:00 - 00:05", "Timestamp: 00:05 - 01:10"]
+    for call, ts in zip(calls, expected_ts):
+        content = call["messages"][0]["content"]
+        # Each per-slide message: leading text, one Timestamp text, one image.
+        assert content[0]["type"] == "text"
+        image_parts = [c for c in content if c["type"] == "image_url"]
+        assert len(image_parts) == 1  # exactly one image per call
+        # Timestamp text part immediately precedes the image.
+        for i, part in enumerate(content):
+            if part["type"] == "image_url":
+                prev = content[i - 1]
+                assert prev["type"] == "text"
+                assert prev["text"] == ts
+                assert part["image_url"]["url"].startswith(
+                    "data:image/jpeg;base64,"
+                )
+        # Image-only descriptor: the transcript must NOT appear in the message.
+        all_text = " ".join(
+            c["text"] for c in content if c["type"] == "text"
+        )
+        assert "transcript body" not in all_text
 
 
 def test_openrouter_empty_slides_no_http_returns_empty(
@@ -252,33 +254,31 @@ def test_openrouter_raised_slide_ceiling_allows_bigger_deck(
     calls = _capture_vision(monkeypatch, "described")
     cfg = make_config()
     cfg.openrouter.max_slides = slides_mod.MAX_SLIDES + 25  # raise the ceiling
-    cfg.openrouter.slides_batch_size = 20
     n = slides_mod.MAX_SLIDES + 1  # 61: over default, under raised ceiling
     slides = [
         SlideInput(image_path=tmp_path / f"s{i}.jpg", timestamp="unknown")
         for i in range(n)
     ]
     result = OpenRouterSlidesBackend().describe(slides, "t", cfg, timeout=5)
-    # Ceiling did NOT trip; deck sent in ceil(61/20) = 4 batched vision calls,
-    # and the per-batch markdown is concatenated (nothing lost).
-    assert len(calls) == 4
-    assert result == "\n\n".join(["described"] * 4)
+    # Ceiling did NOT trip; deck sent as one vision call PER slide, and the
+    # per-slide markdown is concatenated (nothing lost).
+    assert len(calls) == n
+    assert result == "\n\n".join(["described"] * n)
 
 
-def test_openrouter_batches_large_deck_into_multiple_calls(
+def test_openrouter_one_call_per_slide_for_large_deck(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     calls = _capture_vision(monkeypatch, "md")
     cfg = make_config()
     cfg.openrouter.max_slides = 200
-    cfg.openrouter.slides_batch_size = 30
     slides = [
         SlideInput(image_path=tmp_path / f"s{i}.jpg", timestamp="unknown")
         for i in range(82)  # the real failing case
     ]
     result = OpenRouterSlidesBackend().describe(slides, "t", cfg, timeout=5)
-    assert len(calls) == 3  # ceil(82/30)
-    assert result == "\n\n".join(["md"] * 3)
+    assert len(calls) == 82  # one call per slide
+    assert result == "\n\n".join(["md"] * 82)
 
 
 def test_openrouter_over_byte_ceiling_raises_before_http(
@@ -305,19 +305,18 @@ def test_openrouter_whole_deck_byte_ceiling_trips_across_batches_before_http(
 ) -> None:
     """Regression (Copilot #6): the encoded-byte ceiling is a WHOLE-DECK bound.
 
-    With batching, each individual batch can stay under the ceiling while the
-    deck total exceeds it. The preflight must reject the deck **before any HTTP
-    call** rather than sending earlier under-ceiling batches.
+    Each individual per-slide image can stay under the ceiling while the deck
+    total exceeds it. The preflight must reject the deck **before any HTTP
+    call** rather than sending earlier under-ceiling slides.
     """
     calls = _capture_vision(monkeypatch, "md")
     cfg = make_config()
     cfg.openrouter.max_slides = 200
-    cfg.openrouter.slides_batch_size = 2  # small batches, each well under ceiling
 
     n_slides = 10
-    # base64 inflates raw bytes by ~4/3. Size each image so a 2-slide batch is
-    # comfortably under the ceiling (~0.33x) but the 10-slide deck exceeds it
-    # (~1.67x), proving the ceiling is enforced deck-wide, not per batch.
+    # base64 inflates raw bytes by ~4/3. Size each image so a single slide is
+    # comfortably under the ceiling (~0.17x) but the 10-slide deck exceeds it
+    # (~1.67x), proving the ceiling is enforced deck-wide, not per slide.
     per_image = slides_mod.MAX_TOTAL_ENCODED_BYTES // 8
     big = b"x" * per_image
     monkeypatch.setattr(
@@ -375,67 +374,19 @@ def test_openrouter_uses_slides_model_not_summary_model(
 
 
 # --------------------------------------------------------------------------- #
-# AgySlidesBackend
-# --------------------------------------------------------------------------- #
-def test_agy_backend_writes_and_returns_markdown(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    name = "rec"
-    slides_dir = tmp_path / f"extracted_slides.{name}"
-    slides_dir.mkdir()
-    (slides_dir / "a.jpg").write_bytes(b"x")
-
-    written = tmp_path / f"{name}.slides.md"
-    captured: dict = {}
-
-    def fake_run_slide_agent(
-        config, transcript_path, recording_dir, image_paths, *, output_file, timeout
-    ):
-        # agy would write the slide markdown to <name>.slides.md; simulate it.
-        Path(output_file).write_text("## Slide Descriptions\ndone", encoding="utf-8")
-        captured["image_paths"] = list(image_paths)
-        captured["output_file"] = str(output_file)
-        captured["timeout"] = timeout
-        return Path(output_file)
-
-    monkeypatch.setattr(slides_mod, "run_slide_agent", fake_run_slide_agent)
-
-    slides = [SlideInput(image_path=slides_dir / "a.jpg", timestamp="00:00 - 00:05")]
-    result = AgySlidesBackend().describe(slides, "transcript", make_config(), timeout=5)
-    assert result == "## Slide Descriptions\ndone"
-    # Image paths are passed through; output targets <name>.slides.md, NOT the
-    # summary output file; the timeout is forwarded.
-    assert captured["image_paths"] == [str(slides_dir / "a.jpg")]
-    assert captured["output_file"] == str(written)
-    assert captured["timeout"] == 5
-
-
-def test_agy_backend_empty_slides_returns_empty_no_run(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def fail(*a, **k):  # pragma: no cover - must not be called
-        raise AssertionError("run_slide_agent should not be called for empty slides")
-
-    monkeypatch.setattr(slides_mod, "run_slide_agent", fail)
-    assert AgySlidesBackend().describe([], "t", make_config(), timeout=5) == ""
-
-
-# --------------------------------------------------------------------------- #
 # Pipeline stays network-free (no slides-backend call)
 # --------------------------------------------------------------------------- #
 def test_pipeline_process_recording_makes_no_slides_backend_call(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Fail loudly if either backend or the vision helper is invoked by the pipeline.
+    # Fail loudly if the backend or the vision helper is invoked by the pipeline.
     def boom(*a, **k):  # pragma: no cover - must not be called
         raise AssertionError("pipeline must not call a slides backend")
 
     monkeypatch.setattr(slides_mod, "_openrouter_vision", boom)
-    monkeypatch.setattr(slides_mod, "run_slide_agent", boom)
     monkeypatch.setattr(
         OpenRouterSlidesBackend, "describe", lambda *a, **k: boom()
     )
-    monkeypatch.setattr(AgySlidesBackend, "describe", lambda *a, **k: boom())
 
     # Stub the pipeline's child-process seam so no real binaries run.
     ran: list[list[str]] = []
