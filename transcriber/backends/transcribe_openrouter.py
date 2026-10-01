@@ -696,12 +696,63 @@ def _part_to_manifest(chunk: TranscriptChunk) -> dict[str, Any]:
 # Stage entry (Task 4)
 # --------------------------------------------------------------------------- #
 def _probe_duration_seconds(mp3: Path) -> Optional[float]:
-    """Best-effort audio duration via ffprobe through the pipeline seam.
+    """Best-effort audio duration (seconds) via ``ffprobe``.
 
-    Returns ``None`` when duration cannot be determined (tests monkeypatch the
-    seam and typically leave this unknown, yielding a single part).
+    Runs ``ffprobe`` (ships with ffmpeg, already a required prerequisite)
+    through the pipeline's monkeypatchable ``_run_command`` seam, writing the
+    duration to a temp file in the recording's directory and parsing it back.
+    Returns ``None`` when the duration cannot be determined (ffprobe missing,
+    non-numeric output, or any error) so the caller falls back to a single part
+    rather than crashing.
+
+    This is the production source of ``duration_seconds`` for :func:`chunk_audio`
+    — without a real duration, a long recording would be cut into a single
+    ``segment_seconds + overlap_seconds`` part and the remainder silently lost.
     """
-    return None
+    from transcriber.pipeline import _run_command
+
+    mp3 = Path(mp3)
+    out_path = mp3.with_suffix(mp3.suffix + ".duration.txt")
+    argv = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        str(mp3),
+    ]
+    try:
+        _run_command(argv, timeout=120, stdout_path=out_path)
+        raw = out_path.read_text(encoding="utf-8").strip()
+    except Exception as exc:  # noqa: BLE001 - duration is best-effort
+        logger.warning(
+            "transcribe: could not probe duration for %s (%s); "
+            "falling back to a single chunk",
+            mp3.name,
+            type(exc).__name__,
+        )
+        return None
+    finally:
+        try:
+            out_path.unlink()
+        except OSError:
+            pass
+
+    try:
+        duration = float(raw)
+    except ValueError:
+        logger.warning(
+            "transcribe: ffprobe returned non-numeric duration %r for %s; "
+            "falling back to a single chunk",
+            raw[:40],
+            mp3.name,
+        )
+        return None
+    if duration <= 0.0:
+        return None
+    return duration
 
 
 def transcribe_recording(mp3: Path, txt: Path, config: "Config") -> None:

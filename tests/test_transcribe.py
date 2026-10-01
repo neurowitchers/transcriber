@@ -339,6 +339,99 @@ def test_chunk_audio_single_part_when_duration_unknown(
 
 
 # --------------------------------------------------------------------------- #
+# Task 4 — _probe_duration_seconds (production duration source, BUG-1 regression)
+# --------------------------------------------------------------------------- #
+def test_probe_duration_parses_ffprobe_output(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """ffprobe output is parsed into a float duration (the production path)."""
+    import transcriber.pipeline as pipeline_mod
+
+    def fake_run(argv, timeout, stdout_path=None):
+        assert argv[0] == "ffprobe"
+        # ffprobe writes the duration to stdout_path; simulate that.
+        Path(stdout_path).write_text("3675.123\n", encoding="utf-8")
+
+    monkeypatch.setattr(pipeline_mod, "_run_command", fake_run)
+    mp3 = tmp_path / "rec.mp3"
+    mp3.write_bytes(b"x")
+    assert tx._probe_duration_seconds(mp3) == pytest.approx(3675.123)
+
+
+def test_probe_duration_none_on_bad_output(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import transcriber.pipeline as pipeline_mod
+
+    def fake_run(argv, timeout, stdout_path=None):
+        Path(stdout_path).write_text("N/A\n", encoding="utf-8")
+
+    monkeypatch.setattr(pipeline_mod, "_run_command", fake_run)
+    mp3 = tmp_path / "rec.mp3"
+    mp3.write_bytes(b"x")
+    assert tx._probe_duration_seconds(mp3) is None
+
+
+def test_probe_duration_none_on_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import transcriber.pipeline as pipeline_mod
+
+    def fake_run(argv, timeout, stdout_path=None):
+        raise RuntimeError("ffprobe missing")
+
+    monkeypatch.setattr(pipeline_mod, "_run_command", fake_run)
+    mp3 = tmp_path / "rec.mp3"
+    mp3.write_bytes(b"x")
+    assert tx._probe_duration_seconds(mp3) is None
+
+
+def test_long_recording_chunks_into_multiple_parts_without_probe_mock(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """End-to-end: a long recording is chunked via the REAL probe path.
+
+    Regression for BUG-1: before the fix, _probe_duration_seconds was a stub
+    returning None, so a long recording was cut into a single part and the
+    remainder silently dropped. Here we drive the real probe (its ffprobe call
+    goes through the monkeypatched _run_command seam) and assert >1 part is cut.
+    """
+    import transcriber.pipeline as pipeline_mod
+
+    ff_calls: list[list[str]] = []
+
+    def fake_run(argv, timeout, stdout_path=None):
+        ff_calls.append(list(argv))
+        if argv and argv[0] == "ffprobe":
+            Path(stdout_path).write_text("1800.0\n", encoding="utf-8")  # 30 min
+
+    monkeypatch.setattr(pipeline_mod, "_run_command", fake_run)
+
+    def fake_seam(config, part_path, **kwargs):
+        return tx.TranscriptChunk(
+            index=0, offset=0.0, segments=[], cost=0.0, raw_text="chunk text"
+        )
+
+    monkeypatch.setattr(tx, "_openrouter_transcribe", fake_seam)
+
+    cfg = make_config(
+        recordings_dir=str(tmp_path),
+        diarize=False,
+        segment_seconds=480,
+        overlap_seconds=5,
+    )
+    mp3 = tmp_path / "rec.mp3"
+    mp3.write_bytes(b"x")
+    txt = tmp_path / "rec.txt"
+    tx.transcribe_recording(mp3, txt, cfg)
+
+    # ceil(1800/480) = 4 parts → 4 ffmpeg slice calls (plus 1 ffprobe call).
+    slice_calls = [c for c in ff_calls if c and c[0] == "ffmpeg"]
+    assert len(slice_calls) == 4
+    assert txt.read_text(encoding="utf-8").strip() != ""
+
+
+# --------------------------------------------------------------------------- #
 # Task 3 — stitch
 # --------------------------------------------------------------------------- #
 def _chunk(index: int, segs: list[tuple[str, float, float, str]], raw: str = "", cost: float = 0.0) -> tx.TranscriptChunk:
