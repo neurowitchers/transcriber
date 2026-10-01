@@ -410,7 +410,7 @@ def _process_one(
         # 6. Cleanup (only on full success, unless kept).
         current_stage = "cleanup"
         if keep_intermediates:
-            logger.info("[%s] cleanup: skipped (--keep-intermediates)", name)
+            logger.info("[%s] cleanup: skipped (keep-intermediates/debug)", name)
         elif state.is_complete("cleanup"):
             logger.info("[%s] cleanup: already complete, skipping", name)
         else:
@@ -559,10 +559,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 0
 
     logger.info("processing %d new recording(s)", len(recordings))
+    # Keep intermediates when either the CLI flag or the config `debug` flag is
+    # set. `debug: true` makes this persistent (useful while the tool matures).
+    keep_intermediates = args.keep_intermediates or config.debug
+    if config.debug and not args.keep_intermediates:
+        logger.info("debug: true in config — intermediate artifacts will be kept")
     outcomes = run_batch(
         config,
         recordings,
-        keep_intermediates=args.keep_intermediates,
+        keep_intermediates=keep_intermediates,
     )
 
     summary = _summarize_batch(outcomes)

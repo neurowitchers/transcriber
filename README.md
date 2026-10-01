@@ -125,6 +125,7 @@ See ready-to-adopt examples in [`examples/`](./examples):
 | `telegram.routing` | map[string,string] | Topic → chat id routes. |
 | `timeouts` | map[string,int] | *(optional)* Per-stage timeouts (seconds); defaults to 900. Keys: `ffmpeg`, `scenedetect`, `slides` (the `describe_slides` stage), `transcribe`, `agy`, `summarize`, `s3`. The legacy `timeouts.elevenlabs` key is **renamed to `timeouts.transcribe`** and is silently ignored if left behind. `timeouts.summarize` is optional and **falls back to `timeouts.agy`** when unset (a networked `agno` run may need more time than a local `agy` run). |
 | `s3` | object | *(optional)* `bucket` + `profile`. Required only when `stages.s3_sync` is true. |
+| `debug` | bool | *(optional, default `false`)* When `true`, intermediate artifacts are **kept** after a successful run (same effect as the `--keep-intermediates` CLI flag, but persistent in config). Preserves `.mp3`, `.slides.md`, `.telegram.md`, the `transcribe_work.<name>/` dir, extracted slides, and the scenes CSV for inspection while the tool matures. The CLI flag and `debug` are OR'd — either one keeps intermediates. |
 
 Example (YAML):
 

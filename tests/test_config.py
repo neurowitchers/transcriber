@@ -95,6 +95,27 @@ def test_model_field_values(tmp_path):
     assert cfg.timeouts.ffmpeg == 100
 
 
+def test_debug_defaults_false(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data.pop("debug", None)
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert cfg.debug is False
+
+
+def test_debug_true_parsed(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["debug"] = True
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert cfg.debug is True
+
+
+def test_debug_non_bool_raises(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["debug"] = "yes"
+    with pytest.raises(ConfigError):
+        load(_write(tmp_path / "c.json", data, "json"))
+
+
 def test_timeouts_default_when_omitted(tmp_path):
     data = dict(BASE_CONFIG)
     data.pop("timeouts")

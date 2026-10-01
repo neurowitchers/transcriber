@@ -134,6 +134,11 @@ class Config:
     timeouts: Timeouts
     s3: Optional[S3] = None
     openrouter: Optional[OpenRouter] = None
+    # When True, intermediate artifacts are kept after a successful run (same
+    # effect as the --keep-intermediates CLI flag, but persistent in config).
+    # Useful while the tool matures: preserves .mp3, .slides.md, .telegram.md,
+    # the transcribe_work.<name>/ dir, extracted slides, etc. for inspection.
+    debug: bool = False
 
 
 # --------------------------------------------------------------------------- #
@@ -284,6 +289,14 @@ def _from_dict(data: dict[str, Any]) -> Config:
             "'notion.token_env' is required when summary.backend == 'agno'"
         )
 
+    # Optional top-level debug flag (defaults False). When True, intermediate
+    # artifacts are kept after a successful run (same as --keep-intermediates).
+    debug = data.get("debug", False)
+    if not isinstance(debug, bool):
+        raise ConfigError(
+            f"'debug' must be a boolean, got {type(debug).__name__}"
+        )
+
     return Config(
         recordings_dir=recordings_dir,
         stages=stages,
@@ -295,6 +308,7 @@ def _from_dict(data: dict[str, Any]) -> Config:
         timeouts=timeouts,
         s3=s3,
         openrouter=openrouter,
+        debug=debug,
     )
 
 

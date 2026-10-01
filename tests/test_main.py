@@ -246,10 +246,13 @@ def test_preflight_requires_aws_only_when_s3_enabled(monkeypatch, tmp_path):
 # --------------------------------------------------------------------------- #
 # YAML config writer (drives main() end-to-end with a real config file)
 # --------------------------------------------------------------------------- #
-def _write_yaml_config(path: Path, recordings_dir: Path, *, s3_sync: bool) -> None:
+def _write_yaml_config(
+    path: Path, recordings_dir: Path, *, s3_sync: bool, debug: bool = False
+) -> None:
     s3_block = ""
     if s3_sync:
         s3_block = "s3:\n  bucket: s3://bucket\n  profile: prof\n"
+    debug_block = "debug: true\n" if debug else ""
     path.write_text(
         f"""recordings_dir: {recordings_dir.as_posix()}
 stages:
@@ -276,7 +279,7 @@ telegram:
   bot_token_env: TG_TOKEN
   default_chat_id: "123"
   routing: {{}}
-{s3_block}""",
+{s3_block}{debug_block}""",
         encoding="utf-8",
     )
 
@@ -350,6 +353,27 @@ def test_happy_path_two_recordings(stage_calls, monkeypatch, tmp_path):
         ("telegram", "-"),
         ("cleanup", "b"),
     ]
+
+
+def test_debug_config_keeps_intermediates(stage_calls, monkeypatch, tmp_path):
+    """`debug: true` in config skips cleanup (no --keep-intermediates flag)."""
+    recordings_dir = tmp_path / "rec"
+    make_recording(recordings_dir, "a")
+    config_path = tmp_path / "c.yaml"
+    _write_yaml_config(config_path, recordings_dir, s3_sync=False, debug=True)
+
+    monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+
+    rc = main_mod.main(["--config", str(config_path)])
+    assert rc == 0
+
+    # All stages ran, but cleanup was skipped because debug: true.
+    assert [c for c in stage_calls["calls"] if c[0] == "cleanup"] == []
+    # Sanity: the rest of the pipeline still ran.
+    assert ("pipeline", "a") in stage_calls["calls"]
+    assert ("telegram", "-") in stage_calls["calls"]
 
 
 def test_happy_path_with_s3(stage_calls, monkeypatch, tmp_path):
