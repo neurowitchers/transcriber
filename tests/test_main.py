@@ -52,7 +52,7 @@ def make_config(
     summary_backend: str = "agy",
     s3_sync: bool = False,
     s3_target: bool = False,
-    openrouter: bool = False,
+    openrouter: bool = True,
     notion_token_env: str | None = None,
 ) -> Config:
     s3 = S3(bucket="s3://bucket", profile="prof") if s3_target else None
@@ -63,7 +63,7 @@ def make_config(
             slides=SlidesStage(enabled=slides, backend=slides_backend),
             s3_sync=s3_sync,
         ),
-        transcribe=Transcribe(model_id="scribe_v1"),
+        transcribe=Transcribe(model_id="microsoft/mai-transcribe-2"),
         summary=Summary(language="en", sections=["overview"], backend=summary_backend),
         agent=Agent(cli="agy", extra_args=[], output_file="{basename}.md"),
         notion=Notion(
@@ -258,7 +258,7 @@ stages:
     backend: openrouter
   s3_sync: {str(s3_sync).lower()}
 transcribe:
-  model_id: scribe_v1
+  model_id: microsoft/mai-transcribe-2
 summary:
   language: en
   sections: [overview]
@@ -508,7 +508,7 @@ stages:
     backend: openrouter
   s3_sync: false
 transcribe:
-  model_id: scribe_v1
+  model_id: microsoft/mai-transcribe-2
 summary:
   language: en
   sections: [overview]
@@ -517,6 +517,8 @@ agent:
   cli: agy
   extra_args: []
   output_file: "{{basename}}.md"
+openrouter:
+  api_key_env: OPENROUTER_API_KEY
 notion:
   server: notion-x
   parent_page_id: pid
@@ -574,7 +576,7 @@ def test_enabled_toggles_include_stages(tmp_path):
     assert "scene-extract" in stages
     assert "describe-slides [openrouter]" in stages
     assert "summarize+notion [agy]" in stages
-    assert "transcribe" in stages
+    assert "transcribe [openrouter:microsoft/mai-transcribe-2]" in stages
     assert "s3-sync" in stages
 
 
@@ -616,11 +618,14 @@ def test_dry_run_tokens_pinned():
         # Renamed pipeline slide-extraction token.
         assert "scene-extract" in stages
         assert "slides" not in stages
+        # Transcribe surfaces the OpenRouter backend + configured model (R16).
+        transcribe_token = "transcribe [openrouter:microsoft/mai-transcribe-2]"
+        assert transcribe_token in stages
         # Post-transcript backend tokens surface the selected backend.
         assert "describe-slides [openrouter]" in stages
         assert "summarize+notion [agno]" in stages
         # Ordering: describe-slides comes after transcribe and before summarize.
-        assert stages.index("transcribe") < stages.index("describe-slides [openrouter]")
+        assert stages.index(transcribe_token) < stages.index("describe-slides [openrouter]")
         assert stages.index("describe-slides [openrouter]") < stages.index(
             "summarize+notion [agno]"
         )
@@ -763,10 +768,11 @@ def test_summarize_receives_none_when_slides_disabled(stage_calls, monkeypatch, 
 # --------------------------------------------------------------------------- #
 # Task 5: pre-flight backend-aware requirements
 # --------------------------------------------------------------------------- #
-def test_preflight_openrouter_required_iff_slides_openrouter(monkeypatch, tmp_path):
+def test_preflight_openrouter_unconditionally_required(monkeypatch, tmp_path):
+    """OpenRouter is now the transcriber, so its key is required on EVERY run
+    regardless of slides/summary backend selection (Spec R13/R16)."""
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
-    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
 
     # slides=openrouter -> OpenRouter key required.
@@ -775,16 +781,31 @@ def test_preflight_openrouter_required_iff_slides_openrouter(monkeypatch, tmp_pa
     )
     assert any("OPENROUTER_API_KEY" in p for p in main_mod.preflight_check(need))
 
-    # slides=agy, summary=agy -> OpenRouter not required.
-    no_need = make_config(tmp_path, slides=True, slides_backend="agy")
-    assert not any("OPENROUTER_API_KEY" in p for p in main_mod.preflight_check(no_need))
+    # Even with slides disabled + summary=agy, OpenRouter is still required
+    # (transcription itself runs over the OpenRouter HTTP seam).
+    still_need = make_config(tmp_path, slides=False, summary_backend="agy")
+    assert any(
+        "OPENROUTER_API_KEY" in p for p in main_mod.preflight_check(still_need)
+    )
 
 
-def test_preflight_openrouter_and_notion_required_iff_summary_agno(monkeypatch, tmp_path):
+def test_preflight_fails_when_openrouter_section_missing(monkeypatch, tmp_path):
+    """A config lacking the ``openrouter`` section fails fast with an actionable
+    message before any work (Spec R13/R16)."""
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+
+    config = make_config(tmp_path, slides=False, summary_backend="agy", openrouter=False)
+    problems = main_mod.preflight_check(config)
+    assert any("openrouter" in p for p in problems)
+
+
+def test_preflight_notion_required_iff_summary_agno(monkeypatch, tmp_path):
+    monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setenv("TG_TOKEN", "abc")
+    # OpenRouter key present throughout (now unconditionally required).
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
     monkeypatch.delenv("NOTION_TOKEN", raising=False)
 
     agno = make_config(
@@ -795,13 +816,12 @@ def test_preflight_openrouter_and_notion_required_iff_summary_agno(monkeypatch, 
         notion_token_env="NOTION_TOKEN",
     )
     problems = main_mod.preflight_check(agno)
-    assert any("OPENROUTER_API_KEY" in p for p in problems)
+    # Notion token is required only for the agno summarize backend.
     assert any("NOTION_TOKEN" in p for p in problems)
 
-    # summary=agy -> neither required.
+    # summary=agy -> Notion token not required.
     agy = make_config(tmp_path, slides=False, summary_backend="agy")
     problems2 = main_mod.preflight_check(agy)
-    assert not any("OPENROUTER_API_KEY" in p for p in problems2)
     assert not any("NOTION_TOKEN" in p for p in problems2)
 
 
@@ -870,3 +890,52 @@ def test_get_slides_backend_selection(tmp_path):
     agy = make_config(tmp_path, slides=True, slides_backend="agy")
     with pytest.raises(ValueError):
         main_mod._get_slides_backend(agy)
+
+
+# --------------------------------------------------------------------------- #
+# Task 5: transcribe backend surfaced in the plan + ElevenLabs no longer needed
+# --------------------------------------------------------------------------- #
+def test_dry_run_output_contains_transcribe_openrouter_model(tmp_path, capsys):
+    """`--dry-run` output contains `transcribe [openrouter:<model>]` (R16)."""
+    recordings_dir = tmp_path / "rec"
+    make_recording(recordings_dir, "a")
+    config_path = tmp_path / "c.yaml"
+    _write_yaml_config(config_path, recordings_dir, s3_sync=False)
+
+    rc = main_mod.main(["--config", str(config_path), "--dry-run"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "transcribe [openrouter:microsoft/mai-transcribe-2]" in out
+
+
+def test_always_binaries_drops_elevenlabs():
+    """`elevenlabs` is removed from `_ALWAYS_BINARIES`; `ffmpeg` is the only one (E3)."""
+    assert main_mod._ALWAYS_BINARIES == ("ffmpeg",)
+    assert "elevenlabs" not in main_mod._ALWAYS_BINARIES
+
+
+def test_check_passes_without_elevenlabs_on_path(monkeypatch, tmp_path):
+    """`check` no longer fails when `elevenlabs` is absent from PATH (E3)."""
+    config_path = tmp_path / "c.yaml"
+    _write_yaml_config(config_path, tmp_path, s3_sync=False)
+
+    def which_no_elevenlabs(name):
+        return None if name == "elevenlabs" else f"/usr/bin/{name}"
+
+    monkeypatch.setattr(main_mod.shutil, "which", which_no_elevenlabs)
+    monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+
+    assert main_mod.main(["check", "--config", str(config_path)]) == 0
+
+
+def test_check_fails_when_openrouter_key_unset(monkeypatch, tmp_path):
+    """`check` fails when the OpenRouter API-key env var is unset (R16)."""
+    config_path = tmp_path / "c.yaml"
+    _write_yaml_config(config_path, tmp_path, s3_sync=False)
+
+    monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setenv("TG_TOKEN", "abc")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+
+    assert main_mod.main(["check", "--config", str(config_path)]) == 1

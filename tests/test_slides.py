@@ -400,6 +400,16 @@ def test_pipeline_process_recording_makes_no_slides_backend_call(
 
     monkeypatch.setattr(pipeline_mod, "_run_command", fake_run_command)
 
+    # Stub the OpenRouter STT seam so transcribe needs no network/env.
+    import transcriber.backends.transcribe_openrouter as tx_mod
+
+    def fake_transcribe(config, audio_path, *, model, diarize, language, timeout):
+        return tx_mod.TranscriptChunk(
+            index=0, offset=0.0, segments=[], cost=0.0, raw_text="transcript"
+        )
+
+    monkeypatch.setattr(tx_mod, "_openrouter_transcribe", fake_transcribe)
+
     recordings = tmp_path / "recordings"
     recordings.mkdir()
     mp4 = recordings / "rec.mp4"

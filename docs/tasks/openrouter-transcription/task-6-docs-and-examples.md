@@ -1,6 +1,6 @@
 # Task 6 — Docs & examples
 
-**Status:** [ ]
+**Status:** [x]
 
 **Spec:** `docs/specs/openrouter-transcription.md`
 **Dependencies:** Task 1 (frozen field set)

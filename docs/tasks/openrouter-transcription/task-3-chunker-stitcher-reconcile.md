@@ -1,6 +1,6 @@
 # Task 3 — Chunker + stitcher + speaker reconciliation
 
-**Status:** [ ]
+**Status:** [x]
 
 **Spec:** `docs/specs/openrouter-transcription.md`
 **Dependencies:** Task 1 (config), Task 2 (`TranscriptChunk`/`SpeakerSegment`)

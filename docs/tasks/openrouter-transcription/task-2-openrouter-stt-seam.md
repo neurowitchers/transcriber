@@ -1,6 +1,6 @@
 # Task 2 — OpenRouter STT seam (`_openrouter_transcribe`)
 
-**Status:** [ ]
+**Status:** [x]
 
 **Spec:** `docs/specs/openrouter-transcription.md`
 **Dependencies:** Task 1 (config fields)

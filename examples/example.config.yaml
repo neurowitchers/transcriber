@@ -9,9 +9,10 @@
 # the `openrouter` vision backend (the only slides backend); the summarize
 # stage runs on the local `agy` backend.
 #
-# NOTE: enabling slides requires the `openrouter` block below and its API-key
-# env var. Operators who must avoid any OpenRouter egress should keep
-# `stages.slides.enabled: false`.
+# NOTE: the `openrouter` block below is ALWAYS required — transcription itself
+# now runs over the OpenRouter speech-to-text API, so audio egresses to
+# OpenRouter on every run (see the README privacy note). There is no
+# OpenRouter-free configuration.
 
 recordings_dir: ./recordings
 
@@ -24,7 +25,13 @@ stages:
   s3_sync: false
 
 transcribe:
-  model_id: scribe_v1
+  # model_id is now an OpenRouter speech-to-text model slug. Audio is diarized
+  # and chunked into explicit time slices before upload; see the README privacy
+  # note (audio egresses to OpenRouter on every run).
+  model_id: microsoft/mai-transcribe-2
+  diarize: true          # label speakers in the transcript
+  segment_seconds: 480   # audio chunk length sent per request
+  overlap_seconds: 5     # overlap between adjacent chunks (stitching)
 
 summary:
   language: en
@@ -40,8 +47,9 @@ agent:
     - --dangerously-skip-permissions
   output_file: "{basename}.md"
 
-# OpenRouter connection — required because slides are enabled (the slides
-# descriptor is an OpenRouter vision call). Secrets by env-var NAME only.
+# OpenRouter connection — ALWAYS required: transcription runs over the
+# OpenRouter speech-to-text API, and (here) slides are an OpenRouter vision
+# call too. Secrets by env-var NAME only.
 openrouter:
   api_key_env: OPENROUTER_API_KEY
   # base_url defaults to https://openrouter.ai/api/v1 when omitted.

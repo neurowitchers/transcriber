@@ -7,9 +7,11 @@ to keep the recordings directory tidy. The **durable outputs are preserved**:
   ``<name>.txt`` speech-to-text transcript.
 - DELETE: ``<name>.mp3``, ``<name>.telegram.md``,
   ``<name>.slides.md`` (the intermediate slide-description artifact),
-  ``<name>.notion_published.json`` (the ``agno`` publish record), and the
+  ``<name>.notion_published.json`` (the ``agno`` publish record), the
   ``extracted_slides.<name>/`` directory (which also holds
-  ``<name>.scenes.csv``).
+  ``<name>.scenes.csv``), and the ``transcribe_work.<name>/`` directory (which
+  holds the OpenRouter STT chunk parts ``part_*.mp3`` and the ``segments.json``
+  resume manifest).
 
 Ordering / safety contract (requirements R12):
 
@@ -52,6 +54,7 @@ def intermediate_paths(recording: Path) -> list[Path]:
     name = recording.stem  # "<name>" from "<name>.mp4"
 
     slides_dir = directory / f"extracted_slides.{name}"
+    transcribe_work_dir = directory / f"transcribe_work.{name}"
 
     candidates = [
         directory / f"{name}.mp3",
@@ -65,6 +68,10 @@ def intermediate_paths(recording: Path) -> list[Path]:
         directory / f"{name}.slides.md",  # intermediate slide descriptions
         directory / f"{name}.notion_published.json",  # agno publish record
         slides_dir,  # directory
+        # The OpenRouter STT work dir holds the per-chunk ``part_*.mp3`` files
+        # and the ``segments.json`` resume manifest; ``rmtree`` it like the
+        # extracted-slides directory.
+        transcribe_work_dir,  # directory
     ]
     return candidates
 
@@ -75,8 +82,10 @@ def cleanup(recording: Path, keep_intermediates: bool = False) -> list[Path]:
     KEEPS the source ``.mp4``, the final ``.md`` summary, and the ``.txt``
     speech-to-text transcript. Deletes any of the intermediate artifacts
     (``.mp3``, ``.telegram.md``, ``.slides.md``, ``.notion_published.json``,
-    and the ``extracted_slides.<name>/`` directory, which holds
-    ``<name>.scenes.csv``) that exist.
+    the ``extracted_slides.<name>/`` directory, which holds
+    ``<name>.scenes.csv``, and the ``transcribe_work.<name>/`` directory, which
+    holds the OpenRouter STT ``part_*.mp3`` chunks and ``segments.json``) that
+    exist.
 
     This function is intended to be called by the orchestrator **only after** a
     recording's successful processing — and, when S3 sync is enabled, only after

@@ -1,9 +1,10 @@
 """Tests for transcriber.pipeline.
 
-External binaries (ffmpeg / scenedetect / elevenlabs) are never invoked: the
-child-process seam :func:`transcriber.pipeline._run_command` is monkeypatched to
-record calls. A separate test drives the real ``_run_command`` with ``duct``
-mocked to verify the expression it builds.
+External binaries (ffmpeg / scenedetect) are never invoked: the child-process
+seam :func:`transcriber.pipeline._run_command` is monkeypatched to record calls.
+The OpenRouter STT seam (``_openrouter_transcribe``) is monkeypatched too so the
+transcribe stage runs without network. A separate test drives the real
+``_run_command`` with ``duct`` mocked to verify the expression it builds.
 """
 
 from __future__ import annotations
@@ -14,11 +15,13 @@ from typing import Optional
 
 import pytest
 
+import transcriber.backends.transcribe_openrouter as tx
 from transcriber import pipeline
 from transcriber.config import (
     Agent,
     Config,
     Notion,
+    OpenRouter,
     SlidesStage,
     Stages,
     Summary,
@@ -35,19 +38,28 @@ def make_config(
     recordings_dir: Path,
     *,
     slides: bool = False,
-    model_id: str = "scribe_v1",
+    model_id: str = "microsoft/mai-transcribe-2",
+    diarize: bool = True,
+    segment_seconds: int = 480,
+    overlap_seconds: int = 5,
     timeouts: Optional[Timeouts] = None,
 ) -> Config:
     return Config(
         recordings_dir=str(recordings_dir),
         stages=Stages(slides=SlidesStage(enabled=slides), s3_sync=False),
-        transcribe=Transcribe(model_id=model_id),
+        transcribe=Transcribe(
+            model_id=model_id,
+            diarize=diarize,
+            segment_seconds=segment_seconds,
+            overlap_seconds=overlap_seconds,
+        ),
         summary=Summary(language="en", sections=["overview"]),
         agent=Agent(cli="agy", extra_args=[], output_file="{basename}.md"),
         notion=Notion(server="n", parent_page_id="p", insert="subpage"),
         telegram=Telegram(bot_token_env="TELEGRAM_BOT_TOKEN", default_chat_id="1", routing={}),
-        timeouts=timeouts or Timeouts(ffmpeg=11, scenedetect=22, elevenlabs=33),
+        timeouts=timeouts or Timeouts(ffmpeg=11, scenedetect=22, transcribe=33),
         s3=None,
+        openrouter=OpenRouter(api_key_env="OPENROUTER_API_KEY"),
     )
 
 
@@ -74,18 +86,55 @@ class Recorder:
         self.calls.append(
             Call(argv=list(argv), timeout=timeout, stdout_path=stdout_path)
         )
-        # Simulate the elevenlabs CLI: write a JSON transcript payload to the
-        # redirected stdout file so _transcribe's decode step has valid input.
-        if stdout_path is not None and argv and argv[0] == "elevenlabs":
-            Path(stdout_path).write_text(
-                '{"text": "hello world transcript"}', encoding="utf-8"
-            )
+        # ffmpeg chunk parts are "created" so downstream file reads succeed.
+        if argv and argv[0] == "ffmpeg" and argv[-1].endswith(".mp3"):
+            out = Path(argv[-1])
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_bytes(b"PART")
 
 
 @pytest.fixture
 def recorder(monkeypatch: pytest.MonkeyPatch) -> Recorder:
     rec = Recorder()
     monkeypatch.setattr(pipeline, "_run_command", rec)
+    # transcribe_openrouter imports _run_command lazily from pipeline, so the
+    # monkeypatch above covers chunk_audio's ffmpeg calls automatically.
+    return rec
+
+
+@dataclass
+class SeamRecorder:
+    """Records every ``_openrouter_transcribe`` call and returns a canned
+    diarized chunk so the transcribe stage produces a speaker-attributed txt."""
+
+    calls: list[Path] = field(default_factory=list)
+    fail_indices: set = field(default_factory=set)
+    _n: int = 0
+
+    def __call__(self, config, audio_path, *, model, diarize, language, timeout):
+        self.calls.append(Path(audio_path))
+        idx = self._n
+        self._n += 1
+        if idx in self.fail_indices:
+            from transcriber.backends.errors import TranscribeError
+
+            raise TranscribeError(f"simulated failure on segment {idx}")
+        return tx.TranscriptChunk(
+            index=0,
+            offset=0.0,
+            segments=[
+                tx.SpeakerSegment("0", 0.0, 1.0, f"hello from part {idx}"),
+                tx.SpeakerSegment("1", 1.0, 2.0, f"reply from part {idx}"),
+            ],
+            cost=0.001,
+            raw_text=f"flat {idx}",
+        )
+
+
+@pytest.fixture
+def seam(monkeypatch: pytest.MonkeyPatch) -> SeamRecorder:
+    rec = SeamRecorder()
+    monkeypatch.setattr(tx, "_openrouter_transcribe", rec)
     return rec
 
 
@@ -98,13 +147,18 @@ def touch(path: Path) -> Path:
 # --------------------------------------------------------------------------- #
 # Command-line / argument assertions per toggle
 # --------------------------------------------------------------------------- #
-def test_ffmpeg_command_line(recorder: Recorder, tmp_path: Path) -> None:
+def test_ffmpeg_command_line(
+    recorder: Recorder, seam: SeamRecorder, tmp_path: Path
+) -> None:
     mp4 = touch(tmp_path / "meeting.mp4")
     cfg = make_config(tmp_path)
 
     result = pipeline.process_recording(mp4, cfg)
 
-    ffmpeg_calls = [c for c in recorder.calls if c.argv[0] == "ffmpeg"]
+    # The audio-EXTRACT ffmpeg call (not chunk_audio's -ss/-t slices).
+    ffmpeg_calls = [
+        c for c in recorder.calls if c.argv[0] == "ffmpeg" and "-c:a" in c.argv
+    ]
     assert len(ffmpeg_calls) == 1
     call = ffmpeg_calls[0]
     assert call.argv == [
@@ -126,42 +180,114 @@ def test_ffmpeg_command_line(recorder: Recorder, tmp_path: Path) -> None:
     assert "mp3" in result.new_artifacts
 
 
-def test_transcribe_command_line_and_stdout_redirect(
-    recorder: Recorder, tmp_path: Path
+def test_transcribe_delegates_to_openrouter_and_writes_diarized_txt(
+    recorder: Recorder, seam: SeamRecorder, tmp_path: Path
 ) -> None:
     mp4 = touch(tmp_path / "talk.mp4")
-    # Pre-create the mp3 so the transcribe stage runs (skip ffmpeg).
+    # Pre-create the mp3 so the transcribe stage runs (skip ffmpeg extract).
     touch(tmp_path / "talk.mp3")
-    cfg = make_config(tmp_path, model_id="scribe_v2")
+    cfg = make_config(tmp_path, model_id="microsoft/mai-transcribe-2")
 
     result = pipeline.process_recording(mp4, cfg)
 
-    tx_calls = [c for c in recorder.calls if c.argv[0] == "elevenlabs"]
-    assert len(tx_calls) == 1
-    call = tx_calls[0]
-    assert call.argv == [
-        "elevenlabs",
-        "speech-to-text",
-        "convert",
-        "--file",
-        str(tmp_path / "talk.mp3"),
-        "--model-id",
-        "scribe_v2",
-        "--format",
-        "json",
+    # No elevenlabs invocation anywhere.
+    assert not any(c.argv[0] == "elevenlabs" for c in recorder.calls)
+    # The seam was called once (single part for a short/unknown-duration clip).
+    assert len(seam.calls) == 1
+    # chunk_audio cut the part via ffmpeg -ss/-t -c copy.
+    chunk_calls = [
+        c
+        for c in recorder.calls
+        if c.argv[0] == "ffmpeg" and "-ss" in c.argv and "-c" in c.argv
     ]
-    # stdout is redirected to the .txt artifact, then decoded to plain text.
-    assert Path(call.stdout_path) == tmp_path / "talk.txt"
-    assert call.timeout == 33
-    assert result.skipped_artifacts.count("mp3") == 1
+    assert len(chunk_calls) == 1
     assert "txt" in result.new_artifacts
-    # The JSON response is post-processed into the plain transcript text.
-    assert (tmp_path / "talk.txt").read_text(encoding="utf-8") == (
-        "hello world transcript\n"
+    # The .txt is speaker-attributed (Speaker <ID>:) with no timestamps.
+    body = (tmp_path / "talk.txt").read_text(encoding="utf-8")
+    assert "Speaker 0:" in body
+    assert "Speaker 1:" in body
+    assert "00:" not in body
+
+
+def test_transcribe_retry_reissues_only_failed_segment(
+    recorder: Recorder, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A 2-segment recording: segment 2 fails on the first run, then a rerun
+    re-calls the seam ONLY for segment 2 (manifest-gated idempotency)."""
+    mp4 = touch(tmp_path / "long.mp4")
+    touch(tmp_path / "long.mp3")
+    # Force a 2-part chunking by making the duration probe report > 1 segment.
+    monkeypatch.setattr(tx, "_probe_duration_seconds", lambda mp3: 700.0)
+    cfg = make_config(tmp_path, segment_seconds=480, overlap_seconds=5)
+
+    # First run: part index 1 fails.
+    seam1 = SeamRecorder(fail_indices={1})
+    monkeypatch.setattr(tx, "_openrouter_transcribe", seam1)
+    with pytest.raises(Exception):
+        pipeline.process_recording(mp4, cfg)
+    assert len(seam1.calls) == 2  # tried both parts; part 1 raised
+
+    # Rerun: a fresh seam that never fails. Only the failed/missing part 1
+    # should be re-issued (part 0 is done in the manifest).
+    seam2 = SeamRecorder()
+    monkeypatch.setattr(tx, "_openrouter_transcribe", seam2)
+    result = pipeline.process_recording(mp4, cfg)
+    assert len(seam2.calls) == 1  # ONLY segment 2 re-issued
+    assert "part_001.mp3" in str(seam2.calls[0])
+    assert "txt" in result.new_artifacts
+    assert (tmp_path / "long.txt").exists()
+
+
+def test_transcribe_param_change_invalidates_and_rechunks(
+    recorder: Recorder, seam: SeamRecorder, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mp4 = touch(tmp_path / "p.mp4")
+    touch(tmp_path / "p.mp3")
+    monkeypatch.setattr(tx, "_probe_duration_seconds", lambda mp3: 700.0)
+
+    cfg1 = make_config(tmp_path, segment_seconds=480)
+    pipeline.process_recording(mp4, cfg1)
+    (tmp_path / "p.txt").unlink()  # force the stage to re-run
+
+    work = tmp_path / "transcribe_work.p"
+    manifest = work / "segments.json"
+    import json as _json
+
+    stored = _json.loads(manifest.read_text(encoding="utf-8"))
+    assert stored["segment_seconds"] == 480
+
+    # Count ffmpeg chunk calls on the second run only.
+    ffmpeg_before = sum(
+        1 for c in recorder.calls if c.argv[0] == "ffmpeg" and "-ss" in c.argv
     )
+    cfg2 = make_config(tmp_path, segment_seconds=240)  # changed param
+    pipeline.process_recording(mp4, cfg2)
+    ffmpeg_after = sum(
+        1 for c in recorder.calls if c.argv[0] == "ffmpeg" and "-ss" in c.argv
+    )
+    # The work dir was discarded and re-chunked (new ffmpeg -ss calls happened).
+    assert ffmpeg_after > ffmpeg_before
+    stored2 = _json.loads(manifest.read_text(encoding="utf-8"))
+    assert stored2["segment_seconds"] == 240
 
 
-def test_slides_command_line_when_enabled(recorder: Recorder, tmp_path: Path) -> None:
+def test_transcribe_existing_txt_skips_whole_stage(
+    recorder: Recorder, seam: SeamRecorder, tmp_path: Path
+) -> None:
+    mp4 = touch(tmp_path / "done.mp4")
+    touch(tmp_path / "done.mp3")
+    touch(tmp_path / "done.txt")  # already transcribed
+    cfg = make_config(tmp_path)
+
+    result = pipeline.process_recording(mp4, cfg)
+
+    assert seam.calls == []  # seam never invoked
+    assert "txt" in result.skipped_artifacts
+
+
+def test_slides_command_line_when_enabled(
+    recorder: Recorder, seam: SeamRecorder, tmp_path: Path
+) -> None:
     mp4 = touch(tmp_path / "lesson.mp4")
     cfg = make_config(tmp_path, slides=True)
 
@@ -193,7 +319,9 @@ def test_slides_command_line_when_enabled(recorder: Recorder, tmp_path: Path) ->
     assert call.timeout == 22
 
 
-def test_slides_skipped_when_disabled(recorder: Recorder, tmp_path: Path) -> None:
+def test_slides_skipped_when_disabled(
+    recorder: Recorder, seam: SeamRecorder, tmp_path: Path
+) -> None:
     mp4 = touch(tmp_path / "lesson.mp4")
     cfg = make_config(tmp_path, slides=False)
 
@@ -203,7 +331,7 @@ def test_slides_skipped_when_disabled(recorder: Recorder, tmp_path: Path) -> Non
 
 
 def test_loaded_nested_slides_disabled_config_skips_scenedetect(
-    recorder: Recorder, tmp_path: Path
+    recorder: Recorder, seam: SeamRecorder, tmp_path: Path
 ) -> None:
     """Regression (Copilot #2/#3): a LOADED nested ``stages.slides`` with
     ``enabled: false`` must not run scenedetect.
@@ -222,7 +350,7 @@ def test_loaded_nested_slides_disabled_config_skips_scenedetect(
         "    backend: openrouter\n"
         "  s3_sync: false\n"
         "transcribe:\n"
-        "  model_id: scribe_v1\n"
+        "  model_id: microsoft/mai-transcribe-2\n"
         "summary:\n"
         "  language: en\n"
         "  sections: [overview]\n"
@@ -231,6 +359,8 @@ def test_loaded_nested_slides_disabled_config_skips_scenedetect(
         "  cli: agy\n"
         "  extra_args: []\n"
         "  output_file: '{{basename}}.md'\n"
+        "openrouter:\n"
+        "  api_key_env: OPENROUTER_API_KEY\n"
         "notion:\n"
         "  server: n\n"
         "  parent_page_id: p\n"
@@ -270,21 +400,27 @@ def test_all_artifacts_existing_is_noop(recorder: Recorder, tmp_path: Path) -> N
     assert set(result.skipped_artifacts) == {"mp3", "slides", "txt"}
 
 
-def test_existing_mp3_skips_ffmpeg_only(recorder: Recorder, tmp_path: Path) -> None:
+def test_existing_mp3_skips_ffmpeg_only(
+    recorder: Recorder, seam: SeamRecorder, tmp_path: Path
+) -> None:
     mp4 = touch(tmp_path / "part.mp4")
-    touch(tmp_path / "part.mp3")  # mp3 exists -> ffmpeg skipped, transcribe runs
+    touch(tmp_path / "part.mp3")  # mp3 exists -> ffmpeg extract skipped, transcribe runs
+
     cfg = make_config(tmp_path)
 
     result = pipeline.process_recording(mp4, cfg)
 
-    assert not any(c.argv[0] == "ffmpeg" for c in recorder.calls)
-    assert any(c.argv[0] == "elevenlabs" for c in recorder.calls)
+    # No ffmpeg EXTRACT (-c:a) call; chunk_audio's ffmpeg -ss is fine.
+    assert not any(
+        c.argv[0] == "ffmpeg" and "-c:a" in c.argv for c in recorder.calls
+    )
+    assert len(seam.calls) == 1  # transcribe ran via the OpenRouter seam
     assert "mp3" in result.skipped_artifacts
     assert "txt" in result.new_artifacts
 
 
 def test_existing_slides_dir_skips_scenedetect(
-    recorder: Recorder, tmp_path: Path
+    recorder: Recorder, seam: SeamRecorder, tmp_path: Path
 ) -> None:
     mp4 = touch(tmp_path / "cls.mp4")
     (tmp_path / "extracted_slides.cls").mkdir()
@@ -300,7 +436,7 @@ def test_existing_slides_dir_skips_scenedetect(
 # New-recording detection over the recordings dir
 # --------------------------------------------------------------------------- #
 def test_process_all_detects_new_recordings(
-    recorder: Recorder, tmp_path: Path
+    recorder: Recorder, seam: SeamRecorder, tmp_path: Path
 ) -> None:
     touch(tmp_path / "a.mp4")
     touch(tmp_path / "b.mp4")
@@ -327,20 +463,25 @@ def test_process_all_empty_dir(recorder: Recorder, tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 # Timeout is passed through to every child-process call
 # --------------------------------------------------------------------------- #
-def test_timeouts_passed_through(recorder: Recorder, tmp_path: Path) -> None:
+def test_timeouts_passed_through(
+    recorder: Recorder, seam: SeamRecorder, tmp_path: Path
+) -> None:
     mp4 = touch(tmp_path / "m.mp4")
     cfg = make_config(
         tmp_path,
         slides=True,
-        timeouts=Timeouts(ffmpeg=5, scenedetect=6, elevenlabs=7, agy=8, s3=9),
+        timeouts=Timeouts(ffmpeg=5, scenedetect=6, transcribe=7, agy=8, s3=9),
     )
 
     pipeline.process_recording(mp4, cfg)
 
+    # ffmpeg (extract + chunk) uses the ffmpeg timeout; scenedetect its own.
+    ffmpeg_timeouts = {c.timeout for c in recorder.calls if c.argv[0] == "ffmpeg"}
+    assert ffmpeg_timeouts == {5}
     by_prog = {c.argv[0]: c.timeout for c in recorder.calls}
-    assert by_prog["ffmpeg"] == 5
     assert by_prog["scenedetect"] == 6
-    assert by_prog["elevenlabs"] == 7
+    # The transcribe timeout is threaded to the seam.
+    assert cfg.timeouts.transcribe == 7
 
 
 # --------------------------------------------------------------------------- #
@@ -402,12 +543,12 @@ def test_run_command_applies_stdout_path(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     handle = FakeHandle(poll_results=[])
-    expr = FakeExpression(("elevenlabs",), handle)
+    expr = FakeExpression(("scenedetect",), handle)
 
     monkeypatch.setattr(pipeline.duct, "cmd", lambda *argv: expr)
 
     out = tmp_path / "o.txt"
-    pipeline._run_command(["elevenlabs"], timeout=900, stdout_path=out)
+    pipeline._run_command(["scenedetect"], timeout=900, stdout_path=out)
 
     assert expr.stdout_path_arg == str(out)
 

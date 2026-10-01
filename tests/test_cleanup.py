@@ -24,6 +24,7 @@ def _make_all_artifacts(directory: Path) -> dict[str, Path]:
     txt = directory / f"{NAME}.txt"
     slides_md = directory / f"{NAME}.slides.md"
     slides_dir = directory / f"extracted_slides.{NAME}"
+    transcribe_work_dir = directory / f"transcribe_work.{NAME}"
 
     for f in (mp4, md, mp3, txt, slides_md):
         f.write_text("data", encoding="utf-8")
@@ -32,6 +33,11 @@ def _make_all_artifacts(directory: Path) -> dict[str, Path]:
     # The scenes CSV lives inside the extracted-slides directory.
     scenes = slides_dir / f"{NAME}.scenes.csv"
     scenes.write_text("data", encoding="utf-8")
+    # The OpenRouter STT work dir holds per-chunk parts + the resume manifest.
+    transcribe_work_dir.mkdir()
+    (transcribe_work_dir / "part_000.mp3").write_text("audio", encoding="utf-8")
+    (transcribe_work_dir / "part_001.mp3").write_text("audio", encoding="utf-8")
+    (transcribe_work_dir / "segments.json").write_text("{}", encoding="utf-8")
 
     return {
         "mp4": mp4,
@@ -41,6 +47,7 @@ def _make_all_artifacts(directory: Path) -> dict[str, Path]:
         "slides_md": slides_md,
         "scenes": scenes,
         "slides_dir": slides_dir,
+        "transcribe_work_dir": transcribe_work_dir,
     }
 
 
@@ -55,7 +62,7 @@ def test_cleanup_deletes_intermediates_and_keeps_durable(tmp_path):
     assert art["txt"].exists()  # speech-to-text transcript is kept
 
     # Intermediates gone.
-    for key in ("mp3", "scenes", "slides_md", "slides_dir"):
+    for key in ("mp3", "scenes", "slides_md", "slides_dir", "transcribe_work_dir"):
         assert not art[key].exists(), f"{key} should have been deleted"
 
     # Exactly the intermediate set was removed (not the .txt transcript).
@@ -64,6 +71,7 @@ def test_cleanup_deletes_intermediates_and_keeps_durable(tmp_path):
         art["scenes"],
         art["slides_md"],
         art["slides_dir"],
+        art["transcribe_work_dir"],
     }
 
 
@@ -125,6 +133,7 @@ def test_intermediate_paths_excludes_durable(tmp_path):
         f"{NAME}.slides.md",
         f"{NAME}.notion_published.json",
         f"extracted_slides.{NAME}",
+        f"transcribe_work.{NAME}",
     }
     # The scenes CSV candidate must live inside the extracted-slides dir, not
     # the recording dir where it never existed.
@@ -191,6 +200,64 @@ def test_keep_intermediates_preserves_slides_md(tmp_path):
 
     assert removed == []
     assert slides_md.exists(), "--keep-intermediates must preserve .slides.md"
+
+
+# --------------------------------------------------------------------------- #
+# OpenRouter STT work dir (``transcribe_work.<name>/``) — holds the per-chunk
+# ``part_*.mp3`` files and the ``segments.json`` resume manifest. It is an
+# intermediate artifact and must be rmtree'd on cleanup, while the durable
+# ``<name>.txt`` transcript is preserved; ``--keep-intermediates`` keeps all.
+# --------------------------------------------------------------------------- #
+def test_cleanup_removes_transcribe_work_dir_keeps_txt(tmp_path):
+    mp4 = tmp_path / f"{NAME}.mp4"
+    mp4.write_text("video", encoding="utf-8")
+    txt = tmp_path / f"{NAME}.txt"
+    txt.write_text("Speaker 1: hello", encoding="utf-8")
+    work_dir = tmp_path / f"transcribe_work.{NAME}"
+    work_dir.mkdir()
+    part0 = work_dir / "part_000.mp3"
+    part1 = work_dir / "part_001.mp3"
+    manifest = work_dir / "segments.json"
+    part0.write_text("audio", encoding="utf-8")
+    part1.write_text("audio", encoding="utf-8")
+    manifest.write_text('{"segment_seconds": 480}', encoding="utf-8")
+
+    removed = cleanup(mp4)
+
+    # The whole work dir (parts + manifest) is removed.
+    assert not work_dir.exists(), "transcribe_work.<name>/ must be rmtree'd"
+    assert work_dir in removed
+    # The durable transcript survives.
+    assert txt.exists(), "the .txt transcript must be kept"
+    assert txt not in removed
+
+
+def test_keep_intermediates_preserves_transcribe_work_dir(tmp_path):
+    mp4 = tmp_path / f"{NAME}.mp4"
+    mp4.write_text("video", encoding="utf-8")
+    txt = tmp_path / f"{NAME}.txt"
+    txt.write_text("Speaker 1: hello", encoding="utf-8")
+    work_dir = tmp_path / f"transcribe_work.{NAME}"
+    work_dir.mkdir()
+    (work_dir / "part_000.mp3").write_text("audio", encoding="utf-8")
+    (work_dir / "segments.json").write_text("{}", encoding="utf-8")
+
+    removed = cleanup(mp4, keep_intermediates=True)
+
+    assert removed == []
+    assert work_dir.exists(), "--keep-intermediates must preserve the work dir"
+    assert (work_dir / "part_000.mp3").exists()
+    assert (work_dir / "segments.json").exists()
+    assert txt.exists()
+
+
+def test_intermediate_paths_includes_transcribe_work_dir(tmp_path):
+    mp4 = tmp_path / f"{NAME}.mp4"
+    candidates = cleanup_mod.intermediate_paths(mp4)
+    work_dir = tmp_path / f"transcribe_work.{NAME}"
+    assert work_dir in candidates
+    # It lives alongside the recording, not nested under slides.
+    assert work_dir.parent == tmp_path
 
 
 # --------------------------------------------------------------------------- #

@@ -1,6 +1,6 @@
 # Task 7 — Cleanup of ElevenLabs remnants + segment temp files + full verification
 
-**Status:** [ ]
+**Status:** [x]
 
 **Spec:** `docs/specs/openrouter-transcription.md`
 **Dependencies:** Tasks 1–6 (verification); cleanup edits need Task 4's work-dir shape

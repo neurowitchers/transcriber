@@ -54,7 +54,11 @@ class Stages:
 
 @dataclass
 class Transcribe:
-    model_id: str
+    # OpenRouter STT slug (semantics changed from an ElevenLabs id).
+    model_id: str = "microsoft/mai-transcribe-2"
+    diarize: bool = True
+    segment_seconds: int = 480
+    overlap_seconds: int = 5
 
 
 @dataclass
@@ -111,7 +115,7 @@ class Timeouts:
     ffmpeg: int = DEFAULT_TIMEOUT_SECONDS
     scenedetect: int = DEFAULT_TIMEOUT_SECONDS
     slides: int = DEFAULT_TIMEOUT_SECONDS  # describe_slides stage
-    elevenlabs: int = DEFAULT_TIMEOUT_SECONDS
+    transcribe: int = DEFAULT_TIMEOUT_SECONDS  # transcribe stage (OpenRouter STT)
     agy: int = DEFAULT_TIMEOUT_SECONDS
     # summarize-stage timeout; None falls back to `agy` at use time.
     summarize: Optional[int] = None
@@ -224,7 +228,14 @@ def _from_dict(data: dict[str, Any]) -> Config:
     )
 
     # timeouts: optional as a whole; each field defaults to DEFAULT_TIMEOUT_SECONDS.
-    timeouts = _build_section(Timeouts, data.get("timeouts", {}), "timeouts")
+    # The legacy `elevenlabs` key is silently dropped so old host configs still
+    # load (R15); its value is ignored (the stage timeout is now `transcribe`).
+    timeouts_data = data.get("timeouts", {})
+    if isinstance(timeouts_data, dict) and "elevenlabs" in timeouts_data:
+        timeouts_data = {
+            k: v for k, v in timeouts_data.items() if k != "elevenlabs"
+        }
+    timeouts = _build_section(Timeouts, timeouts_data, "timeouts")
 
     # s3: optional.
     s3_data = data.get("s3")
@@ -256,16 +267,14 @@ def _from_dict(data: dict[str, Any]) -> Config:
             f"{SUMMARY_BACKENDS!r}, got {summary.backend!r}"
         )
 
-    # openrouter required iff slides are ENABLED (the slide descriptor is an
-    # OpenRouter vision call) or summary uses agno. A disabled slides stage
-    # needs no openrouter block even though its backend defaults to openrouter.
-    needs_openrouter = (
-        (stages.slides.enabled and stages.slides.backend == "openrouter")
-        or summary.backend == "agno"
-    )
+    # openrouter is now UNCONDITIONALLY required: it is the transcription
+    # backend (OpenRouter STT), in addition to the existing slides/agno
+    # triggers. Every config without an `openrouter` section raises (R13).
+    needs_openrouter = True
     if needs_openrouter and openrouter is None:
         raise ConfigError(
-            "'openrouter' section is required when slides are enabled "
+            "'openrouter' section is required: it is the transcription backend "
+            "(OpenRouter STT), and is also required when slides are enabled "
             "(stages.slides.enabled) or summary.backend == 'agno'"
         )
 

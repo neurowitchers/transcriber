@@ -1,6 +1,6 @@
 # Task 5 — CLI plan + preflight (`--dry-run` / `check`)
 
-**Status:** [ ]
+**Status:** [x]
 
 **Spec:** `docs/specs/openrouter-transcription.md`
 **Dependencies:** Task 1 (config)

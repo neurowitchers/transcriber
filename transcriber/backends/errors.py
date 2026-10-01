@@ -28,3 +28,15 @@ class SummarizeError(RuntimeError):
     Defined here for Task 4's summarize backends (agy/agno). Included now so
     the shared error-type module is owned in one place (Task 2 ownership).
     """
+
+
+class TranscribeError(RuntimeError):
+    """Raised when the ``transcribe`` stage's OpenRouter STT backend fails.
+
+    Covers transport failures, non-2xx responses (after retries, e.g. a
+    ``400`` from a model that cannot diarize — no silent fallback, R10), and
+    malformed JSON. Same log-hygiene contract as the sibling errors: messages
+    carry only a short, non-sensitive context (HTTP status + a truncated body
+    snippet) and never embed the API key, request headers, or base64 audio
+    bytes.
+    """

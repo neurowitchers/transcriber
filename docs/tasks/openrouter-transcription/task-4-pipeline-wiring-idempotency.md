@@ -1,6 +1,6 @@
 # Task 4 — Pipeline wiring + per-segment idempotency
 
-**Status:** [ ]
+**Status:** [x]
 
 **Spec:** `docs/specs/openrouter-transcription.md`
 **Dependencies:** Task 1, Task 2, Task 3

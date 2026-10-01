@@ -1,6 +1,6 @@
 # Task 1 — Config reshape (`transcribe` + mandatory `openrouter` + timeouts)
 
-**Status:** [ ]
+**Status:** [x]
 
 **Spec:** `docs/specs/openrouter-transcription.md`
 **Dependencies:** none (foundation — Tasks 2–7 import this model)

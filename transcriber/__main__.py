@@ -83,20 +83,13 @@ def _uses_agy(config: Config) -> bool:
     return config.summary.backend == "agy"
 
 
-def _needs_openrouter(config: Config) -> bool:
-    """Return ``True`` when a stage requires the OpenRouter API key."""
-    slides_openrouter = (
-        config.stages.slides.enabled
-        and config.stages.slides.backend == "openrouter"
-    )
-    return slides_openrouter or config.summary.backend == "agno"
-
-
 # --------------------------------------------------------------------------- #
 # Pre-flight check (E2)
 # --------------------------------------------------------------------------- #
 # Binaries required regardless of post-transcript backend selection.
-_ALWAYS_BINARIES = ("ffmpeg", "elevenlabs")
+# ``ffmpeg`` is the only always-required binary; transcription now runs over the
+# OpenRouter HTTP seam (no legacy CLI). ``scenedetect`` stays slides-gated.
+_ALWAYS_BINARIES = ("ffmpeg",)
 
 
 def _required_binaries(config: Config) -> list[str]:
@@ -120,8 +113,10 @@ def _required_env_vars(config: Config) -> list[str]:
     # Telegram token is always needed to disseminate.
     required = [config.telegram.bot_token_env]
 
-    # OpenRouter key iff slides=openrouter or summary=agno.
-    if _needs_openrouter(config) and config.openrouter is not None:
+    # OpenRouter key is unconditionally required: transcription itself now runs
+    # over the OpenRouter HTTP seam (Spec R13/R16), in addition to the existing
+    # slides/``agno`` triggers.
+    if config.openrouter is not None:
         required.append(config.openrouter.api_key_env)
 
     # Notion token iff summary=agno (agno launches the Notion MCP itself).
@@ -135,9 +130,18 @@ def preflight_check(config: Config) -> list[str]:
     """Return a list of human-readable problems (empty when all is well).
 
     Checks required binaries on ``PATH`` (via :func:`shutil.which`) and required
-    environment variables per enabled stages.
+    environment variables per enabled stages. OpenRouter is now mandatory
+    (transcription runs over its HTTP seam), so a missing ``openrouter`` section
+    fails fast before any work starts (Spec R13/R16).
     """
     problems: list[str] = []
+
+    if config.openrouter is None:
+        problems.append(
+            "missing required 'openrouter' config section: transcription runs "
+            "over the OpenRouter API, so the block (and its api_key_env) is "
+            "required for every run"
+        )
 
     for binary in _required_binaries(config):
         if shutil.which(binary) is None:
@@ -208,7 +212,7 @@ def _enabled_stage_names(config: Config) -> list[str]:
     stages = ["audio-extract"]
     if config.stages.slides.enabled:
         stages.append("scene-extract")
-    stages.append("transcribe")
+    stages.append(f"transcribe [openrouter:{config.transcribe.model_id}]")
     if config.stages.slides.enabled:
         stages.append(f"describe-slides [{config.stages.slides.backend}]")
     stages.append(f"summarize+notion [{config.summary.backend}]")

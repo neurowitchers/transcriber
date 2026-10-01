@@ -6,8 +6,10 @@ transcription script to Python using the :mod:`duct` library:
 1. **Audio extract** — ``ffmpeg`` mp4 -> mp3.
 2. **Slide/scene extraction** (optional, when ``config.stages.slides``) —
    ``scenedetect``.
-3. **Transcribe** — ``elevenlabs speech-to-text convert --format text`` ->
-   ``<name>.txt`` (plain readable transcript, no timestamp markers).
+3. **Transcribe** — audio is diarized and chunked into explicit time slices,
+   each slice sent to the OpenRouter speech-to-text API, and the slices are
+   stitched back into ``<name>.txt`` (plain readable transcript, no timestamp
+   markers).
 
 Every child-process call is wrapped with a configurable timeout drawn from
 ``config.timeouts``. Each stage is idempotent: a step whose output already
@@ -19,7 +21,6 @@ Windows-first path handling (all paths are :class:`pathlib.Path`).
 
 from __future__ import annotations
 
-import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -167,43 +168,21 @@ def _extract_slides(
     _run_command(argv, timeout)
 
 
-def _transcribe(mp3: Path, txt: Path, model_id: str, timeout: float) -> None:
-    """Transcribe ``mp3`` into a plain-text transcript via the elevenlabs CLI.
+def _transcribe(mp3: Path, txt: Path, config: "Config") -> None:
+    """Transcribe ``mp3`` into a plain-text transcript via OpenRouter STT.
 
-    The elevenlabs CLI has no ``text`` output format (its ``--format`` accepts
-    ``json, table, yaml, csv, raw, jsonl, http``); the transcript text lives in
-    the ``text`` field of the JSON response. We therefore request ``--format
-    json`` (stdout redirected to ``<name>.txt``) and then post-process the file
-    in place, replacing the JSON document with its decoded ``text`` value so the
-    ``.txt`` artifact is clean, readable plain text for the summarize stage.
+    Delegates to :func:`transcriber.backends.transcribe_openrouter.
+    transcribe_recording`, which chunks the audio, transcribes each part via the
+    OpenRouter ``/audio/transcriptions`` seam (diarized when
+    ``config.transcribe.diarize``), stitches + reconciles speakers, and writes a
+    speaker-attributed ``<name>.txt`` (``Speaker <ID>: <text>`` lines with no
+    timestamp markers; flat text when there are no labels). Per-segment
+    idempotency and a parameter guard live in that stage's ``segments.json``
+    manifest.
     """
-    argv = [
-        "elevenlabs",
-        "speech-to-text",
-        "convert",
-        "--file",
-        str(mp3),
-        "--model-id",
-        model_id,
-        "--format",
-        "json",
-    ]
-    _run_command(argv, timeout, stdout_path=txt)
+    from transcriber.backends.transcribe_openrouter import transcribe_recording
 
-    # Decode the JSON response written to ``txt`` into plain transcript text.
-    raw = txt.read_text(encoding="utf-8")
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(
-            f"elevenlabs returned non-JSON output for {mp3.name}: {exc}"
-        ) from exc
-    text = payload.get("text") if isinstance(payload, dict) else None
-    if not isinstance(text, str) or not text.strip():
-        raise RuntimeError(
-            f"elevenlabs response for {mp3.name} has no usable 'text' field"
-        )
-    txt.write_text(text.strip() + "\n", encoding="utf-8")
+    transcribe_recording(mp3, txt, config)
 
 
 # --------------------------------------------------------------------------- #
@@ -256,7 +235,7 @@ def process_recording(mp4: Path, config: "Config") -> RecordingResult:
     if txt.exists():
         result.skipped_artifacts.append("txt")
     elif have_mp3:
-        _transcribe(mp3, txt, config.transcribe.model_id, config.timeouts.elevenlabs)
+        _transcribe(mp3, txt, config)
         result.new_artifacts.append("txt")
 
     return result

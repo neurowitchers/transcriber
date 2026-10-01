@@ -14,7 +14,11 @@ Concrete backends and stage wiring: the ``openrouter`` slides backend
 
 from __future__ import annotations
 
-from transcriber.backends.errors import SlideDescribeError, SummarizeError
+from transcriber.backends.errors import (
+    SlideDescribeError,
+    SummarizeError,
+    TranscribeError,
+)
 from transcriber.backends.interfaces import (
     SlideInput,
     SlidesBackend,
@@ -34,6 +38,7 @@ from transcriber.backends.summarize import (
 __all__ = [
     "SlideDescribeError",
     "SummarizeError",
+    "TranscribeError",
     "SlideInput",
     "SlidesBackend",
     "SummarizeBackend",
