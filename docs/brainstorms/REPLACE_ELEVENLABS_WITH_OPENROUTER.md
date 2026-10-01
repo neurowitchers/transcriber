@@ -125,7 +125,7 @@ technically viable:
   — see Q4). ElevenLabs `scribe_v1` is also a purpose-built diarizing STT model;
   Whisper-class quality/diarization differs.
     <!-- USER_INPUT_START:Q1 -->
-    [REPLACE: "add backend selector, default openrouter, keep elevenlabs" OR "remove elevenlabs outright (breaking)" — and which default]
+    Fully replace - it is not cost-effective
     <!-- USER_INPUT_END:Q1 -->
 
 #### Q2: How should long (meeting-length) audio be handled given the 60s cap?
@@ -138,7 +138,7 @@ technically viable:
   reliable). Chunking (a) is the only option that reliably serves meeting-length
   audio.
     <!-- USER_INPUT_START:Q2 -->
-    [REPLACE: preferred strategy (a/b/c). If (a): target segment length, and whether word/segment timestamps across chunk seams matter]
+    (a)
     <!-- USER_INPUT_END:Q2 -->
 
 #### Q3: Which STT model should be the default, and is diarization required?
@@ -150,7 +150,7 @@ technically viable:
   and only some providers support it — does the summarize stage need speaker
   attribution, or is a flat transcript sufficient (today's `.txt` is flat)?
     <!-- USER_INPUT_START:Q3 -->
-    [REPLACE: default model slug; diarization required yes/no]
+    Accurary matter, diarization is required
     <!-- USER_INPUT_END:Q3 -->
 
 #### Q4: Does routing transcription through OpenRouter change the privacy posture?
@@ -162,7 +162,7 @@ technically viable:
   acceptable, or must a zero-OpenRouter transcription path survive (argues for
   Q1 option A)?
     <!-- USER_INPUT_START:Q4 -->
-    [REPLACE: is an all-OpenRouter egress posture acceptable? must a no-OpenRouter transcription path remain?]
+    No, I don't care
     <!-- USER_INPUT_END:Q4 -->
 
 #### Q5: Should `openrouter` become required (not optional) if it's the transcriber?
@@ -172,7 +172,7 @@ technically viable:
   `transcribe.model_id` semantics change from ElevenLabs id → OpenRouter slug.
   This reshapes config validation and host-migration docs.
     <!-- USER_INPUT_START:Q5 -->
-    [REPLACE: confirm openrouter-required-always is acceptable, or should transcribe keep its own openrouter-less config? any backward-compat window needed?]
+    Require it
     <!-- USER_INPUT_END:Q5 -->
 
 ### Baseline Assumptions (used if the above are left at defaults)
