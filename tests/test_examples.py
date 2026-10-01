@@ -24,6 +24,41 @@ def test_example_config_loads(filename):
     assert isinstance(cfg, Config)
 
 
+@pytest.mark.parametrize(
+    "filename",
+    ["example.config.yaml", "acme.config.yaml"],
+)
+def test_example_transcribe_is_openrouter_stt(filename):
+    """model_id is an OpenRouter STT slug (vendor/model), `openrouter` is present,
+    and the transcribe chunking/diarization fields parse (Task 6 / R18)."""
+    cfg = load(str(EXAMPLES_DIR / filename))
+
+    # `openrouter` is now unconditionally required (it is the transcriber).
+    assert cfg.openrouter is not None
+    assert cfg.openrouter.api_key_env == "OPENROUTER_API_KEY"
+
+    # model_id is an OpenRouter slug (``vendor/model``), not the old ElevenLabs id.
+    assert "/" in cfg.transcribe.model_id, cfg.transcribe.model_id
+    assert cfg.transcribe.model_id == "microsoft/mai-transcribe-2"
+
+    # Diarization + chunking fields parse to their expected example values.
+    assert cfg.transcribe.diarize is True
+    assert cfg.transcribe.segment_seconds == 480
+    assert cfg.transcribe.overlap_seconds == 5
+
+
+@pytest.mark.parametrize(
+    "filename",
+    ["example.config.yaml", "acme.config.yaml"],
+)
+def test_example_has_no_elevenlabs_or_scribe_references(filename):
+    """No `scribe_v1` / `elevenlabs` strings remain in the example configs
+    (grep-style assertion; case-insensitive) (Task 6 / R18)."""
+    text = (EXAMPLES_DIR / filename).read_text(encoding="utf-8").lower()
+    assert "scribe_v1" not in text
+    assert "elevenlabs" not in text
+
+
 def test_simple_example_shape():
     cfg = load(str(EXAMPLES_DIR / "example.config.yaml"))
     # Nested stages.slides shape parses into {enabled, backend}.

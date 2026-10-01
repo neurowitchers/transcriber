@@ -29,7 +29,13 @@ stages:
   s3_sync: true
 
 transcribe:
-  model_id: scribe_v1
+  # model_id is an OpenRouter speech-to-text model slug. Audio is diarized and
+  # chunked into explicit time slices before upload; audio egresses to
+  # OpenRouter on every run (see the README privacy note).
+  model_id: microsoft/mai-transcribe-2
+  diarize: true          # label speakers in the transcript
+  segment_seconds: 480   # audio chunk length sent per request
+  overlap_seconds: 5     # overlap between adjacent chunks (stitching)
 
 summary:
   language: original
@@ -45,8 +51,9 @@ agent:
     - --dangerously-skip-permissions
   output_file: "{basename}.md"
 
-# OpenRouter connection, shared by the slides vision calls and the agno
-# summarize agent. Secrets by env-var NAME only.
+# OpenRouter connection, shared by the transcription speech-to-text calls, the
+# slides vision calls, and the agno summarize agent. ALWAYS required (every run
+# transcribes over OpenRouter). Secrets by env-var NAME only.
 openrouter:
   api_key_env: OPENROUTER_API_KEY
   # base_url defaults to https://openrouter.ai/api/v1 when omitted.

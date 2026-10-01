@@ -25,7 +25,7 @@ from transcriber.config import (
 BASE_CONFIG: dict = {
     "recordings_dir": "./recordings",
     "stages": {"slides": {"enabled": True, "backend": "openrouter"}, "s3_sync": False},
-    "transcribe": {"model_id": "scribe_v1"},
+    "transcribe": {"model_id": "microsoft/mai-transcribe-2"},
     "summary": {"language": "en", "sections": ["overview", "action_items"]},
     "agent": {
         "cli": "kiro",
@@ -47,7 +47,7 @@ BASE_CONFIG: dict = {
     "timeouts": {
         "ffmpeg": 100,
         "scenedetect": 200,
-        "elevenlabs": 300,
+        "transcribe": 300,
         "agy": 400,
         "s3": 500,
     },
@@ -83,7 +83,7 @@ def test_model_field_values(tmp_path):
     cfg = load(_write(tmp_path / "c.json", BASE_CONFIG, "json"))
     assert cfg.stages.slides.enabled is True
     assert cfg.stages.slides.backend == "openrouter"
-    assert cfg.transcribe.model_id == "scribe_v1"
+    assert cfg.transcribe.model_id == "microsoft/mai-transcribe-2"
     assert cfg.summary.language == "en"
     assert cfg.summary.sections == ["overview", "action_items"]
     assert cfg.agent.output_file == "{basename}.md"
@@ -95,13 +95,34 @@ def test_model_field_values(tmp_path):
     assert cfg.timeouts.ffmpeg == 100
 
 
+def test_debug_defaults_false(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data.pop("debug", None)
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert cfg.debug is False
+
+
+def test_debug_true_parsed(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["debug"] = True
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert cfg.debug is True
+
+
+def test_debug_non_bool_raises(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["debug"] = "yes"
+    with pytest.raises(ConfigError):
+        load(_write(tmp_path / "c.json", data, "json"))
+
+
 def test_timeouts_default_when_omitted(tmp_path):
     data = dict(BASE_CONFIG)
     data.pop("timeouts")
     cfg = load(_write(tmp_path / "c.json", data, "json"))
     assert cfg.timeouts.ffmpeg == 900
     assert cfg.timeouts.scenedetect == 900
-    assert cfg.timeouts.elevenlabs == 900
+    assert cfg.timeouts.transcribe == 900
     assert cfg.timeouts.agy == 900
     assert cfg.timeouts.s3 == 900
 
@@ -132,11 +153,11 @@ def test_missing_top_level_required_field(tmp_path):
 
 def test_missing_nested_required_field(tmp_path):
     data = json.loads(json.dumps(BASE_CONFIG))
-    del data["transcribe"]["model_id"]
+    del data["summary"]["language"]
     path = _write(tmp_path / "c.json", data, "json")
     with pytest.raises(ConfigError) as exc:
         load(path)
-    assert "transcribe.model_id" in str(exc.value)
+    assert "summary.language" in str(exc.value)
 
 
 def test_invalid_summary_language(tmp_path):
@@ -319,3 +340,78 @@ def test_timeouts_slides_and_summarize_overridable(tmp_path):
 def test_slides_stage_is_dataclass(tmp_path):
     cfg = load(_write(tmp_path / "c.json", BASE_CONFIG, "json"))
     assert isinstance(cfg.stages.slides, SlidesStage)
+
+
+# --------------------------------------------------------------------------- #
+# OpenRouter transcription: mandatory openrouter, transcribe defaults, timeouts
+# --------------------------------------------------------------------------- #
+def test_openrouter_unconditionally_required(tmp_path):
+    # A config without an `openrouter` section always raises now (R13), even
+    # with slides disabled and summary on the default `agy` backend.
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["stages"]["slides"] = {"enabled": False}
+    data["summary"]["backend"] = "agy"
+    data.pop("openrouter", None)
+    with pytest.raises(ConfigError) as exc:
+        load(_write(tmp_path / "c.json", data, "json"))
+    assert "openrouter" in str(exc.value)
+
+
+def test_transcribe_defaults_populate(tmp_path):
+    # Only model_id provided; the new fields fall back to their defaults.
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["transcribe"] = {"model_id": "microsoft/mai-transcribe-2"}
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert cfg.transcribe.model_id == "microsoft/mai-transcribe-2"
+    assert cfg.transcribe.diarize is True
+    assert cfg.transcribe.segment_seconds == 480
+    assert cfg.transcribe.overlap_seconds == 5
+
+
+def test_transcribe_model_id_default_when_omitted(tmp_path):
+    # model_id itself now has a default (the OpenRouter STT slug).
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["transcribe"] = {}
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert cfg.transcribe.model_id == "microsoft/mai-transcribe-2"
+
+
+def test_legacy_elevenlabs_timeout_silently_ignored(tmp_path):
+    # Old host configs carrying `timeouts.elevenlabs` still load; the value is
+    # dropped and `timeouts.transcribe` defaults to 900 (R15).
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["timeouts"] = {"ffmpeg": 42, "elevenlabs": 12345}
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert cfg.timeouts.ffmpeg == 42
+    assert cfg.timeouts.transcribe == 900
+    assert not hasattr(cfg.timeouts, "elevenlabs")
+
+
+def test_timeouts_transcribe_default_and_overridable(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["timeouts"] = {}
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert cfg.timeouts.transcribe == 900
+
+    data["timeouts"] = {"transcribe": 777}
+    cfg = load(_write(tmp_path / "c2.json", data, "json"))
+    assert cfg.timeouts.transcribe == 777
+
+
+def test_transcribe_fields_round_trip_json_and_yaml(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["transcribe"] = {
+        "model_id": "vendor/stt-slug",
+        "diarize": False,
+        "segment_seconds": 300,
+        "overlap_seconds": 10,
+    }
+    cfg_json = load(_write(tmp_path / "c.json", data, "json"))
+    cfg_yaml = load(_write(tmp_path / "c.yaml", data, "yaml"))
+
+    assert cfg_json == cfg_yaml
+    for cfg in (cfg_json, cfg_yaml):
+        assert cfg.transcribe.model_id == "vendor/stt-slug"
+        assert cfg.transcribe.diarize is False
+        assert cfg.transcribe.segment_seconds == 300
+        assert cfg.transcribe.overlap_seconds == 10
