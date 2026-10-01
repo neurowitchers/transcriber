@@ -225,6 +225,77 @@ def test_openrouter_empty_slides_no_http_returns_empty(
     assert calls == []  # no HTTP call
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "== no information ==",
+        "==  no information  ==",
+        "== No Information ==",
+        "no information",
+        "**None**",
+        "— none —",
+        "N/A",
+        "== no essential visual information ==",
+        "",
+        "   \n  ",
+    ],
+)
+def test_is_empty_slide_response_detects_placeholders(text: str) -> None:
+    assert slides_mod._is_empty_slide_response(text) is True
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "## Agenda\n- item one",
+        "The slide shows a bar chart of Q3 revenue.",
+        "Title: Roadmap. Three milestones are listed.",
+        "no information was lost during the migration",  # phrase inside real text
+    ],
+)
+def test_is_empty_slide_response_keeps_real_content(text: str) -> None:
+    assert slides_mod._is_empty_slide_response(text) is False
+
+
+def test_openrouter_filters_placeholder_slides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Slides whose vision response is a 'no information' placeholder are dropped."""
+    returns = iter(
+        ["## Slide A\nreal content", "== no information ==", "## Slide C\nmore"]
+    )
+
+    def fake_vision(config, messages, model, *, timeout):
+        return next(returns)
+
+    monkeypatch.setattr(slides_mod, "_openrouter_vision", fake_vision)
+    slides = [
+        SlideInput(image_path=tmp_path / "a.jpg", timestamp="00:00 - 00:05"),
+        SlideInput(image_path=tmp_path / "b.jpg", timestamp="00:05 - 00:10"),
+        SlideInput(image_path=tmp_path / "c.jpg", timestamp="00:10 - 00:15"),
+    ]
+    result = OpenRouterSlidesBackend().describe(
+        slides, "transcript body", make_config(), timeout=30
+    )
+    # The placeholder slide is omitted; only the two real descriptions remain.
+    assert result == "## Slide A\nreal content\n\n## Slide C\nmore"
+    assert "no information" not in result
+
+
+def test_openrouter_all_placeholders_returns_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _capture_vision(monkeypatch, "== no information ==")
+    slides = [
+        SlideInput(image_path=tmp_path / "a.jpg", timestamp="00:00 - 00:05"),
+        SlideInput(image_path=tmp_path / "b.jpg", timestamp="00:05 - 00:10"),
+    ]
+    result = OpenRouterSlidesBackend().describe(
+        slides, "t", make_config(), timeout=5
+    )
+    assert result == ""
+
+
 def test_openrouter_valid_empty_response_returns_empty(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

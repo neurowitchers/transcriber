@@ -42,6 +42,7 @@ from __future__ import annotations
 import base64
 import csv
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Sequence
@@ -71,6 +72,47 @@ MAX_TOTAL_ENCODED_BYTES = 48 * 1024 * 1024  # 48 MiB of base64 image data
 
 # Filename suffix of the scenes CSV inside the slides dir (E7).
 _SCENES_CSV_SUFFIX = ".scenes.csv"
+
+
+# Placeholder phrases a vision model may emit for a slide that carries no
+# essential visual content, despite the prompt asking it to omit such slides.
+# Matched case-insensitively, tolerant of surrounding ``==``/``—``/``-`` markers,
+# markdown emphasis, and trailing punctuation. These are filtered out before the
+# per-slide markdown is stitched so empty-slide placeholders never reach the
+# <name>.slides.md block (and therefore the summary's "Slide Descriptions").
+_PLACEHOLDER_PHRASES = (
+    "no information",
+    "no essential information",
+    "no essential visual information",
+    "no visual information",
+    "no relevant content",
+    "no content",
+    "none",
+    "n/a",
+    "empty",
+)
+
+# Strip leading/trailing decoration (==, --, —, *, #, whitespace, quotes) so a
+# response like "== no information ==" or "**None**" reduces to its core phrase.
+_PLACEHOLDER_DECORATION = r"[\s=\-\u2014*#>_`.,:;!\"'()\[\]]+"
+
+
+def _is_empty_slide_response(content: str) -> bool:
+    """Return True when a slide response is empty or a 'no information' placeholder.
+
+    The slide prompt tells the model to OMIT empty slides, but models sometimes
+    emit a placeholder like ``== no information ==`` anyway. This deterministic
+    guard drops such responses so they never reach ``<name>.slides.md``.
+    """
+    core = content.strip()
+    if not core:
+        return True
+    # A placeholder is a SINGLE short line; multi-line real descriptions are kept.
+    lines = [ln for ln in (l.strip() for l in core.splitlines()) if ln]
+    if len(lines) != 1:
+        return False
+    stripped = re.sub(_PLACEHOLDER_DECORATION, " ", lines[0].lower()).strip()
+    return stripped in _PLACEHOLDER_PHRASES
 
 
 # --------------------------------------------------------------------------- #
@@ -421,8 +463,15 @@ class OpenRouterSlidesBackend:
                 encoded_bytes,
             )
             content = _openrouter_vision(config, messages, model, timeout=timeout)
-            if content.strip():
-                parts.append(content.strip())
+            if _is_empty_slide_response(content):
+                logger.info(
+                    "describe_slides[openrouter]: slide %d/%d produced no "
+                    "usable content (empty/placeholder), omitting",
+                    i + 1,
+                    n_slides,
+                )
+                continue
+            parts.append(content.strip())
 
         elapsed = time.monotonic() - started
         logger.info(
