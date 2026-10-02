@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from typing import Any, Optional
 
 try:
@@ -26,7 +26,7 @@ DEFAULT_TIMEOUT_SECONDS = 900
 
 # Allowed per-stage backend selectors.
 SLIDES_BACKENDS = ("openrouter",)
-SUMMARY_BACKENDS = ("agy", "agno")
+SUMMARY_BACKENDS = ("agno",)
 
 
 class ConfigError(ValueError):
@@ -65,14 +65,19 @@ class Transcribe:
 class Summary:
     language: str  # "en" | "original"
     sections: list[str]
-    backend: str = "agy"  # "agy" | "agno"
+    backend: str = "agno"  # "agno" (the only summarize backend)
 
 
 @dataclass
 class Agent:
-    cli: str
-    extra_args: list[str]
+    # Only ``output_file`` is still used (both the summary output filename and
+    # the derived ``<name>.telegram.md`` digest path come from it). The legacy
+    # ``cli`` / ``extra_args`` fields drove the removed ``agy`` backend; they are
+    # kept as optional, ignored fields purely so existing host configs that
+    # still carry them continue to load.
     output_file: str  # templated with {basename}
+    cli: Optional[str] = None  # legacy, ignored
+    extra_args: list[str] = field(default_factory=list)  # legacy, ignored
 
 
 @dataclass
@@ -80,7 +85,7 @@ class OpenRouter:
     api_key_env: str  # env-var NAME for the OpenRouter API key.
     base_url: str = "https://openrouter.ai/api/v1"
     slides_model: str = "google/gemini-2.0-flash-001"  # vision (slides call)
-    summary_model: str = "google/gemini-2.5-pro"  # tool-capable (agno + MCP)
+    summary_model: str = "google/gemini-2.5-pro"  # agno summarize model
     # Deterministic slide-count ceiling for the `openrouter` slides backend.
     # An over-ceiling deck hard-fails before any image is sent (cost guard).
     # Optional; defaults to 60 when unset.
@@ -92,8 +97,8 @@ class Notion:
     server: str
     parent_page_id: str
     insert: str  # e.g. "subpage"
-    # env-var NAME for the Notion API key. The engine launches the Notion MCP
-    # with this key. Required when summary.backend == "agno".
+    # env-var NAME for the Notion API key. Required when summary.backend ==
+    # "agno" (the engine publishes the subpage via the Notion REST API).
     token_env: Optional[str] = None
 
 
@@ -116,8 +121,8 @@ class Timeouts:
     scenedetect: int = DEFAULT_TIMEOUT_SECONDS
     slides: int = DEFAULT_TIMEOUT_SECONDS  # describe_slides stage
     transcribe: int = DEFAULT_TIMEOUT_SECONDS  # transcribe stage (OpenRouter STT)
-    agy: int = DEFAULT_TIMEOUT_SECONDS
-    # summarize-stage timeout; None falls back to `agy` at use time.
+    # summarize-stage timeout; None falls back to DEFAULT_TIMEOUT_SECONDS at
+    # use time.
     summarize: Optional[int] = None
     s3: int = DEFAULT_TIMEOUT_SECONDS
 

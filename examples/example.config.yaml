@@ -7,7 +7,8 @@
 # Behavior: slide extraction on, no S3 sync, English summaries, single Telegram
 # chat, Notion subpage insertion under a parent page. Slide description runs on
 # the `openrouter` vision backend (the only slides backend); the summarize
-# stage runs on the local `agy` backend.
+# stage runs on the `agno` backend (an Agno agent on an OpenRouter model, after
+# which the engine publishes the Notion subpage via the Notion REST API).
 #
 # NOTE: the `openrouter` block below is ALWAYS required — transcription itself
 # now runs over the OpenRouter speech-to-text API, so audio egresses to
@@ -39,12 +40,10 @@ summary:
     - overview
     - key_points
     - action_items
-  backend: agy  # "agy" (local) | "agno" (OpenRouter model + Notion REST publish)
+  backend: agno  # "agno" (OpenRouter model + Notion REST publish) — the only backend
 
 agent:
-  cli: agy
-  extra_args:
-    - --dangerously-skip-permissions
+  # Only `output_file` is used (the summary filename + derived .telegram.md).
   output_file: "{basename}.md"
 
 # OpenRouter connection — ALWAYS required: transcription runs over the
@@ -54,14 +53,16 @@ openrouter:
   api_key_env: OPENROUTER_API_KEY
   # base_url defaults to https://openrouter.ai/api/v1 when omitted.
   slides_model: google/gemini-2.0-flash-001   # cheap vision model
+  summary_model: google/gemini-2.5-pro        # tool-capable (agno summarize)
 
 notion:
   server: notion-example
   # Placeholder — replace with the real parent page id.
   parent_page_id: "REPLACE_WITH_PARENT_PAGE_ID"
   insert: subpage
-  # notion.token_env is only required when summary.backend == "agno"; omitted
-  # here because summarize runs on `agy` (which uses its own MCP).
+  # Required because summary.backend == "agno": the engine publishes the Notion
+  # subpage via the Notion REST API with this key. Env-var NAME only — no secret.
+  token_env: NOTION_API_KEY
 
 telegram:
   bot_token_env: TELEGRAM_BOT_TOKEN

@@ -2,8 +2,7 @@
 
 This module is engine-owned and self-contained: it configures the Notion MCP
 integration purely from ``notion.token_env`` (+ the existing
-``notion.parent_page_id`` / ``notion.insert``). It does **not** read or reuse
-``agy``'s MCP configuration — the ``agno`` summarize path is independent.
+``notion.parent_page_id`` / ``notion.insert``).
 
 Design notes
 ------------

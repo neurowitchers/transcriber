@@ -28,8 +28,6 @@ BASE_CONFIG: dict = {
     "transcribe": {"model_id": "microsoft/mai-transcribe-2"},
     "summary": {"language": "en", "sections": ["overview", "action_items"]},
     "agent": {
-        "cli": "kiro",
-        "extra_args": ["--headless"],
         "output_file": "{basename}.md",
     },
     "openrouter": {"api_key_env": "OPENROUTER_API_KEY"},
@@ -37,6 +35,7 @@ BASE_CONFIG: dict = {
         "server": "notion-mcp",
         "parent_page_id": "abc123",
         "insert": "subpage",
+        "token_env": "NOTION_TOKEN",
     },
     "telegram": {
         "bot_token_env": "TELEGRAM_BOT_TOKEN",
@@ -48,7 +47,6 @@ BASE_CONFIG: dict = {
         "ffmpeg": 100,
         "scenedetect": 200,
         "transcribe": 300,
-        "agy": 400,
         "s3": 500,
     },
 }
@@ -123,7 +121,7 @@ def test_timeouts_default_when_omitted(tmp_path):
     assert cfg.timeouts.ffmpeg == 900
     assert cfg.timeouts.scenedetect == 900
     assert cfg.timeouts.transcribe == 900
-    assert cfg.timeouts.agy == 900
+    assert cfg.timeouts.summarize is None
     assert cfg.timeouts.s3 == 900
 
 
@@ -132,7 +130,7 @@ def test_partial_timeouts_fill_defaults(tmp_path):
     data["timeouts"] = {"ffmpeg": 42}
     cfg = load(_write(tmp_path / "c.json", data, "json"))
     assert cfg.timeouts.ffmpeg == 42
-    assert cfg.timeouts.agy == 900
+    assert cfg.timeouts.scenedetect == 900
 
 
 def test_s3_optional(tmp_path):
@@ -201,16 +199,18 @@ def test_secrets_not_stored_in_model(tmp_path, monkeypatch):
 # --------------------------------------------------------------------------- #
 # Per-stage backends, openrouter section, notion.token_env, new timeouts
 # --------------------------------------------------------------------------- #
-def test_slides_backend_defaults_to_openrouter_summary_to_agy(tmp_path):
+def test_slides_backend_defaults_to_openrouter_summary_to_agno(tmp_path):
     # Omitted slides backend defaults to "openrouter" (the only slides backend);
-    # omitted summary backend defaults to "agy".
+    # omitted summary backend defaults to "agno" (the only summarize backend).
     data = json.loads(json.dumps(BASE_CONFIG))
     data["stages"]["slides"] = {"enabled": True}  # backend omitted
-    # summary.backend omitted entirely
+    # summary.backend omitted entirely -> defaults to agno, which requires
+    # notion.token_env.
+    data["notion"]["token_env"] = "NOTION_TOKEN"
     cfg = load(_write(tmp_path / "c.json", data, "json"))
     assert cfg.stages.slides.backend == "openrouter"
-    assert cfg.summary.backend == "agy"
-    assert cfg.notion.token_env is None
+    assert cfg.summary.backend == "agno"
+    assert cfg.notion.token_env == "NOTION_TOKEN"
 
 
 def test_slides_openrouter_without_openrouter_section_raises(tmp_path):
@@ -238,6 +238,7 @@ def test_summary_agno_without_openrouter_section_raises(tmp_path):
 def test_summary_agno_without_notion_token_env_raises(tmp_path):
     data = json.loads(json.dumps(BASE_CONFIG))
     data["summary"]["backend"] = "agno"
+    data["notion"].pop("token_env", None)  # remove so the token check fires
     data["openrouter"] = {"api_key_env": "OPENROUTER_API_KEY"}
     with pytest.raises(ConfigError) as exc:
         load(_write(tmp_path / "c.json", data, "json"))
@@ -274,7 +275,7 @@ def test_invalid_summary_backend_raises_with_allowed_set(tmp_path):
         load(_write(tmp_path / "c.json", data, "json"))
     msg = str(exc.value)
     assert "summary.backend" in msg
-    assert "agy" in msg and "agno" in msg
+    assert "agno" in msg
 
 
 def test_openrouter_defaults(tmp_path):
@@ -347,10 +348,9 @@ def test_slides_stage_is_dataclass(tmp_path):
 # --------------------------------------------------------------------------- #
 def test_openrouter_unconditionally_required(tmp_path):
     # A config without an `openrouter` section always raises now (R13), even
-    # with slides disabled and summary on the default `agy` backend.
+    # with slides disabled (the openrouter block is the transcriber).
     data = json.loads(json.dumps(BASE_CONFIG))
     data["stages"]["slides"] = {"enabled": False}
-    data["summary"]["backend"] = "agy"
     data.pop("openrouter", None)
     with pytest.raises(ConfigError) as exc:
         load(_write(tmp_path / "c.json", data, "json"))

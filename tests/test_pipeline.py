@@ -354,10 +354,8 @@ def test_loaded_nested_slides_disabled_config_skips_scenedetect(
         "summary:\n"
         "  language: en\n"
         "  sections: [overview]\n"
-        "  backend: agy\n"
+        "  backend: agno\n"
         "agent:\n"
-        "  cli: agy\n"
-        "  extra_args: []\n"
         "  output_file: '{{basename}}.md'\n"
         "openrouter:\n"
         "  api_key_env: OPENROUTER_API_KEY\n"
@@ -365,6 +363,7 @@ def test_loaded_nested_slides_disabled_config_skips_scenedetect(
         "  server: n\n"
         "  parent_page_id: p\n"
         "  insert: subpage\n"
+        "  token_env: NOTION_API_KEY\n"
         "telegram:\n"
         "  bot_token_env: TELEGRAM_BOT_TOKEN\n"
         "  default_chat_id: '1'\n"
@@ -470,7 +469,7 @@ def test_timeouts_passed_through(
     cfg = make_config(
         tmp_path,
         slides=True,
-        timeouts=Timeouts(ffmpeg=5, scenedetect=6, transcribe=7, agy=8, s3=9),
+        timeouts=Timeouts(ffmpeg=5, scenedetect=6, transcribe=7, summarize=8, s3=9),
     )
 
     pipeline.process_recording(mp4, cfg)

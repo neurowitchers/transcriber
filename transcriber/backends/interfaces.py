@@ -7,8 +7,8 @@ Two small, pure interfaces (typing ``Protocol``s) selected per-stage by config:
 * :class:`SummarizeBackend` — turns the transcript (+ the slide markdown) into
   ``<name>.md`` + ``<name>.telegram.md`` and publishes to Notion.
 
-Concrete backends (agy / openrouter / agno) live in Tasks 3/4. No stage wiring
-happens here (that is Task 5); these are pure, testable contracts.
+Concrete backends (openrouter slides / agno summarize) live in the sibling
+modules. These are pure, testable contracts.
 """
 
 from __future__ import annotations
@@ -72,12 +72,10 @@ class SlidesBackend(Protocol):
 class SummarizeBackend(Protocol):
     """Produce ``<name>.md`` + ``<name>.telegram.md`` and publish to Notion.
 
-    Notion publishing is **backend-specific** (not always MCP):
-
-    * ``agy`` — publishes via ``agy``'s own Notion MCP as part of its run.
-    * ``agno`` — the engine publishes the subpage directly via the Notion REST
-      API (:func:`transcriber.backends.notion_publish.publish_to_notion`); no
-      MCP, no model tool-calling.
+    The ``agno`` backend produces the summary + digest with an Agno/OpenRouter
+    model, then the engine publishes the subpage directly via the Notion REST
+    API (:func:`transcriber.backends.notion_publish.publish_to_notion`); no MCP,
+    no model tool-calling.
     """
 
     def summarize(
@@ -90,9 +88,7 @@ class SummarizeBackend(Protocol):
         """Write both files and publish the Notion subpage.
 
         ``slides_markdown`` is embedded when non-empty and omitted when
-        ``None``/empty/whitespace (R3). The Notion publish path is
-        backend-specific: the ``agy`` backend publishes via MCP; the ``agno``
-        backend publishes directly via the Notion REST API (see the class
-        docstring).
+        ``None``/empty/whitespace (R3). The ``agno`` backend publishes directly
+        via the Notion REST API (see the class docstring).
         """
         ...

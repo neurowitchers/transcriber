@@ -26,10 +26,9 @@ through the following stages:
    summarize stage.
 5. **Summarize** — turn the transcript (+ the `<name>.slides.md` block) into the
    final `<name>.md` summary and `<name>.telegram.md` digest, and publish a
-   Notion subpage. Runs on the configured **summarize backend**. For the `agy`
-   backend Notion is published via its MCP server; for the `agno` backend the
-   **engine publishes the Notion subpage directly via the Notion REST API** (no
-   MCP, no `npx`).
+   Notion subpage. Runs on the **`agno`** summarize backend: an Agno/OpenRouter
+   model produces the summary + digest, after which the **engine publishes the
+   Notion subpage directly via the Notion REST API** (no MCP, no `npx`).
 6. **Disseminate** — optionally sync the recording to S3 (`stages.s3_sync`), and
    post a notification to Telegram (topic-routed where configured).
 
@@ -39,13 +38,12 @@ recording finishes processing.
 ### Post-transcript stages and per-stage backends
 
 The `describe_slides` stage always runs on the **`openrouter`** vision backend
-(the only slides backend). The `summarize` stage runs on an independently
-selected backend:
+(the only slides backend). The `summarize` stage runs on the **`agno`** backend:
 
 | Stage | Config | Backends | Notes |
 | --- | --- | --- | --- |
 | `describe_slides` | `stages.slides.backend` | `openrouter` | The only slides backend: one OpenRouter vision call **per slide**, image-only (no transcript). Enabled by `stages.slides.enabled`. |
-| `summarize` | `summary.backend` | `agy` \| `agno` | `agy` = local CLI agent (today, the default); `agno` = an Agno/OpenRouter model that produces the summary + digest, after which the **engine publishes the Notion subpage directly via the Notion REST API** (no MCP, no `npx`). |
+| `summarize` | `summary.backend` | `agno` | The only summarize backend: an Agno/OpenRouter model produces the summary + digest, after which the **engine publishes the Notion subpage directly via the Notion REST API** (no MCP, no `npx`). |
 
 The slides descriptor is **image-only**: it describes what is visually on each
 slide (title, key visual information, tables, Mermaid diagrams). Transcript
@@ -53,21 +51,18 @@ cross-referencing — aligning speaker commentary, decisions, and Q&A to slides 
 is the summarize stage's job, which receives the full transcript **and** the
 `<name>.slides.md` block.
 
-`summarize` has two valid choices:
+`summarize` has a single valid choice:
 
 | summarize | Meaning |
 | --- | --- |
-| `agy` | Local CLI agent (the default when nothing is configured). |
-| `agno` | OpenRouter-driven summarize + direct Notion REST publish. |
+| `agno` | OpenRouter-driven summarize + direct Notion REST publish (the default and only backend). |
 
-**`summarize` defaults to `agy`.** Enabling slides requires the `openrouter`
-block and its API key (the slide descriptor is an OpenRouter vision call), so
-operators who must avoid all OpenRouter egress should keep slides **disabled**
-(`stages.slides.enabled: false`) and summarize on `agy`. There is **no silent
-cross-backend fallback**: a selected backend's failure fails that stage
-(retryable). Paid backend calls live in manifest-gated orchestrator steps, so a
-retry never re-issues a completed slides call; the `pipeline` stage itself stays
-network-free.
+**`summarize` is always `agno`** (the default when nothing is configured). It
+requires the `openrouter` block and its API key, plus `notion.token_env` for the
+Notion REST publish. There is **no silent cross-backend fallback**: a selected
+backend's failure fails that stage (retryable). Paid backend calls live in
+manifest-gated orchestrator steps, so a retry never re-issues a completed slides
+call; the `pipeline` stage itself stays network-free.
 
 ### Backend visibility (`--dry-run` / `check`)
 
@@ -76,7 +71,7 @@ per stage so you can confirm the run's engine mix before it executes. A slides-o
 `agno`-summarize plan reads:
 
 ```
-audio-extract, scene-extract, transcribe, describe-slides [openrouter], summarize+notion [agno], telegram, s3-sync
+audio-extract, scene-extract, transcribe [openrouter:microsoft/mai-transcribe-2], describe-slides [openrouter], summarize+notion [agno], telegram, s3-sync
 ```
 
 ## Configuration
@@ -111,19 +106,17 @@ See ready-to-adopt examples in [`examples/`](./examples):
 | `transcribe.overlap_seconds` | int | Overlap (seconds) between adjacent chunks, used when stitching the slices. Default `5`. |
 | `summary.language` | `"en"` \| `"original"` | Summary language. |
 | `summary.sections` | list[string] | Summary sections to generate. |
-| `summary.backend` | `"agy"` \| `"agno"` | Summarize backend. Default `"agy"`. `"agno"` runs an Agno/OpenRouter model for the summary + digest, then the engine publishes the Notion subpage via the REST API; requires the `openrouter` section and `notion.token_env`. |
-| `agent.cli` | string | Headless agent CLI (e.g. `agy`). |
-| `agent.extra_args` | list[string] | Extra CLI args. |
-| `agent.output_file` | string | Output template, e.g. `{basename}.md`. |
+| `summary.backend` | `"agno"` | Summarize backend. Default (and only value) `"agno"`: runs an Agno/OpenRouter model for the summary + digest, then the engine publishes the Notion subpage via the REST API; requires the `openrouter` section and `notion.token_env`. The former `"agy"` backend has been removed. |
+| `agent.output_file` | string | Output template, e.g. `{basename}.md`. (The legacy `agent.cli` / `agent.extra_args` fields drove the removed `agy` backend; they are now ignored if present.) |
 | `openrouter` | object | **Required (always).** Transcription runs over the OpenRouter speech-to-text API, so this block is mandatory on every run (it is additionally used by the slides vision backend and the `agno` summarize backend). Fields: `api_key_env` (**env-var name** of the API key), `base_url` (default `https://openrouter.ai/api/v1`), `slides_model` (vision, default `google/gemini-2.0-flash-001`), `summary_model` (tool-capable, default `google/gemini-2.5-pro`), `max_slides` (deterministic slide-count ceiling for the slides backend; an over-ceiling deck hard-fails before any image is sent; default `60`). Each slide is sent in its own vision call (one image per call). |
-| `notion.server` | string | Notion MCP server name (used by the `agy` backend). |
+| `notion.server` | string | Notion MCP server name. *(Legacy field retained for config compatibility; the `agno` backend publishes via the Notion REST API and does not use it.)* |
 | `notion.parent_page_id` | string | Parent page for the new subpage. |
 | `notion.insert` | string | Insertion mode (e.g. `subpage`). |
 | `notion.token_env` | string | *(optional)* **Env-var name** of the Notion integration token. For the `agno` backend the engine uses it to publish the subpage via the Notion REST API. Required iff `summary.backend == "agno"`. |
 | `telegram.bot_token_env` | string | **Env-var name** of the bot token. |
 | `telegram.default_chat_id` | string | Fallback chat id. |
 | `telegram.routing` | map[string,string] | Topic → chat id routes. |
-| `timeouts` | map[string,int] | *(optional)* Per-stage timeouts (seconds); defaults to 900. Keys: `ffmpeg`, `scenedetect`, `slides` (the `describe_slides` stage), `transcribe`, `agy`, `summarize`, `s3`. The legacy `timeouts.elevenlabs` key is **renamed to `timeouts.transcribe`** and is silently ignored if left behind. `timeouts.summarize` is optional and **falls back to `timeouts.agy`** when unset (a networked `agno` run may need more time than a local `agy` run). |
+| `timeouts` | map[string,int] | *(optional)* Per-stage timeouts (seconds); defaults to 900. Keys: `ffmpeg`, `scenedetect`, `slides` (the `describe_slides` stage), `transcribe`, `summarize`, `s3`. The legacy `timeouts.elevenlabs` key is **renamed to `timeouts.transcribe`** and is silently ignored if left behind. `timeouts.summarize` is optional and **falls back to the default 900s** when unset. (The legacy `timeouts.agy` key has been removed and is ignored if left behind.) |
 | `s3` | object | *(optional)* `bucket` + `profile`. Required only when `stages.s3_sync` is true. |
 | `debug` | bool | *(optional, default `false`)* When `true`, intermediate artifacts are **kept** after a successful run (same effect as the `--keep-intermediates` CLI flag, but persistent in config). Preserves `.mp3`, `.slides.md`, `.telegram.md`, the `transcribe_work.<name>/` dir, extracted slides, and the scenes CSV for inspection while the tool matures. The CLI flag and `debug` are OR'd — either one keeps intermediates. |
 
@@ -144,18 +137,18 @@ transcribe:
 summary:
   language: en
   sections: [overview, key_points, action_items]
-  backend: agy          # "agy" | "agno"
+  backend: agno         # the only summarize backend
 agent:
-  cli: agy
-  extra_args: [--dangerously-skip-permissions]
   output_file: "{basename}.md"
 openrouter:               # always required (transcription runs over OpenRouter)
   api_key_env: OPENROUTER_API_KEY   # env-var NAME only
   slides_model: google/gemini-2.0-flash-001
+  summary_model: google/gemini-2.5-pro
 notion:
   server: notion-example
   parent_page_id: "REPLACE_WITH_PARENT_PAGE_ID"
   insert: subpage
+  token_env: NOTION_API_KEY         # env-var NAME only; required for agno
 telegram:
   bot_token_env: TELEGRAM_BOT_TOKEN
   default_chat_id: "REPLACE_WITH_DEFAULT_CHAT_ID"
@@ -205,12 +198,13 @@ for `agno`, to Notion):
   egresses in full.) Sensitive material still egresses.
 
 Because transcription itself egresses to OpenRouter, there is **no fully
-OpenRouter-free mode**. Operators with sensitive content can still minimise
-egress by keeping slides **disabled** (`stages.slides.enabled: false`) and
-summarizing on `agy` (the default) — that avoids slide imagery and the `agno`
-summary/Notion egress, but the audio transcription egress remains. Secrets
-(OpenRouter API key, Notion token, auth headers), audio bytes, and image bytes
-are never logged.
+OpenRouter-free mode**. The `agno` summarize backend additionally sends the
+transcript to OpenRouter and the summary to Notion. Operators with sensitive
+content can still minimise egress by keeping slides **disabled**
+(`stages.slides.enabled: false`), which avoids slide imagery — but the audio
+transcription egress (and, for the summary, the `agno`/Notion egress) remains.
+Secrets (OpenRouter API key, Notion token, auth headers), audio bytes, and image
+bytes are never logged.
 
 ## Prerequisites
 
@@ -222,20 +216,19 @@ are never logged.
   API, so the `openrouter` block and its key are mandatory on every run.
 - The **`aws`** CLI configured with the profile referenced by `s3.profile`
   (only when `stages.s3_sync` is enabled).
-- A headless coding agent (**`agy`**) authenticated and on `PATH` — required when
-  the `summarize` stage uses the `agy` backend (its default).
-
-Additional prerequisites apply only when you enable slides or select the `agno`
-summarize backend:
-
-- **The `agno` optional dependency** — required when `summary.backend == "agno"`.
-  Install the extra with `uv sync --extra agno` (or `uv pip install
-  'transcriber[agno]'`).
+- **The `agno` optional dependency** — the `summarize` stage always runs on the
+  `agno` backend. Install the extra with `uv sync --extra agno` (or `uv pip
+  install 'transcriber[agno]'`).
 - **Notion integration token** (env var named by `notion.token_env`) — required
-  when `summary.backend == "agno"`. The engine uses this key to publish the
+  by the `agno` summarize backend. The engine uses this key to publish the
   Notion subpage via the **Notion REST API** (env-var name only in config; the
   value is resolved at use time and never logged). No Notion MCP server or
-  Node.js/`npx` is needed for the `agno` backend.
+  Node.js/`npx` is needed.
+
+Additional prerequisites apply only when you enable slides:
+
+- The slides `openrouter` vision backend uses the same `openrouter` block and
+  API key already required for transcription; no extra dependency is needed.
 
 ## Usage
 
@@ -296,8 +289,13 @@ git submodule update --remote transcriber
 > `openrouter` block and its API-key env var) or disable slides
 > (`stages.slides.enabled: false`). The former `openrouter.slides_batch_size`
 > field is gone (each slide is now sent in its own vision call) and is silently
-> ignored if left in a config. If you choose `summary.backend: agno`, also
-> install the `agno` extra (`uv sync --extra agno`) and set `notion.token_env`
-> (plus the `openrouter` block). Keeping slides disabled and summarize on `agy`
-> (the default) avoids the slides/`agno` egress, but the `openrouter` block and
-> its API key remain required because transcription itself runs over OpenRouter.
+> ignored if left in a config. This release also **removes the `agy` summarize
+> backend**: `summary.backend` now accepts only `agno` (the default). If you
+> previously ran `summary.backend: agy`, switch to `agno` — install the `agno`
+> extra (`uv sync --extra agno`) and set `notion.token_env` (plus the
+> `openrouter` block). The legacy `agent.cli` / `agent.extra_args` and
+> `timeouts.agy` fields are no longer used and are silently ignored if left in a
+> config. Keeping slides disabled avoids the slides egress, but the `openrouter`
+> block and its API key remain required because transcription itself runs over
+> OpenRouter, and `agno` additionally egresses the transcript to OpenRouter and
+> the summary to Notion.

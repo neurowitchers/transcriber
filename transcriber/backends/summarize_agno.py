@@ -19,13 +19,13 @@ Design constraints (Spec R10/R11/R19/R21/R22/R22b):
   :class:`~transcriber.backends.notion_mcp.AgnoImportError`.
 * **Hard time bound (R22b/E2)** — the async run is wrapped in :func:`asyncio.run`
   under a timeout equal to the summarize-stage timeout (``timeouts.summarize``
-  when set, else ``timeouts.agy`` — R13/E9). The blocking Notion publish runs in
-  a worker thread so the timeout can still cancel the run.
-* **Non-empty post-condition (R22)** — after the run, the engine re-uses the
-  same non-empty ``<name>.md`` success check as the ``agy`` path: an empty or
-  absent summary file fails the stage (retryable).
+  when set, else the default timeout — R13/E9). The blocking Notion publish runs
+  in a worker thread so the timeout can still cancel the run.
+* **Non-empty post-condition (R22)** — after the run, the engine applies a
+  non-empty ``<name>.md`` success check: an empty or absent summary file fails
+  the stage (retryable).
 * **Atomicity (R21)** — summarize + Notion publish happen in a single run, so a
-  Notion failure fails the whole ``summarize``+``notion`` stage, like ``agy``.
+  Notion failure fails the whole ``summarize``+``notion`` stage.
 * **Log hygiene (R16/E8)** — the OpenRouter key, the Notion token, and any
   content payload are never logged. Only stage/model/size/elapsed are logged.
 """
@@ -53,7 +53,7 @@ from transcriber.backends.notion_publish import (
     DEFAULT_NOTION_TIMEOUT,
     publish_to_notion,
 )
-from transcriber.config import Config, resolve_env
+from transcriber.config import Config, DEFAULT_TIMEOUT_SECONDS, resolve_env
 
 logger = logging.getLogger(__name__)
 
@@ -80,11 +80,11 @@ def _import_agno() -> "tuple[Any, Any]":
 def _summarize_timeout(config: Config) -> float:
     """The summarize-stage hard time bound (R13/E9).
 
-    ``timeouts.summarize`` when set, otherwise falls back to ``timeouts.agy``.
+    ``timeouts.summarize`` when set, otherwise the default timeout.
     """
     if config.timeouts.summarize is not None:
         return float(config.timeouts.summarize)
-    return float(config.timeouts.agy)
+    return float(DEFAULT_TIMEOUT_SECONDS)
 
 
 def _notion_request_timeout(config: Config) -> float:

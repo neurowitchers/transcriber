@@ -8,8 +8,7 @@ Public surface (Task 2):
       the slides ``openrouter`` backend in Task 3).
 
 Concrete backends and stage wiring: the ``openrouter`` slides backend
-(:class:`OpenRouterSlidesBackend`) and the summarize backends (``agy`` /
-``agno``).
+(:class:`OpenRouterSlidesBackend`) and the ``agno`` summarize backend.
 """
 
 from __future__ import annotations
@@ -31,7 +30,6 @@ from transcriber.backends.slides import (
     build_slide_inputs,
 )
 from transcriber.backends.summarize import (
-    AgySummarizeBackend,
     get_summarize_backend,
 )
 
@@ -46,6 +44,5 @@ __all__ = [
     "_openrouter_vision",
     "OpenRouterSlidesBackend",
     "build_slide_inputs",
-    "AgySummarizeBackend",
     "get_summarize_backend",
 ]

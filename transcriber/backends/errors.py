@@ -25,8 +25,8 @@ class SlideDescribeError(RuntimeError):
 class SummarizeError(RuntimeError):
     """Raised when the ``summarize`` stage's backend fails.
 
-    Defined here for Task 4's summarize backends (agy/agno). Included now so
-    the shared error-type module is owned in one place (Task 2 ownership).
+    Raised by the ``agno`` summarize backend. Kept in this shared error-type
+    module so the error types are owned in one place.
     """
 
 

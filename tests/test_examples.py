@@ -67,12 +67,12 @@ def test_simple_example_shape():
     assert cfg.stages.slides.backend == "openrouter"
     assert cfg.stages.s3_sync is False
     assert cfg.summary.language == "en"
-    # Summarize defaults to the local agy backend.
-    assert cfg.summary.backend == "agy"
+    # Summarize runs on the agno backend (the only backend).
+    assert cfg.summary.backend == "agno"
     assert cfg.notion.server == "notion-example"
     assert cfg.notion.insert == "subpage"
-    # No agno backend -> no Notion MCP token required.
-    assert cfg.notion.token_env is None
+    # agno backend -> Notion REST token required.
+    assert cfg.notion.token_env == "NOTION_API_KEY"
     assert cfg.telegram.bot_token_env == "TELEGRAM_BOT_TOKEN"
     assert cfg.telegram.routing == {}
     assert cfg.s3 is None

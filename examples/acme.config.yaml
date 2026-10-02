@@ -43,12 +43,10 @@ summary:
     - overview
     - key_points
     - action_items
-  backend: agno  # "agy" (local) | "agno" (OpenRouter model + Notion MCP)
+  backend: agno  # "agno" (OpenRouter model + Notion REST publish) — the only backend
 
 agent:
-  cli: agy
-  extra_args:
-    - --dangerously-skip-permissions
+  # Only `output_file` is used (the summary filename + derived .telegram.md).
   output_file: "{basename}.md"
 
 # OpenRouter connection, shared by the transcription speech-to-text calls, the

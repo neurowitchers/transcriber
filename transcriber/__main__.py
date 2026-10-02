@@ -7,10 +7,9 @@ run:
 
 The two post-transcript stages (``describe_slides`` and ``summarize``) each run
 a backend selected from config. ``describe_slides`` always runs on the
-``openrouter`` vision backend; ``summarize`` selects ``agy`` (default) or
-``agno``. Paid/network calls live only in these manifest-gated orchestrator
-steps — the ``pipeline`` stage stays media-only (ffmpeg / scenedetect /
-transcribe).
+``openrouter`` vision backend; ``summarize`` runs on the ``agno`` backend. Paid/
+network calls live only in these manifest-gated orchestrator steps — the
+``pipeline`` stage stays media-only (ffmpeg / scenedetect / transcribe).
 
 Usage::
 
@@ -74,15 +73,6 @@ def _get_slides_backend(config: Config):
     )
 
 
-def _uses_agy(config: Config) -> bool:
-    """Return ``True`` when any enabled stage uses the ``agy`` CLI.
-
-    Only the summarize stage can use ``agy``; the slides stage always runs on
-    the OpenRouter vision backend.
-    """
-    return config.summary.backend == "agy"
-
-
 # --------------------------------------------------------------------------- #
 # Pre-flight check (E2)
 # --------------------------------------------------------------------------- #
@@ -97,9 +87,6 @@ def _required_binaries(config: Config) -> list[str]:
     required = list(_ALWAYS_BINARIES)
     if config.stages.slides.enabled:
         required.append("scenedetect")
-    # ``agy`` is required only when a post-transcript stage actually uses it.
-    if _uses_agy(config):
-        required.append("agy")
     if s3_mod.is_enabled(config):
         required.append("aws")
     return required
@@ -119,7 +106,8 @@ def _required_env_vars(config: Config) -> list[str]:
     if config.openrouter is not None:
         required.append(config.openrouter.api_key_env)
 
-    # Notion token iff summary=agno (agno launches the Notion MCP itself).
+    # Notion token iff summary=agno (the engine publishes via the Notion REST
+    # API with this key).
     if config.summary.backend == "agno" and config.notion.token_env:
         required.append(config.notion.token_env)
 
@@ -383,8 +371,8 @@ def _process_one(
             logger.info("[%s] telegram: sending", name)
             summary_file = _summary_path(mp4, config)
             digest_file = agent_mod.digest_path_for(summary_file)
-            # Prefer the concise digest agy wrote for chat; fall back to the
-            # full summary only if the digest is missing/empty.
+            # Prefer the concise digest the summarize backend wrote for chat;
+            # fall back to the full summary only if the digest is missing/empty.
             if digest_file.exists() and digest_file.read_text(encoding="utf-8").strip():
                 message_text = digest_file.read_text(encoding="utf-8")
             else:

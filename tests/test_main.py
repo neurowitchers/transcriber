@@ -49,11 +49,11 @@ def make_config(
     *,
     slides: bool = True,
     slides_backend: str = "openrouter",
-    summary_backend: str = "agy",
+    summary_backend: str = "agno",
     s3_sync: bool = False,
     s3_target: bool = False,
     openrouter: bool = True,
-    notion_token_env: str | None = None,
+    notion_token_env: str | None = "NOTION_TOKEN",
 ) -> Config:
     s3 = S3(bucket="s3://bucket", profile="prof") if s3_target else None
     or_block = OpenRouter(api_key_env="OPENROUTER_API_KEY") if openrouter else None
@@ -65,7 +65,7 @@ def make_config(
         ),
         transcribe=Transcribe(model_id="microsoft/mai-transcribe-2"),
         summary=Summary(language="en", sections=["overview"], backend=summary_backend),
-        agent=Agent(cli="agy", extra_args=[], output_file="{basename}.md"),
+        agent=Agent(output_file="{basename}.md"),
         notion=Notion(
             server="notion-x",
             parent_page_id="pid",
@@ -191,6 +191,7 @@ def test_preflight_fails_on_missing_binary(monkeypatch, tmp_path):
     config = make_config(tmp_path, slides=False, s3_sync=False)
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
     # All binaries missing.
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: None)
 
@@ -222,6 +223,7 @@ def test_check_subcommand_exit_codes(monkeypatch, tmp_path):
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
     assert main_mod.main(["check", "--config", str(config_path)]) == 0
 
 
@@ -229,6 +231,7 @@ def test_preflight_requires_aws_only_when_s3_enabled(monkeypatch, tmp_path):
     config = make_config(tmp_path, slides=False, s3_sync=True, s3_target=True)
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
     def which(name):
         return None if name == "aws" else f"/usr/bin/{name}"
@@ -265,9 +268,8 @@ transcribe:
 summary:
   language: en
   sections: [overview]
+  backend: agno
 agent:
-  cli: agy
-  extra_args: []
   output_file: "{{basename}}.md"
 openrouter:
   api_key_env: OPENROUTER_API_KEY
@@ -275,6 +277,7 @@ notion:
   server: notion-x
   parent_page_id: pid
   insert: subpage
+  token_env: NOTION_TOKEN
 telegram:
   bot_token_env: TG_TOKEN
   default_chat_id: "123"
@@ -335,6 +338,7 @@ def test_happy_path_two_recordings(stage_calls, monkeypatch, tmp_path):
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
     rc = main_mod.main(["--config", str(config_path)])
     assert rc == 0
@@ -365,6 +369,7 @@ def test_debug_config_keeps_intermediates(stage_calls, monkeypatch, tmp_path):
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
     rc = main_mod.main(["--config", str(config_path)])
     assert rc == 0
@@ -385,6 +390,7 @@ def test_happy_path_with_s3(stage_calls, monkeypatch, tmp_path):
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
     rc = main_mod.main(["--config", str(config_path)])
     assert rc == 0
@@ -412,6 +418,7 @@ def test_failure_isolation_skips_cleanup_but_continues(stage_calls, monkeypatch,
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
     # Make the summarize backend fail for recording "a" only.
     orig_calls = stage_calls["calls"]
@@ -472,6 +479,7 @@ def test_manifest_skips_completed_stages_on_rerun(stage_calls, monkeypatch, tmp_
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
     # Pre-mark pipeline + describe_slides + summarize + notion + telegram complete.
     st = state_mod.RecordingState(mp4)
@@ -486,7 +494,7 @@ def test_manifest_skips_completed_stages_on_rerun(stage_calls, monkeypatch, tmp_
     calls = stage_calls["calls"]
     # pipeline/slides/agent/telegram were already complete -> skipped. Only cleanup runs.
     assert ("pipeline", "a") not in calls
-    assert ("describe_slides", "agy") not in calls
+    assert ("describe_slides", "openrouter") not in calls
     assert ("agent", "a") not in calls
     assert ("telegram", "-") not in calls
     assert ("cleanup", "a") in calls
@@ -504,6 +512,7 @@ def test_disabled_s3_toggle_skips_s3(stage_calls, monkeypatch, tmp_path):
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
     main_mod.main(["--config", str(config_path)])
     calls = stage_calls["calls"]
@@ -536,10 +545,8 @@ transcribe:
 summary:
   language: en
   sections: [overview]
-  backend: agy
+  backend: agno
 agent:
-  cli: agy
-  extra_args: []
   output_file: "{{basename}}.md"
 openrouter:
   api_key_env: OPENROUTER_API_KEY
@@ -547,6 +554,7 @@ notion:
   server: notion-x
   parent_page_id: pid
   insert: subpage
+  token_env: NOTION_TOKEN
 telegram:
   bot_token_env: TG_TOKEN
   default_chat_id: "123"
@@ -558,6 +566,7 @@ telegram:
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
     rc = main_mod.main(["--config", str(config_path)])
     assert rc == 0
@@ -589,7 +598,7 @@ def test_disabled_slides_use_txt_and_no_slides(monkeypatch, tmp_path):
     assert "parse-transcript" not in stages
     assert "s3-sync" not in stages
     # summarize token still present with the (default) backend surfaced.
-    assert "summarize+notion [agy]" in stages
+    assert "summarize+notion [agno]" in stages
 
 
 def test_enabled_toggles_include_stages(tmp_path):
@@ -599,7 +608,7 @@ def test_enabled_toggles_include_stages(tmp_path):
     stages = main_mod._enabled_stage_names(config)
     assert "scene-extract" in stages
     assert "describe-slides [openrouter]" in stages
-    assert "summarize+notion [agy]" in stages
+    assert "summarize+notion [agno]" in stages
     assert "transcribe [openrouter:microsoft/mai-transcribe-2]" in stages
     assert "s3-sync" in stages
 
@@ -667,7 +676,7 @@ def test_describe_slides_token_only_when_slides_on(tmp_path):
 # --------------------------------------------------------------------------- #
 # Task 5: describe_slides backend selection + gating
 # --------------------------------------------------------------------------- #
-@pytest.mark.parametrize("slides_backend", ["agy", "openrouter"])
+@pytest.mark.parametrize("slides_backend", ["openrouter"])
 def test_describe_slides_runs_configured_backend(
     stage_calls, monkeypatch, tmp_path, slides_backend
 ):
@@ -682,7 +691,7 @@ def test_describe_slides_runs_configured_backend(
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
-    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
     outcomes = main_mod.run_batch(config, main_mod.discover_new_recordings(config))
     assert all(o.succeeded for o in outcomes)
@@ -701,6 +710,7 @@ def test_describe_slides_skipped_when_disabled(stage_calls, monkeypatch, tmp_pat
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
     main_mod.run_batch(config, main_mod.discover_new_recordings(config))
     assert stage_calls["slides_seen"] == []
@@ -718,6 +728,7 @@ def test_describe_slides_manifest_gated_skips_paid_call_on_rerun(
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
     # Pre-mark pipeline + describe_slides complete and drop the artifact +
     # transcript that a prior run would have produced.
@@ -743,6 +754,7 @@ def test_describe_slides_idempotent_skip_when_artifact_present(
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
     st = state_mod.RecordingState(mp4)
     st.mark_complete("pipeline")  # no describe_slides mark
@@ -766,6 +778,7 @@ def test_summarize_receives_slide_markdown(stage_calls, monkeypatch, tmp_path):
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
     main_mod.run_batch(config, main_mod.discover_new_recordings(config))
 
@@ -783,6 +796,7 @@ def test_summarize_receives_none_when_slides_disabled(stage_calls, monkeypatch, 
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
     main_mod.run_batch(config, main_mod.discover_new_recordings(config))
     # No slides.md -> summarize gets None.
@@ -805,9 +819,9 @@ def test_preflight_openrouter_unconditionally_required(monkeypatch, tmp_path):
     )
     assert any("OPENROUTER_API_KEY" in p for p in main_mod.preflight_check(need))
 
-    # Even with slides disabled + summary=agy, OpenRouter is still required
-    # (transcription itself runs over the OpenRouter HTTP seam).
-    still_need = make_config(tmp_path, slides=False, summary_backend="agy")
+    # Even with slides disabled, OpenRouter is still required (transcription
+    # itself runs over the OpenRouter HTTP seam).
+    still_need = make_config(tmp_path, slides=False, summary_backend="agno")
     assert any(
         "OPENROUTER_API_KEY" in p for p in main_mod.preflight_check(still_need)
     )
@@ -819,8 +833,9 @@ def test_preflight_fails_when_openrouter_section_missing(monkeypatch, tmp_path):
     monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
-    config = make_config(tmp_path, slides=False, summary_backend="agy", openrouter=False)
+    config = make_config(tmp_path, slides=False, summary_backend="agno", openrouter=False)
     problems = main_mod.preflight_check(config)
     assert any("openrouter" in p for p in problems)
 
@@ -830,6 +845,7 @@ def test_preflight_notion_required_iff_summary_agno(monkeypatch, tmp_path):
     monkeypatch.setenv("TG_TOKEN", "abc")
     # OpenRouter key present throughout (now unconditionally required).
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
     monkeypatch.delenv("NOTION_TOKEN", raising=False)
 
     agno = make_config(
@@ -840,43 +856,13 @@ def test_preflight_notion_required_iff_summary_agno(monkeypatch, tmp_path):
         notion_token_env="NOTION_TOKEN",
     )
     problems = main_mod.preflight_check(agno)
-    # Notion token is required only for the agno summarize backend.
+    # Notion token is required for the agno summarize backend.
     assert any("NOTION_TOKEN" in p for p in problems)
 
-    # summary=agy -> Notion token not required.
-    agy = make_config(tmp_path, slides=False, summary_backend="agy")
-    problems2 = main_mod.preflight_check(agy)
-    assert not any("NOTION_TOKEN" in p for p in problems2)
-
-
-def test_preflight_agy_required_iff_used(monkeypatch, tmp_path):
-    monkeypatch.setenv("TG_TOKEN", "abc")
-    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
-    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    # With the token present, the Notion requirement is satisfied.
     monkeypatch.setenv("NOTION_TOKEN", "n-key")
-
-    def which_no_agy(name):
-        return None if name == "agy" else f"/usr/bin/{name}"
-
-    monkeypatch.setattr(main_mod.shutil, "which", which_no_agy)
-
-    # No agy anywhere (slides=openrouter, summary=agno) -> agy NOT required.
-    no_agy = make_config(
-        tmp_path,
-        slides=True,
-        slides_backend="openrouter",
-        summary_backend="agno",
-        openrouter=True,
-        notion_token_env="NOTION_TOKEN",
-    )
-    assert not any("agy" in p for p in main_mod.preflight_check(no_agy))
-
-    # summary=agy uses agy -> required (and missing).
-    uses_agy = make_config(
-        tmp_path, slides=True, slides_backend="openrouter", summary_backend="agy",
-        openrouter=True,
-    )
-    assert any("agy" in p for p in main_mod.preflight_check(uses_agy))
+    problems2 = main_mod.preflight_check(agno)
+    assert not any("NOTION_TOKEN" in p for p in problems2)
 
 
 # --------------------------------------------------------------------------- #
@@ -949,6 +935,7 @@ def test_check_passes_without_elevenlabs_on_path(monkeypatch, tmp_path):
     monkeypatch.setattr(main_mod.shutil, "which", which_no_elevenlabs)
     monkeypatch.setenv("TG_TOKEN", "abc")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
 
     assert main_mod.main(["check", "--config", str(config_path)]) == 0
 

@@ -1,8 +1,6 @@
-"""Tests for transcriber.agent: prompt builder + agy invocation.
+"""Tests for transcriber.agent: summarization prompt + slide-description helpers.
 
-No real agy is invoked — ``agy_headless_bridge.run`` is monkeypatched.
-
-The slide-description block now embeds pre-computed slide *markdown*
+The slide-description block embeds pre-computed slide *markdown*
 (``slides_markdown``) — the text of ``<name>.slides.md`` produced by the
 ``describe_slides`` stage — rather than listing image paths (Spec R3/R4).
 """
@@ -15,7 +13,6 @@ from pathlib import Path
 import pytest
 
 import transcriber.agent as agent
-from transcriber.agent import build_prompt, run_agent
 from transcriber.config import (
     Agent,
     Config,
@@ -27,7 +24,6 @@ from transcriber.config import (
     Timeouts,
     Transcribe,
 )
-from agy_headless_bridge import AgyTimeoutError
 
 SECTIONS = ["Decisions", "Action Items", "Plans", "Identified Risks"]
 
@@ -50,7 +46,7 @@ def make_config(language: str = "en", sections=None) -> Config:
         ),
         transcribe=Transcribe(model_id="scribe_v1"),
         summary=Summary(language=language, sections=sections or list(SECTIONS)),
-        agent=Agent(cli="agy", extra_args=[], output_file="{basename}.md"),
+        agent=Agent(output_file="{basename}.md"),
         notion=Notion(
             server="notion-private",
             parent_page_id="PARENT-PAGE-ID-123",
@@ -61,7 +57,7 @@ def make_config(language: str = "en", sections=None) -> Config:
             default_chat_id="123",
             routing={},
         ),
-        timeouts=Timeouts(agy=42),
+        timeouts=Timeouts(summarize=42),
     )
 
 
@@ -72,12 +68,12 @@ def write_transcript(tmp_path: Path, text: str = "[00:00] hello world") -> Path:
 
 
 # --------------------------------------------------------------------------- #
-# build_prompt units
+# build_agno_summarize_prompt units
 # --------------------------------------------------------------------------- #
 def test_language_forced_english(tmp_path: Path) -> None:
     cfg = make_config(language="en")
     tp = write_transcript(tmp_path)
-    prompt = build_prompt(cfg, tp, slides_markdown=None)
+    prompt = agent.build_agno_summarize_prompt(cfg, tp, slides_markdown=None)
     assert "English" in prompt
     assert "original language" in prompt  # the parenthetical translate note
     # No 'original-only' directive should dominate.
@@ -87,14 +83,14 @@ def test_language_forced_english(tmp_path: Path) -> None:
 def test_language_forced_original(tmp_path: Path) -> None:
     cfg = make_config(language="original")
     tp = write_transcript(tmp_path)
-    prompt = build_prompt(cfg, tp, slides_markdown=None)
+    prompt = agent.build_agno_summarize_prompt(cfg, tp, slides_markdown=None)
     assert "the original language spoken in the transcript." in prompt
 
 
 def test_sections_come_from_config(tmp_path: Path) -> None:
     cfg = make_config(sections=["overview", "key_points", "action_items"])
     tp = write_transcript(tmp_path)
-    prompt = build_prompt(cfg, tp, slides_markdown=None)
+    prompt = agent.build_agno_summarize_prompt(cfg, tp, slides_markdown=None)
     assert "## Overview" in prompt
     assert "## Key Points" in prompt
     assert "## Action Items" in prompt
@@ -234,11 +230,13 @@ def test_build_prompt_includes_slide_block_when_markdown_present(
     cfg = make_config()
     tp = write_transcript(tmp_path)
 
-    no_slides = build_prompt(cfg, tp, slides_markdown=None)
+    no_slides = agent.build_agno_summarize_prompt(cfg, tp, slides_markdown=None)
     assert "Slide descriptions" not in no_slides
     assert "Slide Descriptions" not in no_slides
 
-    with_slides = build_prompt(cfg, tp, slides_markdown=SLIDES_MD)
+    with_slides = agent.build_agno_summarize_prompt(
+        cfg, tp, slides_markdown=SLIDES_MD
+    )
     assert "Slide descriptions" in with_slides
     assert SLIDES_MD in with_slides
     # No image paths threaded into the prompt anymore.
@@ -251,7 +249,7 @@ def test_build_prompt_omits_slide_block_on_whitespace_markdown(
 ) -> None:
     cfg = make_config()
     tp = write_transcript(tmp_path)
-    prompt = build_prompt(cfg, tp, slides_markdown="   \n\t  ")
+    prompt = agent.build_agno_summarize_prompt(cfg, tp, slides_markdown="   \n\t  ")
     assert "Slide descriptions" not in prompt
     assert "Slide Descriptions" not in prompt
 
@@ -260,7 +258,7 @@ def test_transcript_wrapped_in_markdown_code_fence_not_xml(tmp_path: Path) -> No
     text = "[00:00] we <should> not treat </these> as tags & data"
     tp = write_transcript(tmp_path, text)
     cfg = make_config()
-    prompt = build_prompt(cfg, tp, slides_markdown=None)
+    prompt = agent.build_agno_summarize_prompt(cfg, tp, slides_markdown=None)
 
     # The transcript text must be present verbatim.
     assert text in prompt
@@ -293,24 +291,13 @@ def test_fence_grows_past_backticks_in_transcript(tmp_path: Path) -> None:
     text = "before\n```\ncode block\n```\nafter"
     tp = write_transcript(tmp_path, text)
     cfg = make_config()
-    prompt = build_prompt(cfg, tp, slides_markdown=None)
+    prompt = agent.build_agno_summarize_prompt(cfg, tp, slides_markdown=None)
     # Outer fence must be at least 4 backticks and fully contain the text.
     assert re.search(r"`{4,}\n" + re.escape(text) + r"\n`{4,}", prompt)
 
 
-def test_notion_publish_instructions_present(tmp_path: Path) -> None:
-    cfg = make_config()
-    tp = write_transcript(tmp_path)
-    prompt = build_prompt(cfg, tp, slides_markdown=None)
-    assert "PARENT-PAGE-ID-123" in prompt
-    assert "notion-private" in prompt
-    assert "subpage" in prompt
-    assert "TOP" in prompt  # link goes at the top of the parent
-    assert "meeting.md" in prompt  # output_file templated with {basename}
-
-
 # --------------------------------------------------------------------------- #
-# run_agent — agy mocked
+# digest_path_for — path derivation
 # --------------------------------------------------------------------------- #
 def test_digest_path_for_derives_telegram_file() -> None:
     from transcriber.agent import digest_path_for
@@ -318,247 +305,4 @@ def test_digest_path_for_derives_telegram_file() -> None:
     p = digest_path_for("/some/dir/2026-09-22_Meeting.md")
     assert p.name == "2026-09-22_Meeting.telegram.md"
 
-
-def test_run_agent_writes_digest_instruction_and_path(tmp_path: Path, monkeypatch) -> None:
-    """run_agent must instruct agy to write a concise Telegram digest to the
-    ``<name>.telegram.md`` companion file, before the Notion step."""
-    cfg = make_config()
-    rec_dir = tmp_path / "rec"
-    rec_dir.mkdir()
-    tp = write_transcript(rec_dir)
-
-    captured = {}
-
-    def fake_run(prompt, *, add_dirs, extra_args, timeout, **kwargs):
-        captured["prompt"] = prompt
-        (rec_dir / "meeting.md").write_text("# Summary\n", encoding="utf-8")
-        return ""
-
-    monkeypatch.setattr(agent, "run", fake_run)
-    run_agent(cfg, tp, rec_dir, slides_markdown=None)
-
-    prompt = captured["prompt"]
-    assert "meeting.telegram.md" in prompt
-    assert "digest" in prompt.lower()
-    assert prompt.index("meeting.telegram.md") < prompt.lower().index("publish to notion")
-
-
-def test_run_agent_reads_back_written_file(tmp_path: Path, monkeypatch) -> None:
-    cfg = make_config()
-    rec_dir = tmp_path / "rec"
-    rec_dir.mkdir()
-    tp = write_transcript(rec_dir)
-
-    captured = {}
-
-    def fake_run(prompt, *, add_dirs, extra_args, timeout, **kwargs):
-        captured["prompt"] = prompt
-        captured["add_dirs"] = add_dirs
-        captured["extra_args"] = extra_args
-        captured["timeout"] = timeout
-        captured["idle_timeout"] = kwargs.get("idle_timeout")
-        # Simulate agy writing the summary file.
-        (rec_dir / "meeting.md").write_text("# Summary\n\nDecisions: none\n", encoding="utf-8")
-        return "agy chatter on stdout (ignored)"
-
-    monkeypatch.setattr(agent, "run", fake_run)
-
-    out = run_agent(cfg, tp, rec_dir, slides_markdown=None)
-    assert out == rec_dir / "meeting.md"
-    assert out.read_text(encoding="utf-8").strip()
-
-    # Bridge invoked with the required knobs.
-    # Workspace is the recording dir's PARENT (the trusted host root), not the
-    # untrusted recordings subdir — avoids agy's "trust this folder?" hang.
-    assert captured["add_dirs"] == [str(rec_dir.resolve().parent)]
-    assert captured["extra_args"] == ["--dangerously-skip-permissions"]
-    assert captured["timeout"] == 42
-    # idle_timeout tied to the hard ceiling so long agy runs aren't killed early.
-    assert captured["idle_timeout"] == 42
-
-
-def test_run_agent_embeds_slide_markdown_in_prompt(tmp_path: Path, monkeypatch) -> None:
-    """run_agent threads slides_markdown into the prompt (no image paths)."""
-    cfg = make_config()
-    rec_dir = tmp_path / "rec"
-    rec_dir.mkdir()
-    tp = write_transcript(rec_dir)
-
-    captured = {}
-
-    def fake_run(prompt, *, add_dirs, extra_args, timeout, **kwargs):
-        captured["prompt"] = prompt
-        (rec_dir / "meeting.md").write_text("# Summary\n", encoding="utf-8")
-        return ""
-
-    monkeypatch.setattr(agent, "run", fake_run)
-    run_agent(cfg, tp, rec_dir, slides_markdown=SLIDES_MD)
-
-    prompt = captured["prompt"]
-    assert SLIDES_MD in prompt
-    assert "Slide Descriptions" in prompt
-    assert ".png" not in prompt
-    assert ".jpg" not in prompt
-
-
-def test_run_agent_appends_slide_descriptions_to_file(tmp_path: Path, monkeypatch) -> None:
-    """Split model: the summary file stays summary-only; the engine writes the
-    cleaned slide descriptions to a separate <name>.slides-clean.md (markers
-    stripped). agy itself writes only the summary."""
-    cfg = make_config()
-    rec_dir = tmp_path / "rec"
-    rec_dir.mkdir()
-    tp = write_transcript(rec_dir)
-
-    def fake_run(prompt, *, add_dirs, extra_args, timeout, **kwargs):
-        # Model writes ONLY the transcript summary (no slide block, per prompt).
-        (rec_dir / "meeting.md").write_text(
-            "# Summary\n\n## Overview\nStuff happened.\n", encoding="utf-8"
-        )
-        return ""
-
-    monkeypatch.setattr(agent, "run", fake_run)
-    out = run_agent(cfg, tp, rec_dir, slides_markdown=SLIDES_MD)
-
-    # Summary file holds ONLY the summary — no slides appended.
-    summary_text = out.read_text(encoding="utf-8")
-    assert "Stuff happened." in summary_text
-    assert "## Slide Descriptions" not in summary_text
-    assert "Slide 1" not in summary_text
-
-    # Cleaned slides live in the separate durable file.
-    clean_path = out.with_suffix(".slides-clean.md")
-    assert clean_path.exists()
-    clean_text = clean_path.read_text(encoding="utf-8")
-    assert SLIDES_MD.strip() in clean_text
-
-
-def test_run_agent_strips_markers_in_clean_slides_file(tmp_path: Path, monkeypatch) -> None:
-    """The <name>.slides-clean.md drops [[SLIDE_EMPTY]] markers, keeps real slides."""
-    cfg = make_config()
-    rec_dir = tmp_path / "rec"
-    rec_dir.mkdir()
-    tp = write_transcript(rec_dir)
-    slides_md = (
-        "[[SLIDE_EMPTY 00:00 - 00:05]]\n\n"
-        "### Real\n**Timestamp:** 00:05 - 00:10\n\n- content"
-    )
-
-    def fake_run(prompt, *, add_dirs, extra_args, timeout, **kwargs):
-        (rec_dir / "meeting.md").write_text("# Summary\n\nBody.\n", encoding="utf-8")
-        return ""
-
-    monkeypatch.setattr(agent, "run", fake_run)
-    out = run_agent(cfg, tp, rec_dir, slides_markdown=slides_md)
-    clean_text = out.with_suffix(".slides-clean.md").read_text(encoding="utf-8")
-    assert "### Real" in clean_text
-    assert "SLIDE_EMPTY" not in clean_text
-
-
-def test_run_agent_no_slide_section_when_slides_absent(tmp_path: Path, monkeypatch) -> None:
-    cfg = make_config()
-    rec_dir = tmp_path / "rec"
-    rec_dir.mkdir()
-    tp = write_transcript(rec_dir)
-
-    def fake_run(prompt, *, add_dirs, extra_args, timeout, **kwargs):
-        (rec_dir / "meeting.md").write_text("# Summary\n\nBody.\n", encoding="utf-8")
-        return ""
-
-    monkeypatch.setattr(agent, "run", fake_run)
-    out = run_agent(cfg, tp, rec_dir, slides_markdown=None)
-    assert "## Slide Descriptions" not in out.read_text(encoding="utf-8")
-    # No cleaned-slides file when there are no slides.
-    assert not out.with_suffix(".slides-clean.md").exists()
-
-
-def test_run_agent_references_transcript_by_file_not_inline(tmp_path: Path, monkeypatch) -> None:
-    """run_agent must NOT inline the transcript into the prompt (command line);
-    it must instruct agy to read the transcript file by name. This avoids the
-    Windows command-line length limit on large transcripts."""
-    cfg = make_config()
-    rec_dir = tmp_path / "rec"
-    rec_dir.mkdir()
-    big_transcript = "\n".join(f"[00:{i:02d}] " + "word " * 200 for i in range(60))
-    tp = rec_dir / "meeting.txt"
-    tp.write_text(big_transcript, encoding="utf-8")
-
-    captured = {}
-
-    def fake_run(prompt, *, add_dirs, extra_args, timeout, **kwargs):
-        captured["prompt"] = prompt
-        (rec_dir / "meeting.md").write_text("# Summary\n", encoding="utf-8")
-        return ""
-
-    monkeypatch.setattr(agent, "run", fake_run)
-    run_agent(cfg, tp, rec_dir, slides_markdown=None)
-
-    prompt = captured["prompt"]
-    # Names the transcript file so agy reads it.
-    assert "meeting.txt" in prompt
-    # Does not embed the (large) transcript body.
-    assert "word word word" not in prompt
-    # Prompt stays well under the Windows command-line limit (~32K).
-    assert len(prompt) < 8000
-
-
-def test_run_agent_raises_when_file_missing(tmp_path: Path, monkeypatch) -> None:
-    cfg = make_config()
-    rec_dir = tmp_path / "rec"
-    rec_dir.mkdir()
-    tp = write_transcript(rec_dir)
-
-    monkeypatch.setattr(agent, "run", lambda *a, **k: "no file written")
-
-    with pytest.raises(RuntimeError, match="did not write"):
-        run_agent(cfg, tp, rec_dir, slides_markdown=None)
-
-
-def test_run_agent_raises_when_file_empty(tmp_path: Path, monkeypatch) -> None:
-    cfg = make_config()
-    rec_dir = tmp_path / "rec"
-    rec_dir.mkdir()
-    tp = write_transcript(rec_dir)
-
-    def fake_run(*a, **k):
-        (rec_dir / "meeting.md").write_text("   \n", encoding="utf-8")
-        return ""
-
-    monkeypatch.setattr(agent, "run", fake_run)
-
-    with pytest.raises(RuntimeError, match="empty"):
-        run_agent(cfg, tp, rec_dir, slides_markdown=None)
-
-
-def test_run_agent_timeout_with_partial_file_accepted(tmp_path: Path, monkeypatch) -> None:
-    cfg = make_config()
-    rec_dir = tmp_path / "rec"
-    rec_dir.mkdir()
-    tp = write_transcript(rec_dir)
-
-    def fake_run(*a, **k):
-        # agy wrote a partial-but-usable file before timing out.
-        (rec_dir / "meeting.md").write_text("# Partial summary\n", encoding="utf-8")
-        raise AgyTimeoutError("agy idle", partial="partial stdout")
-
-    monkeypatch.setattr(agent, "run", fake_run)
-
-    out = run_agent(cfg, tp, rec_dir, slides_markdown=None)
-    assert out.read_text(encoding="utf-8").strip() == "# Partial summary"
-
-
-def test_run_agent_timeout_without_file_reraises_with_partial(tmp_path: Path, monkeypatch) -> None:
-    cfg = make_config()
-    rec_dir = tmp_path / "rec"
-    rec_dir.mkdir()
-    tp = write_transcript(rec_dir)
-
-    def fake_run(*a, **k):
-        raise AgyTimeoutError("agy idle", partial="some partial work")
-
-    monkeypatch.setattr(agent, "run", fake_run)
-
-    with pytest.raises(AgyTimeoutError) as excinfo:
-        run_agent(cfg, tp, rec_dir, slides_markdown=None)
-    assert excinfo.value.partial == "some partial work"
 

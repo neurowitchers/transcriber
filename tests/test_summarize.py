@@ -1,15 +1,14 @@
-"""Tests for the summarize backends (Task 4).
+"""Tests for the summarize backend selection + the ``agno`` backend.
 
-* ``AgySummarizeBackend`` wraps ``transcriber.agent.run_agent`` (agy mocked).
-* ``AgnoSummarizeBackend`` drives an Agno agent + Notion MCP, all mocked. ``agno``
-  is an optional extra and is not installed here, so fake ``agno.agent`` /
-  ``agno.models.openrouter`` / ``agno.tools.mcp`` modules are injected into
+* ``AgnoSummarizeBackend`` drives an Agno agent + engine-side Notion REST
+  publish, all mocked. ``agno`` is an optional extra and is not installed here,
+  so fake ``agno.agent`` / ``agno.models.openrouter`` modules are injected into
   ``sys.modules`` before the lazy imports run. No MCP subprocess or network.
 
-Verifies: model built with ``summary_model`` + resolved key/base_url; Notion MCP
-attached with the token resolved by env-var name; shared prompt run; non-empty
-``<name>.md`` post-condition; ``MCPTools`` closed on the exception/timeout path;
-log-hygiene (key/token/image bytes absent from logs).
+Verifies: model built with ``summary_model`` + resolved key/base_url; the
+engine publishes via the Notion REST API with the token resolved by env-var
+name; non-empty ``<name>.md`` post-condition; log-hygiene (key/token/image bytes
+absent from logs).
 """
 
 from __future__ import annotations
@@ -23,10 +22,7 @@ import pytest
 
 from transcriber.backends.errors import SummarizeError
 from transcriber.backends.interfaces import SummaryResult
-from transcriber.backends.summarize import (
-    AgySummarizeBackend,
-    get_summarize_backend,
-)
+from transcriber.backends.summarize import get_summarize_backend
 from transcriber.config import (
     Agent,
     Config,
@@ -62,7 +58,7 @@ def make_config(
             sections=["Decisions", "Action Items"],
             backend=backend,
         ),
-        agent=Agent(cli="agy", extra_args=[], output_file="{basename}.md"),
+        agent=Agent(output_file="{basename}.md"),
         notion=Notion(
             server="notion-private",
             parent_page_id="PARENT-PAGE-ID-123",
@@ -72,7 +68,7 @@ def make_config(
         telegram=Telegram(
             bot_token_env="TG", default_chat_id="c", routing={}
         ),
-        timeouts=Timeouts(agy=42, summarize=summarize_timeout),
+        timeouts=Timeouts(summarize=summarize_timeout),
         openrouter=OpenRouter(
             api_key_env=OPENROUTER_KEY_ENV,
             base_url="https://openrouter.ai/api/v1",
@@ -193,12 +189,6 @@ def _patch_publish(monkeypatch) -> "_RecordingPublish":
 # --------------------------------------------------------------------------- #
 # Backend selection (pure function of config; no silent fallback)
 # --------------------------------------------------------------------------- #
-def test_get_summarize_backend_defaults_to_agy():
-    cfg = make_config(backend="agy")
-    backend = get_summarize_backend(cfg)
-    assert isinstance(backend, AgySummarizeBackend)
-
-
 def test_get_summarize_backend_agno(monkeypatch):
     _install_fake_agno(monkeypatch)
     cfg = make_config(backend="agno")
@@ -208,55 +198,10 @@ def test_get_summarize_backend_agno(monkeypatch):
 
 
 def test_get_summarize_backend_unknown_raises():
-    cfg = make_config(backend="agy")
+    cfg = make_config(backend="agno")
     cfg.summary.backend = "bogus"
     with pytest.raises(ValueError, match="unknown summary.backend"):
         get_summarize_backend(cfg)
-
-
-# --------------------------------------------------------------------------- #
-# AgySummarizeBackend — wraps run_agent (agy behavior unchanged)
-# --------------------------------------------------------------------------- #
-def test_agy_summarize_writes_and_returns_paths(tmp_path, monkeypatch):
-    import transcriber.agent as agent
-
-    cfg = make_config(backend="agy")
-    rec_dir = tmp_path / "rec"
-    rec_dir.mkdir()
-    tp = write_transcript(rec_dir)
-
-    def fake_run(prompt, *, add_dirs, extra_args, timeout, **kwargs):
-        (rec_dir / "meeting.md").write_text("# Summary\n", encoding="utf-8")
-        return ""
-
-    monkeypatch.setattr(agent, "run", fake_run)
-
-    result = AgySummarizeBackend().summarize(tp, None, rec_dir, cfg)
-    assert isinstance(result, SummaryResult)
-    assert result.summary_path == (rec_dir / "meeting.md").resolve()
-    assert result.telegram_path.name == "meeting.telegram.md"
-    assert result.summary_path.read_text(encoding="utf-8").strip()
-
-
-def test_agy_summarize_threads_slides_markdown(tmp_path, monkeypatch):
-    import transcriber.agent as agent
-
-    cfg = make_config(backend="agy")
-    rec_dir = tmp_path / "rec"
-    rec_dir.mkdir()
-    tp = write_transcript(rec_dir)
-    slides_md = "### Slide 1\n**Timestamp:** 00:00 - 00:10\n\nIntro slide.\n"
-
-    captured = {}
-
-    def fake_run(prompt, *, add_dirs, extra_args, timeout, **kwargs):
-        captured["prompt"] = prompt
-        (rec_dir / "meeting.md").write_text("# Summary\n", encoding="utf-8")
-        return ""
-
-    monkeypatch.setattr(agent, "run", fake_run)
-    AgySummarizeBackend().summarize(tp, slides_md, rec_dir, cfg)
-    assert slides_md in captured["prompt"]
 
 
 # --------------------------------------------------------------------------- #
@@ -560,12 +505,13 @@ def test_agno_uses_summarize_timeout_when_set(monkeypatch):
     assert _summarize_timeout(cfg) == 123.0
 
 
-def test_agno_falls_back_to_agy_timeout(monkeypatch):
+def test_agno_falls_back_to_default_timeout(monkeypatch):
     from transcriber.backends.summarize_agno import _summarize_timeout
+    from transcriber.config import DEFAULT_TIMEOUT_SECONDS
 
     cfg = make_config(backend="agno", summarize_timeout=None)
-    # timeouts.agy is 42 in make_config.
-    assert _summarize_timeout(cfg) == 42.0
+    # Unset summarize timeout falls back to the default (900s).
+    assert _summarize_timeout(cfg) == float(DEFAULT_TIMEOUT_SECONDS)
 
 
 def test_agno_missing_extra_raises_actionable_error(tmp_path, monkeypatch):
