@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:4f13cc19e608f0f072d206196b8f462a3bbe8d5803e616a6a266d0639dd9c593",
+  "claims": [
+    {
+      "id": "claim_5cd183d599594f91b52939ed8ab339f3",
+      "statement": "The orchestrator prefers the concise digest written by agy for chat (a .telegram.md sidecar derived from the summary path) and sends the full summary only when that digest is missing or empty.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_telegram.py",
+          "version": "repo-file-v1:sha256:115533ff6ba4c8f96d13b82c0c2c9f1dd5612bd51c4544e412569b2a70adde1e"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L378-L397",
+          "version": "repo-lines-v1:sha256:098ebc67a8ed728b123b750239c3bd075bb0820aa7ed42117fecd0fd49c12538:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0NTZlZGIyZTBkY2RiNzc4NmIyZDk1MDQ5MzViMjQzYTNmYTJkMGVkMDFlZWFjZjRjOWZhZWFmZTExZTY4NTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0Y2Y3NjUyYTIxZjVmZjlmYmM3MDc2ZTk2MWQwNTFjNDZmNGQ1NTU5MDRlMDc3MWRhNDIwNzJkZjI1ZjJjOWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA3OTU0N2QzN2IzNWY3NmM0MWVhNGZjOWRjMTE2NzZiYjI1NDAwMmM1NmU3MGM0ZDZhZmIyMzJkMjAxNTBjZGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA5NWY3YzU4NDgxYzhkMGI1NDUzYzdlYWVmOGFkN2RhNjIwMzJjYjdjNWNiYTI2NGU5YjFlYWYwM2E5NjFkZDcifQ"
+        },
+        {
+          "resource": "repo://transcriber/agent.py#L87-L94",
+          "version": "repo-lines-v1:sha256:72c4d72e682780b4ab955a5449412a06c874c94aad483bf8cc7d69fe95aac6c0:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjE0ZTE3MTRkNzEwNWM1MzEyMTM3NzkzNGNkY2JiMDk5NWFiMWFlN2FkYTA0ZTFkMTQwMzE4YzdkNjQ3ZDI0MiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTZkYjI4YWQxZGY5NTEwOGQwOGU0MWU4MWRmNmI4ZTJkODFmMmZhMjk0NjE4Y2IxMWIzY2Y4YWFhYWVlOGFhYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMWRkMWM1ZTUxNDI1YWJiMGIxNGE1NTM4NzUxNWNlM2JiYWEzOWQwYTRlZTNjNWZjMzQ2ZTJjNzQwZThkMjQ4NyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTUwMDk1NDY0M2M5NGVlM2M2Y2JiZmFhOWI5ODA0N2JhNzNhMTEwMDdkZTc1MzRmMDRjOWY1ZGQxOGViN2UwMCJ9"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize.py#L30-L59",
+          "version": "repo-lines-v1:sha256:f22fe10d53b6a642c6c884535153878305a545ca4c1e205dfa4468fc90c0747a:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ2YTQ0NDMyOGU3MzRiODA2ZWM4NDBlOWU3YmVkMmY2MGU1OGUxMmZhOGFjMTY3NDQyMjllMzg2Njk2MzE3NGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEzMDJkNzUwNmQ1NTZlYjQ3ZTk1OWFjZTIxMjcwODM2YzI0Y2MzNWM3YmRkM2FhN2UxOGRmZmZiOGU3NjE5NTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNiYjJlM2MyNjBmOGM4MmZjNjQ0Yjg1NGRjM2E1YTM4MDg1YjEzMTRmNjZhODhiNjljOGYzMDg3MWQzNDI4OGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY3YTEzYTU2ZDg3NDU5MzE4NWVjMjQ5MDg2OTE5NDVlZWU3MzdiNjI0ZTA0YWI1Yjg2YTY4MWZjMDE5MDgyNWEifQ"
+        },
+        {
+          "resource": "repo://transcriber/publish/telegram.py",
+          "version": "repo-file-v1:sha256:48af5aa75b2e22e2d0179c3102b799f3f3540799e3a9cc5213382edcaa58a9f3"
+        }
+      ]
+    },
+    {
+      "id": "claim_5c2e7c90003f418ba5f712f00709e19c",
+      "statement": "The Telegram publisher resolves the bot token from the environment variable named in config.telegram.bot_token_env at send time and raises TelegramError with an actionable message when that variable is not set; the secret value is never stored in the config model.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_telegram.py#L224-L236",
+          "version": "repo-lines-v1:sha256:06ec21bd9aa938a8456b638862adb80d12b98cf52bc2a9af267ca1362f800fd0:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRiMTJlZWEwZjQzYmVmM2RkM2VmMTc1NGRjYjJhZjRjN2NlYWYwMjdjYWNjNTE0OTBlOWFkNjYwYjE1ODAwZTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjViMTZlNWZiNzlmYjg0ZTI1OWQ5NGMxYmFkMjk0NTJkMmRjMzZjNDFhNzk2MWFkOTY0ODhhOTZlOTIyOTAwZWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg3ZDVhMGM5OWI3YTgzNTc3ZjE4ZTIxN2I5YWFlN2ZjOWI0ZTc5NTAxNjE1Y2UzMzRhNjIzZjAyNmQ1MmJkZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRhOWJiNGIyM2UxY2ZlN2MyZWYwZjAyZjE1NWM4NzI2ODY0ZDNlMDUxNTQyZmQzNTdjNzhkZjZhMTBhNGMzYWYifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L108-L126",
+          "version": "repo-lines-v1:sha256:71670c2c8c85a8e2fa0b8dc279bc64c942d49e5043b9b051a8a1d5a0839dd546:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcxYTNkMTkxZmMzMWQ2MjI3OTZjYTE5NDQwNGIwNjQ3N2NjNzMxZDBlYjdkZGUxNzZhNjFmOTk4ZDIxYzliNDMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxZmQ0MWY1MTE4MGMyMzlhM2RlNDkxNWE5NDljMDdmNjYzZDA4Y2NlODQ3NzQ1ZGQwNWUxM2Q5ZjViMjFmMmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1YzNjNjFlMjk2Y2IwMTZjZjYxZmI2M2I3ZWQ3ZmE3NjllOWVjMDFiMjM5NTNmMDZlMmJiNjcyZjBjYTFjZTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJhNDY2NjA3ZjI4ZjdmYzFiNGY3MDJjZjU0Y2E1ZTYzNjgwODk4NTZkOTZkNmU2MGMxNzBhZTgwNzIxODRhMzYifQ"
+        },
+        {
+          "resource": "repo://transcriber/config.py#L101-L104",
+          "version": "repo-lines-v1:sha256:abccbb650d34edd5dc2cef2691be28fb69d0967daace1170717624671a117986:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2RlNTBiZGFlNjI1MmMyOTBmODM4M2YzZGU0YWFmYTg2NzY1ZmQyZDdiZjE5MTExY2Q5MGI1NzYwZjA4YjNiNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDI2MmI0MzVlOTlmZDlkY2FlYmIzNjVkZDA4NzNhZWIxYTAzMjIwZDg5ZDkyZjc4MDAzYjZhYzdmMGUxNzhlMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNmMxZjAyZmQ3ZWMxZDQ2MmMwY2I4MThiOTQ4ZmZlNGY3MTViMmMyYzQzMjYzMGMyMzJkZmUzNGQ0Mjc0M2ZhOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNmMxZjAyZmQ3ZWMxZDQ2MmMwY2I4MThiOTQ4ZmZlNGY3MTViMmMyYzQzMjYzMGMyMzJkZmUzNGQ0Mjc0M2ZhOSJ9"
+        },
+        {
+          "resource": "repo://transcriber/config.py#L333-L352",
+          "version": "repo-lines-v1:sha256:f0c539307a14170dddbc44fef57b423dd1f168d7c090523a4366281f7e1c8441:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkwNzY4MjExZTRkZjVkNjE3MDQ4YjgzMDIwODQwZGQ4YjVjMzdiNWJmY2RlMTZkNDYyYWI4YTk0YzhhZDc5MmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5M2ExMzA2MmYxMGVlNGYxMjE4ZDkzZTM3YTZmODFkMzQ2ZmYxMWVjN2U1NWRkNTQyZTJkMmQyZWYwNzExZjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZhZjQxZTQyNzVjMzRlNDgzOTViYmUzZjg2YWRhNmZkYmQyNTcxN2NjZmE5Y2M3ZGRiNDM1ODFjMjNlM2Q4ODQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://transcriber/publish/telegram.py",
+          "version": "repo-file-v1:sha256:48af5aa75b2e22e2d0179c3102b799f3f3540799e3a9cc5213382edcaa58a9f3"
+        }
+      ]
+    },
+    {
+      "id": "claim_901d41c0437a48b3add09a141aec46aa",
+      "statement": "Topic routing resolves matched topics via config.telegram.routing and falls back to config.telegram.default_chat_id for unmatched, None, or empty topics.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_telegram.py#L93-L135",
+          "version": "repo-lines-v1:sha256:10e082b664075d84c8c12f2c07efcba4a131978d8dc1f6152aac36e8f3666180:eyJzZWxlY3RlZExpbmVDb3VudCI6NDMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRiYTI1MDNhMDljYzVmZGE4NDI2M2RiMTRkNDBkNTJlYTJjMzJlYjJlMGE3ZGY4N2Q0ZDBiNzc2Yjc2ODc5MjAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE3NDZmNGZkY2Y5ZWFhMmZiMTBkYTZiMWE5NTk3MDRkMjBkZDQ0OWI1OGUwYTVkMGMyZmU5MzE2YzlhM2NiN2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg4NDVhZDlkZjk2ODg1NjVjYjQ2M2MwMzM3YzM2MGUyMTdjZjMxNTljN2FjYWEwZGNhNDRjMDY2MzAxZWUwZTYifQ"
+        },
+        {
+          "resource": "repo://transcriber/publish/telegram.py#L117-L128",
+          "version": "repo-lines-v1:sha256:69c9ac4d82c4e6f6c76b12adad4ea693f645e354c34f9d09e223ef3173d4f4d8:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIyOGVmNWE2N2FlNDk3OTRjNzYwZGQyYTE1NWU1MzIwNDFmNjMwYWU1YTU2YmQzY2MwMDI2ZTI1ZDRmMGIxOTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjljMzlhYzE2YWJlY2ZlNmVlYzU2NmE3ZDRmMDQ4MjY2ZDQ5ZDJhNWJjODQ3NmU0ODAwM2E1YTBjMTE2ODQ4MWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQzZDMxN2E5OTQyMmJhMWE4ZDhiOTA0Zjg5Mzc5NzZiY2JkZGY1YjM0N2VjZjkxYzhlYWNlMzVkZjE1OWJlYjEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMzZmU3ZWQyNjE4MDUzYjM0Y2UwMmM0MGRiODA3ZjdjNzFlMDM1YTFkMDRkODQ5ZTljYWY3MzAyYjY2M2E4YzAifQ"
+        },
+        {
+          "resource": "repo://transcriber/publish/telegram.py#L184-L212",
+          "version": "repo-lines-v1:sha256:3bb60ea2dbe700fb0997ad0a695f263b4693eb18a90c443a85bf03d5bd95ee7d:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM5MTUzM2E3NjVjYWJhZjU5YjRiZjU0YjhiMTZlZDUwYmE2NjM3ZWM5NzU3NmIyMzBiMThjYWE3MDZhODEyYTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRhMTc2NjdlNmVlNzI5NjhhMDVkMmJmODUwOTM2MTFhZWJjODZhNTNmMTNkZGY3MjQ3ZDhkNDMzZWY4YzU0MjIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNiOGU3ZTczNWJkZDA1MDMwM2NjNjY3NWExODRjZGYzNTBkMGVjM2U1ZGIzNzc4OTdiMzMzZjU3MjQ3NTAzYmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYyODZlODQ0MDllZjA1YjE3OTUxYTNiZmJiZjZkMTBkMjFmOTAxNzFjOWNjZThjNTUwYzdlMWFkOTYxYjk4MDgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_584101c5fe104139b67668e747ed79b1",
+      "statement": "The publisher strips Markdown to clean plain text before sending because sendMessage is called without a parse_mode; the strip covers the Markdown the digest uses (emphasis, code, headings, bullets, links, images, blockquotes, code fences).",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_telegram.py#L137-L205",
+          "version": "repo-lines-v1:sha256:f81e8c1df3f9f815b577e8f0f7481a1a3c3dc44bca6656240917d844ed9f560d:eyJzZWxlY3RlZExpbmVDb3VudCI6NjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3ZjhkZWZiNzQxZjFkYWYyMzY0MDY0MWQzZDdjMWRiY2JiOWQ0Mjk2ZGE0YmVmYTJjOTZkZWFmZWEwZTEwMGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFhMjAyNTQ3ZWM1ZjcyNmZiYmQxZDNlODIxMDE0NzViZjRhN2UxYTMzMWZjNzc5YWJhYTQ5OTY0ZDBkMjMxNTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQwYzA5ZGM4OTZlNGM1NTI4NGI1YWJkNDI3NWJiZWQ1MjRlOTEzNDE3YTFhNmE0MWE5ODI4MzQ0MTUxZTQ1NDMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRhOWJiNGIyM2UxY2ZlN2MyZWYwZjAyZjE1NWM4NzI2ODY0ZDNlMDUxNTQyZmQzNTdjNzhkZjZhMTBhNGMzYWYifQ"
+        },
+        {
+          "resource": "repo://transcriber/publish/telegram.py#L44-L110",
+          "version": "repo-lines-v1:sha256:c7e63a4a95f990a805fac6d788780eadf7eaf3a9f1d324941a3e2fa5c1b7ff50:eyJzZWxlY3RlZExpbmVDb3VudCI6NjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3ZjhkZWZiNzQxZjFkYWYyMzY0MDY0MWQzZDdjMWRiY2JiOWQ0Mjk2ZGE0YmVmYTJjOTZkZWFmZWEwZTEwMGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU1MDRlM2YxYjdhMzkwNjM0ZDcwMDMwZDZkNzQxZmFhZDUyODg1MmZjYmY1MDFkYmY0ZDk3M2Q0NGY1YWJjMzAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk2YWQyNWY5ZDIzZWEyYTEzMTdiNGFhMDdjYjYxMjk5NGIwODNhYmM1N2M0YmNmYWQyNWI4MTY5Y2ExODdlMjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJhMTFmMjJiNDk5MzQzZGRhZTMyMzY5Yzg3MjZjZTgwNDFmOWQ3YzU4ZDAyYWQ2OTk2NDcxZjM2NDU4ZDk3MGEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_481730c55c384864a0f59ed3e41a929f",
+      "statement": "Messages exceeding Telegram's 4096-character limit are split by character count into chunks, each sent as a separate sendMessage POST to the same chat; an empty string still yields one chunk.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_telegram.py#L240-L290",
+          "version": "repo-lines-v1:sha256:499045d4839ca8e513021e0caa2698a47c2c4df2b40d3ebd6b26135f7dafdd90:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0Y2Q5NDJlMjgwYTE3NDg5OWVlOTk1MmY2MTJjMjFjYjYyN2Y5NmJmMThkZTQ4NTExNTE2MTYxNmM5ZTZmMzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdmYjBhN2Y1OWRhMThkY2VkZWExNmUyNDg2YTA4MGNhODZkYmFiY2E0OTliZWUyZGUyNzkzZWFhMmVmYjRkOGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRhOWJiNGIyM2UxY2ZlN2MyZWYwZjAyZjE1NWM4NzI2ODY0ZDNlMDUxNTQyZmQzNTdjNzhkZjZhMTBhNGMzYWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRhOWJiNGIyM2UxY2ZlN2MyZWYwZjAyZjE1NWM4NzI2ODY0ZDNlMDUxNTQyZmQzNTdjNzhkZjZhMTBhNGMzYWYifQ"
+        },
+        {
+          "resource": "repo://transcriber/publish/telegram.py#L131-L142",
+          "version": "repo-lines-v1:sha256:48f15187e71d5699e3331fb2adda8cc77d720e239854d2ac30efe736b6e3e07d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ4MTZjZjAwYjE0NTNkN2E1MjcxMzYxNGRiNDZjNWNkYzQ5YTA2MTc5NzEzZTBjY2ExOTFlYzhiYTNhNmFkYmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3ZmYzOTkyYTVhNGYzMjJhNGVjOGZlMTQ3ZTExODU3YTI5YTQyMDY2Y2M1NjA2NjVhNjVkMTkxM2JhODk2YzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFkYzIwYjFmOTY1ZGE4M2JmY2Q2ZjNjYzljMDQ3NjQzNDExMGFiNzI2MjEzMDQyZGY2NjdjOTdjYWYwNjhiOTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE4MzU5YTczODYyYzRmYjI5OGIzNGFjZDNmOThhN2E5NDI5ZDEzMGNmZWY4ODhiMDQ4ZTAxMjhjZjI5YzI0ZWQifQ"
+        },
+        {
+          "resource": "repo://transcriber/publish/telegram.py#L184-L232",
+          "version": "repo-lines-v1:sha256:c66ee26f5bbbbd333f404264fb6536adc3e702c64eedf88fe5e28596db0ad0e9:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM5MTUzM2E3NjVjYWJhZjU5YjRiZjU0YjhiMTZlZDUwYmE2NjM3ZWM5NzU3NmIyMzBiMThjYWE3MDZhODEyYTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFhNzUwYmYyYzljNDNmNTJlMTU0YmIyOWU5NDFiNTdhOGQ3ODk2NDYzMGMwNjk2NTA0MDQ5NmMzZTAxZTIwNTQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNiOGU3ZTczNWJkZDA1MDMwM2NjNjY3NWExODRjZGYzNTBkMGVjM2U1ZGIzNzc4OTdiMzMzZjU3MjQ3NTAzYmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://transcriber/publish/telegram.py#L38-L42",
+          "version": "repo-lines-v1:sha256:02eae6073a0621fd4947671c27e7c0e35b3ebfb52ed2570984b765956540311a:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODM0MDU1YjlmZDhlMWVjZjFjYmY5NDYwMDE5YTA3NGE5NmE4NjhmNDI1OWYwZmIwNjg5NDk1YjhhNTEwNjkzZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiY2Y0MjIwODlmNWQwYzQ0ODFkZjNlN2FmZTAzNTE4NDQ2OTJkYzJhOTM2N2Q3ZTFmMTBlYzJlZjBiNTU2ZGRmZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTQzYmQ3MWMxODdjZWVmZWQ5NWZkMTVhNDk1ZjliZWJkMGJkYzlmYWQ2NmNmYzg4MzIxY2Y5M2QxMTA2YzBkYSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_257199acb74544638c5f7e6e4579f151",
+      "statement": "Telegram sends use the Bot HTTP API sendMessage endpoint over httpx with payload {chat_id, text} and no parse_mode; HTTP errors are surfaced as TelegramError.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_telegram.py#L293-L302",
+          "version": "repo-lines-v1:sha256:d45c22aa1024b59f9b0aec1c914d70a1ce8669a5a9a19a2a485544d826e9e07f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3ZjhkZWZiNzQxZjFkYWYyMzY0MDY0MWQzZDdjMWRiY2JiOWQ0Mjk2ZGE0YmVmYTJjOTZkZWFmZWEwZTEwMGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFkMTRhYzMwMzA2NzgwNmYwMTYwNDNiNTg5NDMzMjBlODAxMGU0YTJiZWI0YzBmZjZiZDEzYzMxMDRkMjhjZGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdlZTAwODI4MGE3N2NjOWI3OTI4YWRiNmZjOTU3MGMxMDMzZmEyMjc5ZDU1YjUxNzUzNWQ1Yzg0ZGY5YmMzYzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRhOWJiNGIyM2UxY2ZlN2MyZWYwZjAyZjE1NWM4NzI2ODY0ZDNlMDUxNTQyZmQzNTdjNzhkZjZhMTBhNGMzYWYifQ"
+        },
+        {
+          "resource": "repo://transcriber/publish/telegram.py#L145-L232",
+          "version": "repo-lines-v1:sha256:f8902b522da653140f775a2a8145beec62d8bce7a07e763d455853e566187f17:eyJzZWxlY3RlZExpbmVDb3VudCI6ODgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwYzc0YjU0MjcwMDMxNjVkZThlYzdhZGVhOWJiYjRiMDQyODVkYmU0YzM3MDM5YzM0ZDEwMWZjYjhlYzlhMGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFhNzUwYmYyYzljNDNmNTJlMTU0YmIyOWU5NDFiNTdhOGQ3ODk2NDYzMGMwNjk2NTA0MDQ5NmMzZTAxZTIwNTQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhlY2EyYTIxYWJjNWJlNzkxNjQwOWQ2ODU5YWMzOTc3MGRmMDY2NjYwYjA3MDAwODgxMWQwNjk4OThlMzM2MTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_fa088751b6a449958f21238fab36437a",
+      "statement": "Telegram sends are manifest-gated: the orchestrator skips the stage when state.is_complete('telegram') is true and marks it complete only after a successful send, preventing duplicate sends on retry.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py#L267-L285",
+          "version": "repo-lines-v1:sha256:88af448ac330e047470aa9b148f5ee79da06dd9084cd249f0b26dba76b117615:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI2ZmJhZTBiOTFkNDRmYzBkNDlmNWRlNjkxZGE2ZmM0MzFmMjYwMTM0YmY3MzFlMGUyMWY3NjQ4MDk0MzM0Y2IiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE2YTcxNTI1NzJlZTg0ZjEwOTA2Yzc0YjlmMmE5MjQzNGRkYWIwZTNjNDI4MTNiMDRlNTk3ZWZjZWM5NTFiMjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQyNjdiM2MwZjEwM2I5MTMxNWE3YjZjOWQzYzE1OTkxNTBmZWNmNWI4MDg0YzJlNDI5MmMwMTliNjc0OGNhZjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIyNWIxMzU1MGI2ODJjMWI2NDIxNzJiMjg3ZTNmNTQ1NTdiM2U4N2JkYTdmNzhlM2FmYmE1ZjRmYTgwOTE0MWYifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L378-L397",
+          "version": "repo-lines-v1:sha256:098ebc67a8ed728b123b750239c3bd075bb0820aa7ed42117fecd0fd49c12538:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0NTZlZGIyZTBkY2RiNzc4NmIyZDk1MDQ5MzViMjQzYTNmYTJkMGVkMDFlZWFjZjRjOWZhZWFmZTExZTY4NTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0Y2Y3NjUyYTIxZjVmZjlmYmM3MDc2ZTk2MWQwNTFjNDZmNGQ1NTU5MDRlMDc3MWRhNDIwNzJkZjI1ZjJjOWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA3OTU0N2QzN2IzNWY3NmM0MWVhNGZjOWRjMTE2NzZiYjI1NDAwMmM1NmU3MGM0ZDZhZmIyMzJkMjAxNTBjZGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA5NWY3YzU4NDgxYzhkMGI1NDUzYzdlYWVmOGFkN2RhNjIwMzJjYjdjNWNiYTI2NGU5YjFlYWYwM2E5NjFkZDcifQ"
+        },
+        {
+          "resource": "repo://transcriber/state.py",
+          "version": "repo-file-v1:sha256:3db797f99630bcb5810f74c81383fa4f7abfc2d761e91e72fddd895a5510f17b"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.1",
+    "at": "2026-10-02T19:10:14.922Z"
+  }
+}

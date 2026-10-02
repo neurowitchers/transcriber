@@ -1,0 +1,248 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:9effdd23a42baf38fd7336d95908e9c8130efccbdc7549711589ea5ae3e830c2",
+  "claims": [
+    {
+      "id": "claim_78aa290ef85e440fa855d5b91dc77a24",
+      "statement": "preflight_check(config) returns a list of human-readable problem strings (empty when all is well) and is called both by the transcriber check subcommand and at the start of a normal run, where a non-empty result short-circuits to exit code 1 before any stage runs.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py#L187-L244",
+          "version": "repo-lines-v1:sha256:e76d1a674dcb36c36b3bb2f8e600d238e59b7e546cc71e38d4bf2529e397e4ea:eyJzZWxlY3RlZExpbmVDb3VudCI6NTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1OGNjMDMwMjg1MzY2Y2JlMDZhYzU4ZmIxN2JlNjRlZDNkNTcwMWFjN2IyZmRiODQzNTAwY2E1ZDExMzVmYzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU5MzdmYjA3OGMyODFhN2I5NDNhZTNhNzE2YmNjNjNjYjRlZWQ2ZGNiY2E3NTZkNTc2ODNiMWNlMjA4ODUzNjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ2NzZlMjQ4MWY5MzhiOGIyMTkwMmI3YTMyZmY0OTk4YzAzZGJmMmI0NWM4YTY1YThhZjZhZGI3MjE0NGYzNmMifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L129-L156",
+          "version": "repo-lines-v1:sha256:c132fe3a9793542aeff6817b6d454f42b0523926ac9d35495dd8fbc2f0986cca:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzZDc1YmEyNzcyMDYzN2ZjODllNTgwZmNhMGJlYWU5NWFhMzE2NGEyZTE4ZDJlOTdlOTdlMjcxYWMwYWQ5ZmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyMzRiMTc2NjE2MmIxYzk4YTYyNjkxNWVhODZiZTU4ZWQ5MmRmOWM5NmY1ZDU4OTA5NWQ5NjIwYjc1MTk2NmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1YzNjNjFlMjk2Y2IwMTZjZjYxZmI2M2I3ZWQ3ZmE3NjllOWVjMDFiMjM5NTNmMDZlMmJiNjcyZjBjYTFjZTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRhOWJiNGIyM2UxY2ZlN2MyZWYwZjAyZjE1NWM4NzI2ODY0ZDNlMDUxNTQyZmQzNTdjNzhkZjZhMTBhNGMzYWYifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L547-L553",
+          "version": "repo-lines-v1:sha256:f8bdc7f6193878ac04be4158d2311925b9152e0c748e5f1c8e90d2e13e98f1bb:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZTAyMjQ4ZGYyN2RkMDMxYTI0MzU0ODE2MTM1YzRmZDUyNWM1YzdhZWM4MmY2NzllOWFiMzcxNTM2NDUyMzdjNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjMwODY2ZTFiY2M1YWI3NmUzZWY1OTAxMmQwYWQzOWE2ODdhYmUwMDIzYjQzOGFjYjExMzBhMTg4MjVlODE5MyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNWUyZDIwNTNiYTczOGRjZTU3MDliNDg0OTA0OWYzYjE4MjU1NDIyMzIyMzFiZmYzMWY2ZWIyMjBmNjliZGI4YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNzQxMDMwMGFmMDg4YTM0NTE5ODI1YjJjMWMyYThiMGFmN2I3OWY4N2U4N2U1MGEyZDQyZjdkZjk3MjJiYmViYyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_174d15ca421a4baaae4ec2992aa74fe0",
+      "statement": "ffmpeg is the only always-required binary; _ALWAYS_BINARIES = (\"ffmpeg\",) and elevenlabs is no longer in the always-set because transcription now runs over the OpenRouter HTTP seam rather than a legacy CLI.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py#L935-L938",
+          "version": "repo-lines-v1:sha256:fa6c5f4e034f302dc305526560fe606eb3682d533264c44c62b2c7374aa6474c:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTliYTIzMzdkNjljZjM0MjFiYzJmZjk5M2VhZGY4MzczNTRmMDFkZmYyZDU3ZmQ2YzBmMWM1Y2FmYTI3ZTBlYyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTM1YTIwNTM5ZTM4ZjIxYzFhMWNmYjNhZjZkYTc1NGNjZDg1MzEyZjQwNWY1NjFlY2Q4OTJiYmYzNGIzZjc2NSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMWRjMmYzNDQwODMwNzA0YzA2M2I1NDU2YzNkMDdmNjdmN2QyOGI5ZmU2MzcyODQ3YmQwNGMyMWY4YTIwYWEwYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzNlYzIzNGJiZGRkMDlkNDUyNThmYTQyNDk5OGYxOGMyZjM1NGIwMGU1MTk2OWVmODBmZThiNGNiM2QyOWVhYyJ9"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L92-L92",
+          "version": "repo-lines-v1:sha256:458604dcb722f19108e4030c01f3a5204fd71bf365cd280a54dd08fb904ce801:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDU4NjA0ZGNiNzIyZjE5MTA4ZTQwMzBjMDFmM2E1MjA0ZmQ3MWJmMzY1Y2QyODBhNTRkZDA4ZmI5MDRjZTgwMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDU4NjA0ZGNiNzIyZjE5MTA4ZTQwMzBjMDFmM2E1MjA0ZmQ3MWJmMzY1Y2QyODBhNTRkZDA4ZmI5MDRjZTgwMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzIyZDZjZWFjOTA1ODA0OTEwNDVjMDdkODY0MGM1ZDdjYTM1Mzc4YjNhMjVmZjFhYmQzYzJlNjY2ZDRjYTlkZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNzJkZGRkZGZkMzI5MTBhNTA4ODJkZjVhNGRhNDU2N2RkYmNiYjkxMDFhZTJjYmI2N2EyZDJhMWI4MzAxNmZhYiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_ae7f183661b94ad1a3ed77f0e40e593b",
+      "statement": "Required binaries are config-dependent: scenedetect is added when stages.slides.enabled, agy when summary.backend == \"agy\", and aws when S3 sync is enabled; each is checked with shutil.which.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py#L228-L243",
+          "version": "repo-lines-v1:sha256:0972bceb32f14161abb63995926ffa8f21f313eef22db93be98b2e523ea05319:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVkZGZmMzVjNTU4ZTlmNzY4MTU5N2U3NThkMDc4NjZiOWVlMWJmY2RiMjVjMTA0M2MxODE2M2RhZGJmMDNhZWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhNDA5YmRlMzk0NTVlYjU0NmNlZTRhNzFmOGJjMWU5NDAxZDAzMjcwMjcyNTc3NDA4M2U2NzE1NmIyMDFmZjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY1MzQ2ZWYxOGJlM2QzMTRlNGQxMTUzY2Y5NThjYzY3ZjI5MGE2YzhkYmE3YzE1MzlkYjk4MTVkODczODM2MWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI2ZWExYzJkOTNlZGE3ODgzZjA2MzI0YTg4ZGU0MGYzMWI3OTkyMjc3ZTczNjg3YjU2YWFiMTdhMTk0MTRlNjkifQ"
+        },
+        {
+          "resource": "repo://tests/test_main.py#L852-L879",
+          "version": "repo-lines-v1:sha256:ead2185be896419334ef47a377e8a4caf2807a41b4ec9ab3c5ca6a450d999840:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU1MzE1MmNmOWNmODc1NzI2NTVmMGIxMzE0OWNkODNhYTRhMWE0MzRlM2M3M2E0MTIyOTk1ODMwZjhhZGJiM2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU5MjZhYWZlNjY4ZTIzZWQ4ZWIwMWFkZWUzODUzNDY1MzhlM2NlMWYxZTFmZGQxOTIwMGIwYTE5OTVkYmQ4YmEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE2MDg1OGFkM2RhZDVhZjkxOGM4OWQxYmZmNTE2OTRkZGU4ZjEzNzJhNTQ5Yzg1NTgwZGFkZmEwY2UzY2ZlZWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI2ZWExYzJkOTNlZGE3ODgzZjA2MzI0YTg4ZGU0MGYzMWI3OTkyMjc3ZTczNjg3YjU2YWFiMTdhMTk0MTRlNjkifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L95-L105",
+          "version": "repo-lines-v1:sha256:3d05637af7901c9f3dffa7a6794fd79462de44d8591eafc0dbb866ff54a9a2b9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVlZDA1NDFkZmM4MjRiMWFiOTZlYmFhN2Y2ZTlmMjIzMWM1NWFhMGQxYWQ5ODBjMjE2ODFjZGRjNzJhNzJjOWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxZmQ0MWY1MTE4MGMyMzlhM2RlNDkxNWE5NDljMDdmNjYzZDA4Y2NlODQ3NzQ1ZGQwNWUxM2Q5ZjViMjFmMmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI3OWU2OTVkNmFmYzQyZWVjMmRiOTczYzcwMDdkYmI0YmFjOTM2MzczNWMyMDE2Mjk2YjU5OWFlYmM4YjRhYjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgyZjkyYjYxNTQ5NGZmYzVhZjg4NjRjNjQ0NzdjZjEzYzJjMDlmNjcwYWIyNWYyZTA2NjM5ZDYxYmY4NjE2YTkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7ab1f76ec39b41289f59265cb69c0928",
+      "statement": "The OpenRouter API key env is unconditionally required because transcription itself runs over the OpenRouter HTTP seam, so it is required regardless of slides/summary backend selection.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py#L795-L813",
+          "version": "repo-lines-v1:sha256:1ac08803857cc67e0481f07830cc869ec92a749a5b92e9aa43a8e99eb9c33c51:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE1OGQzMTNlNTg2ZmVjOTY0OTExZDJkN2M2ODgzMWM1MjU4MGNlMjUzNmMwMTY3Y2Y4NWI4MjJlODg4NDA3YzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM5MjIwNGM2NWY1MDJkYzE2NDU0YjYyNDA4NTZhOWFiN2FkZTAwM2E4ZTlmODYzMzNlYzBiN2M5ZTQwOTQ5MWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE3Njg3YzE5NWYyMjhjMjg2NDI5YTRiOWNiODgzMDY5ZTJiNTFlYmZkNmQ2YzExNjgwZmQ3MTJkMjBkYWQ2MjYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBmNGZlM2YyODYyZTBhZDc2ZWE4NjQwMDIyYjYzMjA5M2Y5Y2IwZjI1ODAwYTM4ZjkzOTNmN2FmOTJlMGNiYTIifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L108-L126",
+          "version": "repo-lines-v1:sha256:71670c2c8c85a8e2fa0b8dc279bc64c942d49e5043b9b051a8a1d5a0839dd546:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcxYTNkMTkxZmMzMWQ2MjI3OTZjYTE5NDQwNGIwNjQ3N2NjNzMxZDBlYjdkZGUxNzZhNjFmOTk4ZDIxYzliNDMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxZmQ0MWY1MTE4MGMyMzlhM2RlNDkxNWE5NDljMDdmNjYzZDA4Y2NlODQ3NzQ1ZGQwNWUxM2Q5ZjViMjFmMmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1YzNjNjFlMjk2Y2IwMTZjZjYxZmI2M2I3ZWQ3ZmE3NjllOWVjMDFiMjM5NTNmMDZlMmJiNjcyZjBjYTFjZTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJhNDY2NjA3ZjI4ZjdmYzFiNGY3MDJjZjU0Y2E1ZTYzNjgwODk4NTZkOTZkNmU2MGMxNzBhZTgwNzIxODRhMzYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a36dc38d4d834079bddfe6cd8f2c96e8",
+      "statement": "The Notion token env is required only when summary.backend == \"agno\" and config.notion.token_env is set; the agy backend publishes to Notion via its own MCP, so no engine-side token env is required for that path.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py#L828-L849",
+          "version": "repo-lines-v1:sha256:206883fee9f26957a3a72d9f173c00108adb2824f7dfbad0929883895d5f92a2:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFhZWU1ZWQwZWQ2OGZlMzYxZmJjYjEwMjc2ZGQ2NzY1Yjg3MWNiNzBkMzgzYjJjMGZhYTdmZDU4OTlkMWU5NDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg0NDRjYzA1YmZkMzlkMzBhZjU2MzJlZDUwYTQ0NjlhMDI3MWZhZjJkNGNiZGMxMWYwMjI1NDAwYjdkNDhjZDkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ4YjJlNmIzNTZhNDkzZGYwMzk1NWMzOTIyNjkzZDI0OGJhODkyZTllODkzNjk3Mzg5N2U5NGEyYTg0YTQyZDMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYzZjk2NWQyMTczNGIwODA4Zjg3ZjNkZGYyMTBkYWY4YTVhZDU4MjU5NmNmZTllYTg4MDk4MDFiMDM2YWNjOWMifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L122-L124",
+          "version": "repo-lines-v1:sha256:548500b65c604621dc8d5e66342cde3b5c1f7ca3662181ab59367012de704179:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMjA5OTk0MGVlZmE4ZDlkYmRlNWIyYzE2MDA4YTFhZGIxMTQwMGZmYjE3OTk5NDQ1MmFhNWRmODBiNjIyYzczZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDM0NTM4OTRjYWQ0NzhkNjJjNjRmMDEwMGE2M2M2NzI2MDI2ZGZjOGNmNzYwMGJmM2NjZTgzNzA4OWJlY2QxOSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGZkNTcyMTVlOGUwZTBlNTQ3MTMyODg4MDEwMDBlOWNmNjdiNWU4ZTMzNzA0NDI1YjY3YzdjMmM4YTY3ZDVhYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMWY4ZDZhMzBlOTRiOTgwZjVlNjJhZDgyODZiMjRmM2U3NzA1MGUzMzY5ZGUwODVkOWVmOTU0ZDFkNDBkYzhjMCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_4b1f994d956f48d78bd5a6597f5b0e8f",
+      "statement": "A config lacking the openrouter section fails fast with an actionable message before any binaries or env vars are checked, because the openrouter block is mandatory (transcription runs over its HTTP seam).",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py#L816-L825",
+          "version": "repo-lines-v1:sha256:99ce470dc5da651beb263459ed288323689c7bb92db4f57bc2a29f60126d3337:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJhMzVjOTZhNGRkNDkzMGEyNzZiODg5MTYyM2NmZTlkOTFhOGIzOGFkMzZlYzYzNmJjNTA0YTdlM2JiMDJhZmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRiMmQ4ZmIxNjMzODk2MjAwZmE0MmMzNDQxNjkxOTM0ZmZhNjM0OTJjZDcwMzJkYjBhNmM5OTM0YjUzZjA5MDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhiOTc0ZGE0MDg2MzJhNGFhN2UyYWU4MGI4NjAzOTFhM2RjZDgyMTFjNzllY2FkN2NhOGU5NTEyOGIwMDE4MzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc0ZjI1OWJjMjZhMTc5ZWVjMjg3ZTRjNjYwZTQ5ODIwNzdjMjg0NDQ3ZDZiZTUwNWRmODc4NGZhNmJmZjhmYmMifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L139-L144",
+          "version": "repo-lines-v1:sha256:0a1ffd9467f1988d30d3303f2c500b084aa54ad335a408ee445981e5575a05b2:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmU5ODI0ZjAwNTY4OGI1MGFmNmEzZDM1MjJhZTY5YTI0M2RhOGE5ZDcyYjQyNjc5NmFmZGE1OTcxOGI0MjU3NyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTkwOWE1M2E2MThkMDI4ZTFkMzAwMGMwYTdhYmNlZWNiZTVmYjM3ZjRlNTExZWZlNDY2NDNmYWQ2ZTY2ODcyZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNGY1ODk3MzllZTNhZDIwYmVjOTk4ZTNkZDRiMWMxNWNjNjNjMGRhODNmM2ZjMDM4ZWY1OTYzYWU4MWZmZTRhNSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzAyZTkxOGJkNDA2MGI0Yjk0NTk5NDY1YWRlZjU3MWI3YmQ3YjJkMGRlNjU5MGE3ZTgyNjhlNDZkMmEzYWEyYiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_f0d80a43761a4537b14ead6d4ebe1c72",
+      "statement": "--dry-run prints the execution plan and exits without side effects: no stage functions are invoked, no manifests are written, and the process exits 0 even when there are no new recordings.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py#L290-L323",
+          "version": "repo-lines-v1:sha256:84d9ccd2d1354479e3d7976c84c94dac592d77836a5160b57fb4d71ebedd27bd:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyOGUyNGEzNzUyM2ZlN2M3Zjg0YjlmNTFlMjc0NTM3ZTI3YWQ5YTg0NzU4MTYxMDc4MzhmOTEwYTdiY2RmOGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY0MDg5YWM2Zjk3NGFjZTM0OWVhNTBhNTc0YzJhYzJiYmRjZTU2NDFjYzM3MDkzNTQxNDk5MDQ1YjI3ZTcwNzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI1OGZjNzZmZmQxZDNjZDRjNWE0MzZlYzllYzY2OWIxYjhhYjA5MzA1MzNjMTk2MGU1ZjlmNDJmNGU3N2U3ZjMifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L233-L261",
+          "version": "repo-lines-v1:sha256:d7d00a647a0caedafd9a689feda406c5579640dce8e65f94755a6a1cdfe21f8f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI4NzRkNTA1MGVhM2JlZWFiNTQ4YmQ1YTY2Y2ExNTZlZmEzMGJkMmE4MmU1MDRhNTM1ODUzMTE3MjI1MjdjMTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1MmRiZjJmMTk5NWY5ODYwOTRhMzE1M2FiM2FlYTY3Y2RiNTA3OWEwZDRjMDZiYTcyYjBmZGQ2ZWRiN2I4OWMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYzMGMzMWQ1MDhkZjVmMTM2ZjBiN2RhMDJiYjU3NzJhNmFkNGE3OGJiZGVlNzljMzAxZTVhOGE0MDk5YmNjMzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRhOWJiNGIyM2UxY2ZlN2MyZWYwZjAyZjE1NWM4NzI2ODY0ZDNlMDUxNTQyZmQzNTdjNzhkZjZhMTBhNGMzYWYifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L542-L545",
+          "version": "repo-lines-v1:sha256:d88e5b78ced89e9b2e0de0162a3eb1fc930e7058de9af9cfc48d1fb1200ca39c:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZmFmNTk2OTg3N2M0ZTYzMGMyNWI5NDNkZjhiYWM0MzA2YTI3M2M5YzY3ZjA0MWE1OTdjNjc5MTgxMWI2NzMyZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNWExNjgwOWMwNzVkYjMwOWUwOWJiYzlhYjdlZmVlNjllZmI1ZjQxOWJkNGQ4OTMwZDAzODA2NjAyZGQwMmZkNCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjNkYzRhZTVmNjYwZjYyYzA5MjA1MTdmZThhZTE1OTA5ODk5MTg3YzI3MzYzNTVlZjcxMWY3M2YwOWNlOTkxNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiY2I4NDk0YTA2MjZkMDU1MDUwNTUxNGQzYzQzYTE0NzQxODZhMTU2ZmI2MDVmYmNhOTBjM2E1NWE0MTYwMWJkMyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_df113e8f68c245fab2ce8523a089fcc4",
+      "statement": "Dry-run does not enforce the pre-flight check; it discovers new recordings, builds the plan from _enabled_stage_names(config), prints it via print_plan, and returns 0 without checking binaries or env vars.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py#L541-L545",
+          "version": "repo-lines-v1:sha256:8d55e354fdba64c7acaf3e8b0ef612141644f3f27db9691c42b3a5120a63b554:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiN2ZhZDhiYzRiMDE0NjgxNjIyODQyNjUzNjlkNDdmNWMxZWJiZWQ3ZGVmZmMwYWIzNzdhN2MyNjVlODc5M2YyMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNWExNjgwOWMwNzVkYjMwOWUwOWJiYzlhYjdlZmVlNjllZmI1ZjQxOWJkNGQ4OTMwZDAzODA2NjAyZGQwMmZkNCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTEwYzBkNzI0ZGY1YmZlZjg0ZDRjMzkzYzY0ZGY4MGJjYjk4Y2ZiZDczNjhkMDU3MGQ3OTE1MjgwMDA5NDIzMCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiY2I4NDk0YTA2MjZkMDU1MDUwNTUxNGQzYzQzYTE0NzQxODZhMTU2ZmI2MDVmYmNhOTBjM2E1NWE0MTYwMWJkMyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_962ca622d7504cb09e67d5db66a7d294",
+      "statement": "Dry-run stage tokens are pinned and disambiguated: scene-extract (not slides) is the pipeline slide-extraction token; describe-slides [<backend>] appears only when slides are enabled; summarize+notion [<backend>] is always present with the selected backend surfaced; transcribe surfaces the OpenRouter backend and configured model.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py#L627-L665",
+          "version": "repo-lines-v1:sha256:9b54935dd4d2681319dc1553844139c99751663847eb23dfd50d837499323193:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1YjZhMjEyZjU5NWNiM2I5ZWNlY2UwZWNlZmY1YTA0NTU4ZDI3OWIwOWVjMjlkYjE3ZmZkYjQyOTQxYmM0YWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImViMzIzMGE5YjBmODIxN2QwYzdkZjQyYjRlM2VlZjdmYmEwZThmZDA4NWQxN2YyYzZmNGE1ZTE5YTQwY2JkOTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJiZDE3OTAyM2VkZTQ4ZTlhMTMxMGM1ZjJmZTJiMmMwNDBhMDMwMDk0YTE1M2ExODIzNWQ5ZTBhMjE4ZDE0OTAifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L211-L222",
+          "version": "repo-lines-v1:sha256:00fcfcf4a652ef94cec2863db8ebc5831dd405a457d8677efe9f74dd957f4b3e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjViZWIwN2M1Y2FiODcxMDAwZWE1MWFiNGJjODM5YmVkN2M4NWI0NjYzMTJiNGRmNWVlMzNjNjhmZDJjMDUwYTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyZmMwZDJmMDQ3OWUxYWI1MWZhNjE5MzFhMzUzN2U0M2FkNzE3ZDlhMDE5OTJhMzQ4ZmI3NzIwYTY4MDM0YTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE5NTAzMTBmMzgyYmJiMzVmZjI1ZGZiMDAzM2FhNmNmODg3NTI4ZjgxZDVlNzMxOTRmN2UyMmVkMjAyYTZmZTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE5ZTU1YzU2ZjIyZDJiY2E3MDdlYTdkMTQ1ZGUyNDU0ZDY5NTUyYzllYmYxMTUyNDA3NjYwYzY1M2FiNjI4MzMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d214a78eceda42aabac0de6ba3586904",
+      "statement": "Each recording gets a sidecar JSON manifest <name>.transcriber_state.json next to its .mp4 that is the source of truth for stage completion, not artifact existence alone; it is read and written by RecordingState.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py#L286-L297",
+          "version": "repo-lines-v1:sha256:51715c737d389e11aa6af1e1713540ed449fd5d135a0ac16565d2b5f15dc056d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjllNjQ0MzAzN2I1MGJhOWI3YTdmNWRmOTdkNDVjYmE5ZTFhOWU5Yzk2ZDdmMjNjNTA5ZjE2MzJiZDQ2MDNhMTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVkMGRkMTAzYTczNzE2M2Y5YzYxODU3ZjgwOGY5NDBhNGNmOTgyYmFjNmIwMDkzZDIwNzdjMTQ0MjMyY2NhODgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ2MDAxNzBhNjUyMTVmYzI0ZDg4MjMyZTFhYjE4M2IzYjdmOGQ2ZTE2MDU2MzJiYzdjNmFlMTI1N2FjYjZlZTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjViZjQ3NTU5YzQwMWExZjhkMTNiNWMwMzVlYTQ5NzM3ZTk0ZGZiNDFjY2Q3NzcyMzI3YmZmZmEwZmY1NGNiZjkifQ"
+        },
+        {
+          "resource": "repo://transcriber/state.py#L1-L28",
+          "version": "repo-lines-v1:sha256:ac13ba0c01f644bc7746b05592669c5a69a6006ec5fc7f9483d198bf26e5abd2:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwM2Y5YjM1NDFhNzIzYmM1MTA3NTljMDIzYzE4ZmY4YjA3YWZjN2JmZTBhNTJmNjdiNzNiMjFmZmU2YzhlMWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU1YjZlODcwNmI0MzA0N2YyYTZkYjY3ZjEzMjYzODU5NTYwNGU2N2YzNjk2Njg3NmNlMDE1OGYwMDUzZTZiZDEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_cd716cc397f54a209f51f3a85180c2fb",
+      "statement": "The manifest tracks a canonical ordered STAGES tuple of seven stages (pipeline, describe_slides, summarize, notion, telegram, s3, cleanup) and is_complete(stage) returns _completed.get(stage, False), so an absent key means incomplete.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/state.py#L118-L120",
+          "version": "repo-lines-v1:sha256:b775d37bda32ff33de63f1948def4d092c80ab77e85e371f774cfaabd13bc64a:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2U3ZjdhNTE0MWQxMTZjMDNmM2VjYzg5YzZiN2IwYTFjOTZlOTUzM2Y2MTQyNjhlMjUyMDJkNDBkMjNiMGMxNiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNjgxZGMxNDhmZjdjOWMyZDE4MGFhNDMzYWQ4ZGIwZGRhNWFjYWMzODkwMDgzZGFmYzc0ZmU0NTVlYWU0ZjdlZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiY2I0ZjFjMGM0NzhhNDk0NzMyNjUzM2E3N2E2ZjU4OTdiMWQ5ZDU1ZTMyYzJkMDk5NzJhYWY3YTZkMjRjYmEyMCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzY2YmFmN2FlMDliYzk5YTRhYmJjMDRmN2RmYWFkOTc5MzcxOTYyZjY1MTlhZWE3MTFmZTMxNDgwMDA0OWQyOCJ9"
+        },
+        {
+          "resource": "repo://transcriber/state.py#L37-L45",
+          "version": "repo-lines-v1:sha256:0b169b2109efad2dce65c733047c367cec0ee15ff8d4f232d92e63a7a1edb643:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODE3NWJhNzk4Y2I2ODg3NjIxZTk4YmZiYmI5ODYyZGUyMDQ0ZDE3NjcxMDBjY2YyODFkMjg2MTQ2MjdkZTgzNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmFmYmEwNTI3YzM5NTNjNGI2ZTBlNWI1NzM5YmE4MzYxMmY4MDUzYmNkYzk0NjY3MzAxOTNjZDFkNTkwYjQwOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjJmODk5ZGVkZGMwMjg5ZjU0ZjQwZTEzNWNjNjI3YmRmNDEzZDk3ZjI1ZmUxY2UzMDNhZGNkOGIzMDkwZDJmMyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNzgyMzRkZmE1NjNhNTUyNjVkNTZmOTc4ZDg5NjM5MzhiMDM3NzkxZDdmNzliMjVmOThmOGQ0NTMzNjhkMDEzYyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_3412fe9dd82e4d7cb1af060cadfe5f01",
+      "statement": "Pre-existing manifests written before describe_slides existed as a tracked stage simply lack that key and are treated as incomplete, so re-running a recording whose manifest predates this stage re-issues the slides backend call exactly once and subsequently records it.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py#L305-L317",
+          "version": "repo-lines-v1:sha256:421a075817e9400f1cfc40a5688cbe835df2fd1a16891f11e6745c25066ad9e2:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxNDM2MzZmYmFhNWY1OWQxZjNhYzVjNDM5NTc1NGE1MmE4MmE2N2JkNGMwM2FmOTcyZWY2YjJjNjI1NjViMTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIyYWRlZDA1OGNhMDg3ZDY4ZmNiMDdhMGI2NTIxN2QxY2FhYTcxNTVhOWFiNTg0NDlmZGY1NjE4YTgyNWYyZmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNiNzU0YmVkZjhhNWU0NmM1OGMxYmY4NjdlNGNlMDJlOGEwMWJhOWM0MDUyNzU3YjE3ZTJlYTk1YmUwMzk5OTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM2OTJjMDAzZjMxNWJkN2MyMWNlMWNkZWIzZThmNzQxZDgxMjUxNWU3MDFiZmM0ZWRjNTRjZjY2NjIwMDA3ZmMifQ"
+        },
+        {
+          "resource": "repo://transcriber/state.py#L23-L28",
+          "version": "repo-lines-v1:sha256:06f35431dfba6a9df04d9c624c8267ba369a0cc9344a7e31c91150c91b948321:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZjdlZjU2Mjc1OTMyYzEyMTU1M2QyYzE1OTI3ZTFhY2Y4YzE1NWM5Y2M4MGMxMTBiZmI4OGVmOWNiMzEzZjNkZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTMwM2VjZGQ0YTRkMTBmMTljNzNmZDQyZmQxMjQzN2ZkMzM1NGE4MjY4MTYwNWRhNTI1NWE5N2EzOTA2OGRiYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYmZiYTZkNzYxNTkxOTlhN2ExMGM0OTZiOTNjNTMxOTVkMDgxZDUyNzJhZDU5YzA2ZmJlZTUxMTExOGRmZmJlNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTViNmU4NzA2YjQzMDQ3ZjJhNmRiNjdmMTMyNjM4NTk1NjA0ZTY3ZjM2OTY2ODc2Y2UwMTU4ZjAwNTNlNmJkMSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_3cd6a151ddcf486ebd4b8a98b9fdf016",
+      "statement": "The orchestrator _process_one runs each stage in order and consults the manifest before acting, with per-stage skip rules: pipeline skips when complete; describe_slides skips when disabled, already complete, or artifact present (idempotent, no paid call); summarize+notion skips when both complete; telegram skips when complete; s3 skips when disabled or complete; cleanup skips when keep_intermediates or complete.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py#L290-L419",
+          "version": "repo-lines-v1:sha256:0c0979fd00cd13757110a723166aabd4f7a5a5bbdf87149d839168b508949874:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMwLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIwOTZhNTEwNWQxYzgwMDU1OWEyMjk0NTg3N2VjOTEwMWUwZDU4ZjVmZWJhZTYyN2Y2ZTA0YjhjZDhmNmVlOTNkIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0ZmE3ZjUyNjFmNGYyNDA5NjJhMmJkMDA0MjBhNTQ1NTA2NTA5MWU0MDJkZDhiZDA2NTNiYjAxYTc3M2UxNTE2IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIxOGIzZmQxODdjYTUxYWZjMTMyOWYxZTVlN2Q4ODIyY2I3NWM1YTFkYTc5NmZhNDY1ZDE0OThiYWJhZjg3YWQzIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIzY2VhYWFlNzZmYjhjYTVlZTM1ZWQ0ZTE2MjNkNjE1MjE2NDE5ZWI1NTJiOWM2ZjhjMDA3ODMyMjE1ZmYzZDNiIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_22d6b8de4457439aa30a5bf108789937",
+      "statement": "When <name>.slides.md already exists but the manifest lacks describe_slides, the orchestrator skips the paid backend call and marks describe_slides complete, handling the case where a prior run wrote the artifact but crashed before marking the stage complete.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py#L736-L756",
+          "version": "repo-lines-v1:sha256:56b2eedde0d9d40721fbf84299b3b5a12797a3cb62596851158483df7f7a9196:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRmZTUxMzdmYTkzYmVmMTcxMDgyNGVlZmQxMTM1ZjBhYzA2MWQxNzdhMDlkZGZjNGNmZjU4MDcxNWJjN2Y0ZjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwZWQwNGIxYTZlNjdlNWVjYmIzNmE2NDI4YjM1ODg3OTQ2NjgyNzRmMTc0NWVhYWM0YWQwOWFlN2M3OTQ5NjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVlZmRiNDUzMjdmMTZmZThmOTkzMWMyNWUzZWVlODU5N2I4NmQ3YWRiNWFiY2FjMjUzZGNhZTczYzY1ZmZkMTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI2ZWExYzJkOTNlZGE3ODgzZjA2MzI0YTg4ZGU0MGYzMWI3OTkyMjc3ZTczNjg3YjU2YWFiMTdhMTk0MTRlNjkifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L309-L317",
+          "version": "repo-lines-v1:sha256:f49d502c3ed0a4d1f0a1e62e57e329e6cb3195fac3f51c8ce6b01eba72a38180:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjI2MmZiOGNlYTc0MTM5M2IxOGE4ZmU4ZDUzMWVmMmMwMjk5ZGJhYmZhODk5Y2MzZDA5MTI1Y2VmNDk1OTVjNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMjJhZGVkMDU4Y2EwODdkNjhmY2IwN2EwYjY1MjE3ZDFjYWFhNzE1NWE5YWI1ODQ0OWZkZjU2MThhODI1ZjJmYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiN2ExYzVmMWY4NmE0Yjk3M2ZmOGRmYmEzN2I3ODE0NmE0N2IwZDBhMGQwZDg0YjIwZmFiNDZiMjAxNWMxYTI4ZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzY5MmMwMDNmMzE1YmQ3YzIxY2UxY2RlYjNlOGY3NDFkODEyNTE1ZTcwMWJmYzRlZGM1NGNmNjY2MjAwMDdmYyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_37cb36c5833b4ff5bb0642f7bd57f0d9",
+      "statement": "Failure isolation wraps all stages in a single try/except per recording: a raised exception is caught, logged with the failing stage name, returned as a failed RecordingOutcome, and the batch continues to the next recording; cleanup runs only on a recording's full success.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py#L405-L461",
+          "version": "repo-lines-v1:sha256:a0867084ed6efd2139409a88fcea341828485e47dc25e9c0e6e3b157fbd8aa2a:eyJzZWxlY3RlZExpbmVDb3VudCI6NTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2ODdiNjhlMTk4NGY5OTNmMDNjM2JiZTJmMTBlYjBiMDc1ODI5M2UxM2VkOTMzMWQwMjA1ZWM0ZDE0NTM0OGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFkYTUzOWJjNzljMmU0NjNiYTZkMDllMjRhNzg2Y2NjZDZiN2UzNTFiM2VhMzQ4ZmEwMjAyOTFmNDNhMTY0Y2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE0NGVlOTZmNTQzOTg3ZmM2NzczNTI3ZTE1ZDM2ZjAwYzlmZmZiNjNiODJiNGM4M2I5NjRmZTBlYjdmNjkyYTkifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L421-L443",
+          "version": "repo-lines-v1:sha256:fa825aaf7fb2f0fd5b676032960f80e208912f808d0dad73b8bc19938307a732:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVjZDVlM2ZhYjQ2NGIzYjcyODZhYzQxZTFhMGMyNWY5ODhlMzE2MGU5NDExNTkxYjc5ZGY1MmZjM2MzMTUwMzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwYmI3NWY2MzMyMjczMDY3ZGUwMzgwZTkwMmUwYTI5NGYzYjBlY2JkYTQ3MjkzNWM0OWM4Y2M2N2QwY2VhNDUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcxYjRiNmU5Nzg0OTY4MTFmMDU0MDk1YmExMzQ4NzI2YTM4ZDA4ZDY5YjRjZTA4ZWQxNzEwMjI5ODcxNDU0Y2EiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhlY2VmMTM2YjMzYzk4MGYyM2Y0NjkwZjI5ZDA2ODhkYWE1OGQ0ZGVlMGNlYTc1NmRkNGVkMjRjNDI0YmY0MDgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_aa1b7d4dc9ac49bcb137655baed38d46",
+      "statement": "The CLI exit codes are: 0 when all recordings succeeded or no new recordings or dry-run completed; 1 when pre-flight check failed or any recording failed in the batch; 2 when config loading failed.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py#L524-L578",
+          "version": "repo-lines-v1:sha256:219c67d75eca42d093c0b104b73ae9d091f5fbfcf7f8c7479a9975aca2a29afe:eyJzZWxlY3RlZExpbmVDb3VudCI6NTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEwOGJlMTNhNDYzYWUzNjNiZmE2YTI2NTJhODQyMTRhM2U5ZjZiZDk1ZjViNDMxMWRiMDZkYzJjMDIwODE2YzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyNDg5YjFlNzlhYTllZTU3YTVjZWIzYjI1ZGM5MjA5MTBjY2U4ZGUzODkyOGNlNDA2ZGQ1NDg1N2NmYzZjM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA1NzIyYjhjNGYyODMxYTA4YTZmZjE2OGQxNjUxMTRiNmZkYmFjZjk4NDIxNTM2NjI3NzY5M2JkY2IzYmQwMjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNkNDEzNDBjYzIzOWExNTljZTliNjAyMmU5ZjYzMjI4MzJlMmVhZDc2Y2FlOWU0NzU0ZDIxMGViOGZiNmQ1ZTgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c231f6fbadfa4dd680bf2d3194271d4b",
+      "statement": "keep_intermediates combines the --keep-intermediates CLI flag and the config debug flag with OR (keep_intermediates = args.keep_intermediates or config.debug), and when true the cleanup stage is skipped for every recording while the run is still treated as successful.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py#L358-L377",
+          "version": "repo-lines-v1:sha256:51008f7cfe65a9cb941a485d25269e390e6df517093d85a852ed6328bdd5df50:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2NDJhYzQwNmRjODEzNmQ2ZTFkOGJjNjE4YTNjNDI1MGI5Zjc5OTcxODJiZTQzOWI2ZjE0YzU4ZDJhYTdiM2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNjMzg2NGQ1NzRjMDE3ZmNlMzI0OTliMjU2ZWQ2ZjM2YjkzODUzYTQ0ZTdlODA1MzMxZTM5OWNkZjdhZjIwNzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjZDY0Mjg2ZDBlMWRkZjZkMGY2MDcwYjc5ZTZmYzRkZWU4ZDdjZDVjZWJkNTVjMGYyYTNhM2U3YWEzOTcwZTQifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L562-L566",
+          "version": "repo-lines-v1:sha256:96d5d9f4bf362a9da2997a7d70e8caf75da248ef1ae010f112b7bf87553cb0d2:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTM0YTM4OTE0MjE3ZGNjYTU0YjhjMjI5NDRkZWE1Yzg3N2VlNDhkYjEyYTY5MWE0MzlhY2I0ZTZmMzc3MjM1NyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzIyZjZkN2E2OTlmNDFmNDViZTc0MjcwZWZmNzU2NjZlYjA5NmIxMzNmZjQ4ZjljYzMwYWVhN2M1YTQwOWI3OSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODViOTQ4Y2M2YWQyZGEzZTY0YTY3YmY0MWRjMzM5OWM1ZWI4YzUyNmRjZWQzMzMzZmE3ZmIzNDc3MmIzZTgxZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjAxZDQzNDVkNWIwNmFkYWRjZTIxMjgzN2Q0M2M5ZGNlMTA4MTFhMjliYzdjNmEzZGU0YWQwODY4YmJlY2M0YyJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.1",
+    "at": "2026-10-02T19:10:14.922Z"
+  }
+}

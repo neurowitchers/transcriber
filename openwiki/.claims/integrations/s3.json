@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:5376fa55fb61e47af6bc889f1de61feaf96b61643ca97368c721b737f93c5310",
+  "claims": [
+    {
+      "id": "claim_419395ccf46246f7ab1f687d4c252dab",
+      "statement": "The S3 sync stage is implemented in transcriber/publish/s3.py and uploads a recording directory to an S3 bucket by executing aws s3 sync as a child process through the duct library.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/publish/s3.py#L1-L20",
+          "version": "repo-lines-v1:sha256:1a259acf0cb4c0a0d73c7782cd04a1b527c6b2e906d9e306486429a27980964b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ2ZmI4Mjc4NWQ3OTYzZjZiZTFkMzRlMTFhMTNmNjlkZjFiMmY5MDNjMTQ4YjJjYjM1MjZjN2Q5MjI1OGUyYWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU1YjZlODcwNmI0MzA0N2YyYTZkYjY3ZjEzMjYzODU5NTYwNGU2N2YzNjk2Njg3NmNlMDE1OGYwMDUzZTZiZDEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_984e11aec30b4b1cb91a054d1dee6504",
+      "statement": "The S3 stage is gated by two independent conditions: config.stages.s3_sync must be truthy and config.s3 must not be None. The is_enabled function returns True only when both are satisfied.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/config.py#L108-L111",
+          "version": "repo-lines-v1:sha256:d08fab7a7364ccc31d6dd3ca145f0b2ff794c189fe3513548f18851852e4f56a:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTRiY2MxNTIyYWRiNmNiMzBlYTdjNDA0MGMzMDJkZGU3NDk5NTAzYzE3M2RkMjZiMGYwMzNjNjAxYTkyMGZkOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNmMxZjAyZmQ3ZWMxZDQ2MmMwY2I4MThiOTQ4ZmZlNGY3MTViMmMyYzQzMjYzMGMyMzJkZmUzNGQ0Mjc0M2ZhOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDdiN2I5YTQ2NTQ2MDJlZDBmMGE0ODc0N2FjNTU2NTkxZTMyYThlZmI0NmRmZTM1ZDUzNTM5MzM2MjFjYzI0ZiJ9"
+        },
+        {
+          "resource": "repo://transcriber/config.py#L49-L53",
+          "version": "repo-lines-v1:sha256:ffc38090afd301764bf321def079bfae669ea6485cbdad2ec74e8ceb3c81774c:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjZmYmFlMGI5MWQ0NGZjMGQ0OWY1ZGU2OTFkYTZmYzQzMWYyNjAxMzRiZjczMWUwZTIxZjc2NDgwOTQzMzRjYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDJlMmJkOWQ0MjM5NDQ4YTZhZTViOWNhMWU4MDJhNTkzYWJlZWRhNjYzYWZhMDE1NDdlNTZmZWVmODc0MTVmMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiY2M1NTgyOWVkMzc1ZGE1OWJhMjIxYzgyZmQ5ZGMyNzgzZTc0Y2Q3MTYzNTdiNmM3NTNlOWQyYTA2NmU5NmNhZSJ9"
+        },
+        {
+          "resource": "repo://transcriber/publish/s3.py#L63-L69",
+          "version": "repo-lines-v1:sha256:ce0e1cf694e3da442aa9c51e054e804edd152c3e74b8d9f74d15ccb3f1786d87:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOWFhMDEwZTYyNDc2NWQ2NWVkY2E5NDdkNjkxY2RiMWMyZDFiMWZlYThhZGIyYzg2YWQ5MDk3ZGNkYmFmZTIyYyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOGMwMTg5MTEyM2RlYjNmMTA1ZTE3NDdmYTQ1OGVkMWMyYTAwOTY3YmZhZmUwN2U2ZWE5YjFhMzZjMmZlZGQyNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOWE4MmViZTllZDQwN2MzYTZiYTRiMDAzNDI5MmJhYTUyYzExY2U1YWUyODYxMDc0MDJkZTQ3OTJlZWVjYWNmYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZThkMjcyMzNmZWM0NjQyYTdlOWQxYzJmYTQ1NzZiYjU3ZjIzNGQyNmU0YjhjOWMwNjJhMjVjMjU5ZWFmNWYwMiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_912878039d854da8b064f646f18d6289",
+      "statement": "build_sync_command constructs the aws CLI argument vector as ['aws', 's3', 'sync', <local_dir>, config.s3.bucket, '--profile', config.s3.profile] and raises ValueError if config.s3 is None.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/publish/s3.py#L44-L60",
+          "version": "repo-lines-v1:sha256:0c4cf5b9d20b59de504a47e6ff48ec17d641f59a32e44bec7d5b6e01ba00caea:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgyMTVhNjEyZDRhNTVjYTI4NGVlZjlhZjc4MDZiODIwNmMxOWUxMDUyMmUwNjdmNjY3OWNhODIxZTQ5YWE4NTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFkZDI0NDU4MmI2ZmIwM2QyM2I4NDE1YWJlY2QzNDZiMGM5ZjQ2NmI2Zjc1MmIwNjgxODljZTdlOWEyZGMzNTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBkYjViZWIzYWE1MTZiODUzNWFmZTcxNjMyNzkzNzdmNjNlYmM4M2I1M2YwMmY4YjVmM2ZlNTc5ZTE2OTRmOWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk5NDk2ZGM4ZjY0Yzk3NWZlOWZiOTUwZTg2MzhiOTIyZmFiNDkwMWVmODg3YjJjOTkwZTYzNzgzODFmOWNkMjAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a1f9064793694316abae4ad3ff8b3840",
+      "statement": "When enabled, sync executes aws s3 sync through duct, polls the child process every 0.1 seconds, and enforces config.timeouts.s3 as a wall-clock deadline using time.monotonic(). It returns True on success.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/publish/s3.py#L72-L113",
+          "version": "repo-lines-v1:sha256:41f8c30fee36a1212f30324177a38479dbb52cc3b4195655abbceb0a0fc2e5c5:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ2M2E4ZjRiNDBiZDAxZjk4NTZhNmVmYTRiNmM0OTA3OTg4MmQ4YzVhZjZiNjhiZTY3YTg3YzYzMDkwZjVmZDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiMTVmMzRkZGJlNzMxMzRiZDBlNTA5OTMxNzc4OGI2N2E5YjE0YThjZmU1ZWU1YzE0Yjg4ZDAyMmE5NWI2NzMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk0MWVlYzMzNzI3MTM4ZDI3NTY1ZWIyYmU1OWJmYmZlZDJhMzcyMGJlMDg5YzkwMjEzZDhlNDY5ZDk1YzhmYzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_13a507e509ba4f63a7a7d57d7dd3d469",
+      "statement": "S3SyncError is raised when aws s3 sync exits non-zero; S3SyncTimeout (a subclass of S3SyncError) is raised when the upload exceeds the configured timeout, after the child process is killed.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/publish/s3.py#L100-L113",
+          "version": "repo-lines-v1:sha256:c19bb9402bcac64bb63521115d8d102276bd91a9ca2c7395e943cb97b7d811e5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA3NmFmODY0NmZlZDQxMzkyZGU2ZWQxZTA2M2JmMjI5MDY5N2VmYmE5YzAwYmE1YjA5ZmE5NzAwY2IwZWY0NTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiMTVmMzRkZGJlNzMxMzRiZDBlNTA5OTMxNzc4OGI2N2E5YjE0YThjZmU1ZWU1YzE0Yjg4ZDAyMmE5NWI2NzMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEyODIyMGU0NDdiYmNiYjVmNzMxNDYyZTg3YmM1ZGVhOWZlNTA0NDgxYTQ1MTFkNDcyYTgzNDc2YWVkYjE0ZDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://transcriber/publish/s3.py#L36-L42",
+          "version": "repo-lines-v1:sha256:f30d1bd7bcd2fe6553303d477f48209e22c1039d36f9c918aa6b695f290eff98:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2IyYzE3NDRhYjA0MzIyZTg3ZjNiYTNiNzI2MTJmYjA2MzBmZThlMDlmOWNmNjIwY2YxNThjYmE5YjI4MjAxOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMzk0OWUzMmQyY2U0M2M0MzU4OWZlMTM4YTUyMDUxNjQ4ZjU2MWYzZWYzZmI2NTIwOTcxMDY0YWNkMGI5MWNlNCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZGJlMzM4M2JmOGE1NzRmNDliMGE5OTkzN2I3OWM4MTU5Zjc2M2ZhZTMzMDRmMTNlNDM3NzZkY2Y0NjBjZDViOCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_cb3e2ffaefc640fb96b2a3a425d7debc",
+      "statement": "The pre-flight check requires the aws binary on PATH when S3 sync is enabled (s3_mod.is_enabled(config) is true), and reports a missing aws as a problem before any work starts.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py#L129-L156",
+          "version": "repo-lines-v1:sha256:c132fe3a9793542aeff6817b6d454f42b0523926ac9d35495dd8fbc2f0986cca:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzZDc1YmEyNzcyMDYzN2ZjODllNTgwZmNhMGJlYWU5NWFhMzE2NGEyZTE4ZDJlOTdlOTdlMjcxYWMwYWQ5ZmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyMzRiMTc2NjE2MmIxYzk4YTYyNjkxNWVhODZiZTU4ZWQ5MmRmOWM5NmY1ZDU4OTA5NWQ5NjIwYjc1MTk2NmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1YzNjNjFlMjk2Y2IwMTZjZjYxZmI2M2I3ZWQ3ZmE3NjllOWVjMDFiMjM5NTNmMDZlMmJiNjcyZjBjYTFjZTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRhOWJiNGIyM2UxY2ZlN2MyZWYwZjAyZjE1NWM4NzI2ODY0ZDNlMDUxNTQyZmQzNTdjNzhkZjZhMTBhNGMzYWYifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L95-L105",
+          "version": "repo-lines-v1:sha256:3d05637af7901c9f3dffa7a6794fd79462de44d8591eafc0dbb866ff54a9a2b9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVlZDA1NDFkZmM4MjRiMWFiOTZlYmFhN2Y2ZTlmMjIzMWM1NWFhMGQxYWQ5ODBjMjE2ODFjZGRjNzJhNzJjOWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxZmQ0MWY1MTE4MGMyMzlhM2RlNDkxNWE5NDljMDdmNjYzZDA4Y2NlODQ3NzQ1ZGQwNWUxM2Q5ZjViMjFmMmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI3OWU2OTVkNmFmYzQyZWVjMmRiOTczYzcwMDdkYmI0YmFjOTM2MzczNWMyMDE2Mjk2YjU5OWFlYmM4YjRhYjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgyZjkyYjYxNTQ5NGZmYzVhZjg4NjRjNjQ0NzdjZjEzYzJjMDlmNjcwYWIyNWYyZTA2NjM5ZDYxYmY4NjE2YTkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_21d765bac1cb4ab4a57265d324abf0f4",
+      "statement": "In the orchestrator, the S3 stage runs after Telegram and before cleanup. When enabled and the manifest is not complete, the orchestrator calls s3_mod.sync and marks s3 complete; when disabled it logs and skips without marking complete.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py#L104-L112",
+          "version": "repo-lines-v1:sha256:cd4ecccb67999ced184df28327b6320f7548604611a214ae98454605b3256c31:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMjQzZDljNjdlODdlNDY5NTk2NDYwMmUwNDZhNzk0YWIyMjUzZWI5MDMzYTdhMjUyZjU2N2JkODQ3ZDFkZjkxNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTZhNzE1MjU3MmVlODRmMTA5MDZjNzRiOWYyYTkyNDM0ZGRhYjBlM2M0MjgxM2IwNGU1OTdlZmNlYzk1MWIyNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYmVlODg3ZDE5OWY3M2IzYzE1YjgyZWFiODNmNDU4NTMzZThjMzZkOTZkNDhlMDFiNWRmNjJkOGQ1YjMyOGY1YyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOWVhNDg5ZTkzYTA5YmVkNzBhMDk5ZGY2N2I3Njg1OGVkYjhlZDc2NGVkODIzYzY2MmY2YTczMDM3ZTkzYjFjMyJ9"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L399-L408",
+          "version": "repo-lines-v1:sha256:30cc13d3f7a8dd38c539c5bc4e494efd2fcf1b882756e6a754f2eff96967a320:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzZDZjZjc2ZTE0ZjFlYTczNjFjZjc0Yjk4YzA0YjVjMzZkZTMxODM0NTBhNjNiMDBlZjRkNWVmOWE5MWVhMGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVkNDUzMWQ4ODIyYzlkMmQyYThmOGI2MGU1MmJkMTI4OGQxMjJlN2Q4YTdiODYxOGU2MDliOTQ2YjU2MGQxOTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFkMjNhZTU3YzU0NzY2MjQzNzMzNWE0Yzk0OGZiY2E5YjU1Mjg5M2YzNWJkMmE5NDYyNmU5ZjQ4OWExYWFkZTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNjNjNkNDdjNzQ3MzAyZjRhNzI0N2E3MTJkOGY5ZTY0ZTY4YjBjM2IyNGQyMGY5MTBhZWFhZDQ1NjkzZDMwYWEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_536f661549954a57b062519e528187d0",
+      "statement": "The config loader treats the top-level s3 section as optional (built from data.get('s3'), left as None when absent), while stages.s3_sync is a required boolean field under stages.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/config.py#L245-L247",
+          "version": "repo-lines-v1:sha256:e1ddbdf8065f88c7e0b484b3be1f69730458268a410955650f0d9ae1d3b5cdbf:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNGEyNzg1ODc1NTQwZDE2NmJmNGQzZDg5MWYzYjQ4ZjBhNTkyNDczZmFhYzdlMzRmMzExYmYwOGMzZjg2OWYwOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzVkNjViZmQ3ZDQwOTFhNzk0OWFkZmI0ODMyZDAyNGJiMGY0YmRmNzRlMDRlZWI3MjY1NGIxMjBlNTA4ZWQ3YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTY4MzE2NDhhZjRhMGI1ZmQxNjIyYTg2OWExM2U1YmRjM2NkMjk5NTQ2ZTZlOThmYTFkMGMwMDdiYmY5ODVkZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZGI5NDcxNTk2YWYwYTk1YjRjMDI4YzY2MjliZWNmYmQ0NzhkOWQyYzU4NDA1NDIxYjI4MTUzMWZlOWQ2MTg0MiJ9"
+        },
+        {
+          "resource": "repo://transcriber/config.py#L49-L53",
+          "version": "repo-lines-v1:sha256:ffc38090afd301764bf321def079bfae669ea6485cbdad2ec74e8ceb3c81774c:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjZmYmFlMGI5MWQ0NGZjMGQ0OWY1ZGU2OTFkYTZmYzQzMWYyNjAxMzRiZjczMWUwZTIxZjc2NDgwOTQzMzRjYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDJlMmJkOWQ0MjM5NDQ4YTZhZTViOWNhMWU4MDJhNTkzYWJlZWRhNjYzYWZhMDE1NDdlNTZmZWVmODc0MTVmMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiY2M1NTgyOWVkMzc1ZGE1OWJhMjIxYzgyZmQ5ZGMyNzgzZTc0Y2Q3MTYzNTdiNmM3NTNlOWQyYTA2NmU5NmNhZSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_cad6dee779464d6bbcabb8a260b79522",
+      "statement": "When the S3 stage is disabled (toggle off or config.s3 is None), sync returns False without invoking any child process, and the duct call recorder sees zero calls.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_s3.py#L129-L158",
+          "version": "repo-lines-v1:sha256:c71729c7c146e79416e1ae0df0cb2e645c5fe1a1d5e6913baf89065aa5b6ec31:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBkZDZhNzRiZTA0ZjI4Mjk1YzAwYjFjNzIwMDhlODFkZGRkM2ZhZTM3MDFhY2RmZWRhMDdlNTFlOTExNDNkMmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRkODlhMmY1MWU4NWI1MjNmYTE3MzlkMTcyNGEzMTcxMDE2MDE4Mzc3OTc4YTRkNmRhY2IxODJkZGQ0Yjg0N2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY5ZWM3M2JiNWJlNTk0OTBhNDUxYTBlNGRhZGJlNjlkNzUxODAyYzMzNzZkY2I1MDZjNTE5YzU0OTg0YTQwZDEifQ"
+        },
+        {
+          "resource": "repo://transcriber/publish/s3.py#L86-L87",
+          "version": "repo-lines-v1:sha256:f804412fecaf21aec1938df715c073e8574c187d25ca8713642502b50ffbb539:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjg4NWM4NWIwNDkzOGI4YTZlMGQ3MTlmMTg2OTBhMzQ1MGZkNWQ1YTFjNTIxZDkyODc4OWY3MzE3MGZmMTU0MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjk3YzcxMjQ3YWYzY2QxZWRmNTU1YTdkMTA3NTkzMTU3ZjZkYzJhMjJhZjBkZTgyZTc3NzRhYmYxMGY4YWRlMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTBhMjczMDE4YmFiYjZmZWRjOGQ5NzU2NzQ0M2JhZTk5MTg2MTE5MzZjMTdkZGU0MjA2NjU4YjRhOWU1Y2Q1YyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDZlMzk0ZjQ5YjY2ODZjZDAzNDAwOGM3NjFhN2I1OGQzN2E0MTU2Y2I0ODIxMWNhNzdiMzg2ZDhlZDUxNzc4NiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_2dee9a926d2f4552a9f3639b1b1fa509",
+      "statement": "The S3 module enforces an ordering contract: a successful sync must complete before any cleanup/deletion of intermediates. The module only performs the upload; cleanup is a separate function the orchestrator calls after sync returns True or after the stage is skipped.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py#L399-L419",
+          "version": "repo-lines-v1:sha256:6850cea00e2a0c2a0794494d9780b1ec9eea4b058d8c366ba9eb6d5606836d54:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzZDZjZjc2ZTE0ZjFlYTczNjFjZjc0Yjk4YzA0YjVjMzZkZTMxODM0NTBhNjNiMDBlZjRkNWVmOWE5MWVhMGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmYTdmNTI2MWY0ZjI0MDk2MmEyYmQwMDQyMGE1NDU1MDY1MDkxZTQwMmRkOGJkMDY1M2JiMDFhNzczZTE1MTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFkMjNhZTU3YzU0NzY2MjQzNzMzNWE0Yzk0OGZiY2E5YjU1Mjg5M2YzNWJkMmE5NDYyNmU5ZjQ4OWExYWFkZTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNjZWFhYWU3NmZiOGNhNWVlMzVlZDRlMTYyM2Q2MTUyMTY0MTllYjU1MmI5YzZmOGMwMDc4MzIyMTVmZjNkM2IifQ"
+        },
+        {
+          "resource": "repo://transcriber/publish/s3.py#L15-L19",
+          "version": "repo-lines-v1:sha256:acc18d64637d8db2aa7b5dfc5f852303a7243a89db99b901d346b0a45bf688c6:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOWU5NjgwMThjODU3YmRlZDA3YjRiZDViYTBlYmJjMjk3MTY0MDUxYWYzN2ZiODFmZDZlMDZmMmRmZDBkMjYyMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiODgyNjY1MGNiNmI3YTA4N2Q3NThjNTg2YzIxYjhkMGEwNmFkOWEzMTE1ODViYTNkY2MxMjVkZmMwYWUxYTEyNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTJjYTk3MWRmNmYzM2YyY2FmMjc1ZjY1N2MyMDNhNzQyMDc0MTRkNDA3ZjVjNjNlMTQ4ZGY5MjNjZTEwYjY5NCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMWFhZjc2MzdjYjZlN2U1ZGI4NWQ2MzQyNzQ2MDE0ZGYwNDFjY2Q1NThhOTIwYjI5ZWI2YWM3MTlkN2JhZjVjMiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_c85d33dd73c3405997ffa53fcbb8a11e",
+      "statement": "Tests for the S3 module mock duct entirely and never spawn a real aws process; duct.cmd is intercepted to capture the argument vector and return a fake handle.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_s3.py#L1-L6",
+          "version": "repo-lines-v1:sha256:c3d21e2a45f53a9ae723ffc04802e8c8bedce28dbe29b5bc09ad9f646edfd8e1:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNzBlZjYxYjdlOGJjNThjM2FkYjFiZGJhOWQzNTQ0NjkyODZhMTU3MWMwM2Q1M2RjMDNmN2Y3M2M2Mjc1NDUzOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTMwM2VjZGQ0YTRkMTBmMTljNzNmZDQyZmQxMjQzN2ZkMzM1NGE4MjY4MTYwNWRhNTI1NWE5N2EzOTA2OGRiYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTViNmU4NzA2YjQzMDQ3ZjJhNmRiNjdmMTMyNjM4NTk1NjA0ZTY3ZjM2OTY2ODc2Y2UwMTU4ZjAwNTNlNmJkMSJ9"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L104-L104",
+          "version": "repo-lines-v1:sha256:243d9c67e87e4695964602e046a794ab2253eb9033a7a252f567bd847d1df917:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMjQzZDljNjdlODdlNDY5NTk2NDYwMmUwNDZhNzk0YWIyMjUzZWI5MDMzYTdhMjUyZjU2N2JkODQ3ZDFkZjkxNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMjQzZDljNjdlODdlNDY5NTk2NDYwMmUwNDZhNzk0YWIyMjUzZWI5MDMzYTdhMjUyZjU2N2JkODQ3ZDFkZjkxNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYmVlODg3ZDE5OWY3M2IzYzE1YjgyZWFiODNmNDU4NTMzZThjMzZkOTZkNDhlMDFiNWRmNjJkOGQ1YjMyOGY1YyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjVjM2M2MWUyOTZjYjAxNmNmNjFmYjYzYjdlZDdmYTc2OWU5ZWMwMWIyMzk1M2YwNmUyYmI2NzJmMGNhMWNlMCJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.1",
+    "at": "2026-10-02T19:10:14.922Z"
+  }
+}

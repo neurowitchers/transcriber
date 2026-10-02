@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:f10b294e01d65b2141c7b643a4a523305e8aa3709e749924f3d9cb9f72a1a190",
+  "claims": [
+    {
+      "id": "claim_5fdd8df79dcb4fdca06c9525c90a5060",
+      "statement": "The summarize stage selects between agy (default) and agno backends as a pure function of config.summary.backend via get_summarize_backend, and the Notion publish path is backend-specific: agy publishes via its own Notion MCP as part of its run, while agno publishes directly via the Notion REST API with no MCP and no model tool-calling.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py",
+          "version": "repo-file-v1:sha256:a2f37f12be19c971da7b21520f5ee8c08c14b1a7c6f608298808d38e698ae238"
+        },
+        {
+          "resource": "repo://transcriber/backends/interfaces.py",
+          "version": "repo-file-v1:sha256:ce3b7307308c41e3071c45cfe4afcba6c7380587cf04f31279b0c68b4ad44a62"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize.py",
+          "version": "repo-file-v1:sha256:3d60e50bc94f5d013e16d11069051582f4777ac6355b030ec854aeaf42eac77f"
+        }
+      ]
+    },
+    {
+      "id": "claim_d6db64fa517745f597c4b7aaf8138dc1",
+      "statement": "summarize and notion are treated as one manifest-coupled stage pair: the orchestrator skips the summarize backend only when both summarize and notion are already complete, and marks both complete in the same step after a successful backend run.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py",
+          "version": "repo-file-v1:sha256:a2f37f12be19c971da7b21520f5ee8c08c14b1a7c6f608298808d38e698ae238"
+        },
+        {
+          "resource": "repo://transcriber/state.py",
+          "version": "repo-file-v1:sha256:3db797f99630bcb5810f74c81383fa4f7abfc2d761e91e72fddd895a5510f17b"
+        }
+      ]
+    },
+    {
+      "id": "claim_9fe5c3dfd7b6402fb4f6e93017ce086a",
+      "statement": "Slide markdown is embedded in the summary prompt as reference context only, wrapped in a non-XML Markdown code fence produced by _fence_for so the prompt-injection surface is bounded; the slide content is kept out of the summarizing model's output budget and appended deterministically by the engine in append_slide_descriptions.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/agent.py",
+          "version": "repo-file-v1:sha256:4f6df622ee7166c841c38da2d5c25581e66b929c51c216605d5a8d53682bb83d"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py",
+          "version": "repo-file-v1:sha256:4d0c7eefdf47e03096686793f8cdd23cdb0fbdd724e8d860a87142bdeafc89e4"
+        }
+      ]
+    },
+    {
+      "id": "claim_b6105ae82ed746b8b034ac5993e47c8f",
+      "statement": "The agno backend produces a plain-text summary and a short digest with an Agno/OpenRouter model, the engine writes <name>.md + <name>.telegram.md (and <name>.slides-clean.md) first and then publishes the Notion subpage via publish_to_notion; a Notion failure fails the whole summarize+notion stage because the publish-record sidecar is written only after a successful publish.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/agent.py",
+          "version": "repo-file-v1:sha256:4f6df622ee7166c841c38da2d5c25581e66b929c51c216605d5a8d53682bb83d"
+        },
+        {
+          "resource": "repo://transcriber/backends/notion_publish.py",
+          "version": "repo-file-v1:sha256:7651fcdebf7ef71cae6c167159ff400631559a74f9339fa96deee6d5ff93757f"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py",
+          "version": "repo-file-v1:sha256:4d0c7eefdf47e03096686793f8cdd23cdb0fbdd724e8d860a87142bdeafc89e4"
+        }
+      ]
+    },
+    {
+      "id": "claim_2ddb4ef8909c404aa08214a61ea24d37",
+      "statement": "The direct Notion REST publish extracts the parent page id from notion.parent_page_id (bare id or Notion URL), converts the Markdown summary into Notion block objects losing nothing, creates the subpage in ≤100-block chunks, and, when cleaned slide descriptions are non-empty, creates a 'Slide Descriptions' child page under the summary page.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_publish.py",
+          "version": "repo-file-v1:sha256:7651fcdebf7ef71cae6c167159ff400631559a74f9339fa96deee6d5ff93757f"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py",
+          "version": "repo-file-v1:sha256:4d0c7eefdf47e03096686793f8cdd23cdb0fbdd724e8d860a87142bdeafc89e4"
+        }
+      ]
+    },
+    {
+      "id": "claim_baf5a044570e445cb74cea83c708a5f7",
+      "statement": "Both backends produce <name>.md (source of truth for the summary) and <name>.telegram.md (the short digest preferred by the telegram stage, with a full-summary fallback when the digest is missing/empty); the agno path additionally writes <name>.slides-clean.md and the <name>.notion_published.json publish-record sidecar.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/agent.py",
+          "version": "repo-file-v1:sha256:4f6df622ee7166c841c38da2d5c25581e66b929c51c216605d5a8d53682bb83d"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py",
+          "version": "repo-file-v1:sha256:4d0c7eefdf47e03096686793f8cdd23cdb0fbdd724e8d860a87142bdeafc89e4"
+        }
+      ]
+    },
+    {
+      "id": "claim_2b04a6f8bbfe4e2395fe122f6e10d99d",
+      "statement": "Selection has no silent cross-backend fallback: an unknown summary.backend raises ValueError, and selecting agno without the optional agno extra raises an actionable AgnoImportError; the agno path is hard time-bound by the summarize-stage timeout (timeouts.summarize when set, else timeouts.agy) with the blocking Notion publish run in a worker thread.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/summarize.py",
+          "version": "repo-file-v1:sha256:3d60e50bc94f5d013e16d11069051582f4777ac6355b030ec854aeaf42eac77f"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py",
+          "version": "repo-file-v1:sha256:4d0c7eefdf47e03096686793f8cdd23cdb0fbdd724e8d860a87142bdeafc89e4"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.1",
+    "at": "2026-10-02T19:10:14.922Z"
+  }
+}

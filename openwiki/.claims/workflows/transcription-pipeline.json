@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:8ec3ef69a054324116bbc56dfcd7a53a0364aa9776cb8d6984e0a3161113d81c",
+  "claims": [
+    {
+      "id": "claim_af7deb86f8cc4297ad72aef249585065",
+      "statement": "The transcription pipeline is the deterministic media stage that runs ffmpeg audio extract, optional scenedetect slide extraction, and OpenRouter STT, and it does not call slides or summarize backends. Those paid/network stages live in the manifest-gated orchestrator that runs after the media stage.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py",
+          "version": "repo-file-v1:sha256:e0b7a84c4b905641436c2d664e78960482ad34c51743c34840b52da89e185692"
+        },
+        {
+          "resource": "repo://transcriber/pipeline.py",
+          "version": "repo-file-v1:sha256:df93725f71d25a5712d95eda5fbf842d1d3d060352d2f1d375141d3c163272a2"
+        }
+      ]
+    },
+    {
+      "id": "claim_516bc4b7332648d8a578c59647f6ece4",
+      "statement": "The pipeline reuses pipeline._run_command as the sole child-process seam for external binaries, including the ffmpeg calls used both for audio extract and for explicit time-sliced chunking inside the transcribe stage, and each call is wrapped with a configurable timeout.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py",
+          "version": "repo-file-v1:sha256:e0b7a84c4b905641436c2d664e78960482ad34c51743c34840b52da89e185692"
+        },
+        {
+          "resource": "repo://transcriber/pipeline.py",
+          "version": "repo-file-v1:sha256:df93725f71d25a5712d95eda5fbf842d1d3d060352d2f1d375141d3c163272a2"
+        }
+      ]
+    },
+    {
+      "id": "claim_402befc584144cd09081cba29e3b51b7",
+      "statement": "Chunking uses one explicit ffmpeg -ss/-t call per part with segment_seconds + overlap_seconds length, rather than -f segment, because the segment muxer has no overlap option and overlapping parts are required for cross-chunk speaker reconciliation.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py",
+          "version": "repo-file-v1:sha256:e0b7a84c4b905641436c2d664e78960482ad34c51743c34840b52da89e185692"
+        }
+      ]
+    },
+    {
+      "id": "claim_3dc2e87cec784a9e99663354e0032490",
+      "statement": "The OpenRouter STT seam posts a JSON base64 body (raw base64, not a data URI) to /audio/transcriptions, uses verbose_json plus a per-model provider diarization toggle for microsoft/mai-transcribe-2 when diarize is true, retries 429/5xx with bounded backoff, fails immediately on 400, and never logs the API key, headers, or base64 audio.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/errors.py",
+          "version": "repo-file-v1:sha256:5367d9b8a885e1434efa95b9f99dfca38b74310a70e5264a47a5901a12af2bd3"
+        },
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py",
+          "version": "repo-file-v1:sha256:e0b7a84c4b905641436c2d664e78960482ad34c51743c34840b52da89e185692"
+        },
+        {
+          "resource": "repo://transcriber/config.py",
+          "version": "repo-file-v1:sha256:176fa26c8f5d84cc86ba15cdb5a19e9e39df61285de32d0da853335f50c9306c"
+        }
+      ]
+    },
+    {
+      "id": "claim_d0d87f555eb0416b999b340f0918668a",
+      "statement": "The transcribe stage produces a flat transcript under diarize == false or when no labels are present, and a Speaker <ID>: <text> transcript with no timestamp markers when diarized labels exist, driven by render_transcript after stitch and reconcile_speakers map per-chunk provider labels onto a global speaker registry using the overlap window.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py",
+          "version": "repo-file-v1:sha256:e0b7a84c4b905641436c2d664e78960482ad34c51743c34840b52da89e185692"
+        }
+      ]
+    },
+    {
+      "id": "claim_7c4abb8e0db84863b03745eb562534a8",
+      "statement": "The transcribe stage is partially idempotent via a segments.json manifest under transcribe_work.<name>/ that records completed parts so they are never re-issued, and it discards and rechunks the work dir when stored segment_seconds/overlap_seconds differ from the current config (parameter guard E5).",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py",
+          "version": "repo-file-v1:sha256:e0b7a84c4b905641436c2d664e78960482ad34c51743c34840b52da89e185692"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.1",
+    "at": "2026-10-02T19:10:14.922Z"
+  }
+}

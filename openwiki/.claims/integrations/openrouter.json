@@ -1,0 +1,298 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:5162c7913485452e2f0a7b26fd278d6a61cc3a725c9d6dcae996355a58bb21a5",
+  "claims": [
+    {
+      "id": "claim_e79bdd5483cc4980b1628e309709bc07",
+      "statement": "The transcriber treats the `openrouter` config section as unconditionally required because it is the transcription backend (OpenRouter STT) in addition to earlier slides/agno triggers; a config without it raises `ConfigError` at load time.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/config.py#L275-L284",
+          "version": "repo-lines-v1:sha256:26a889123ff3bbf4825a5ecc85cbb3240eb2fb74436ddcd5da702383db8cd647:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM1YzA0ZTYzYTA0OGMyNzczZTAyZjM2MjA5OTQ3ZTc3MDE4MGM5MTY2ODAyMzhkNTM3OWZiN2IzYzViYjI1NjMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU5MDlhNTNhNjE4ZDAyOGUxZDMwMDBjMGE3YWJjZWVjYmU1ZmIzN2Y0ZTUxMWVmZTQ2NjQzZmFkNmU2Njg3MmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQyMWFjMTM4MTFlYzZiOTUwNGNhYzZkZTY3YTYxZTQ3NDA0MDE2MWNiZDdjNDE5MmI0ZDU0ZThlOGNhMzA2ZDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNjODY4MDkxZGFjOWM1MTJhMmM0NTAyNjI5YzQwYjg2OGM3ZWI3ZmMwYzhkNDIzN2MwOTdhMDhjZTM0NWM1YTIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ce1129ff209049789522ebc01e0f3858",
+      "statement": "OpenRouter STT model selection (`transcribe.model_id`) is separate from OpenRouter vision/summary model selection (`openrouter.slides_model`, `openrouter.summary_model`); the config model keeps them in different blocks and different stages.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/config.py#L56-L62",
+          "version": "repo-lines-v1:sha256:6226c6087dba8b11cf135e784d33ef032a28046f53e6317b47427bfa34f695c9:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDk4ZDIxMjc2OGMxZjljMjI2NzRmZTA4YmY1M2RhZDA2Y2FjYTk0Yjg1MGRmOTdjNzk3YjMzMmI5M2NjNTBiMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNmMxZjAyZmQ3ZWMxZDQ2MmMwY2I4MThiOTQ4ZmZlNGY3MTViMmMyYzQzMjYzMGMyMzJkZmUzNGQ0Mjc0M2ZhOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTMxYWEwOTMxMTQ4M2Y1MTRjMzhiZWE1NzdjNGIxYTc4NTIyZjA4NzNhNDliYTExNjdjNmE1ZTdjZWY1OTc4NSJ9"
+        },
+        {
+          "resource": "repo://transcriber/config.py#L79-L87",
+          "version": "repo-lines-v1:sha256:a911f7f302434de688da73f8cde25387f8e903cbe6802a0d5c4eed713f3722cd:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiN2RhNTg0MTIzY2JjODU2MWUzNzZmMDc3NzViYWZmYTczMWQzY2M0NzA1ZjE4NWJhY2M5YzZmZGY3NzYyZTg4MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTcyZjJhNGE4ZWNhMjk1Mjc3ZjNkYWFmYjg4MjkzYjM2OTc0NGViMjAxMDMzYjg1NjFhYjMyNGRkMGY2OWVhYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNmMxZjAyZmQ3ZWMxZDQ2MmMwY2I4MThiOTQ4ZmZlNGY3MTViMmMyYzQzMjYzMGMyMzJkZmUzNGQ0Mjc0M2ZhOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNmMxZjAyZmQ3ZWMxZDQ2MmMwY2I4MThiOTQ4ZmZlNGY3MTViMmMyYzQzMjYzMGMyMzJkZmUzNGQ0Mjc0M2ZhOSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_6db15fe596c349b884204181142be541",
+      "statement": "The OpenRouter API key is referenced by environment-variable name only in config and resolved at use time by `transcriber.config.resolve_env`; the resolved value is never stored in the config model.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/openrouter.py#L97-L97",
+          "version": "repo-lines-v1:sha256:1a10976772e4ea9204cd86eb802fb1666904aa59549601416bd024cfc904646c:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMWExMDk3Njc3MmU0ZWE5MjA0Y2Q4NmViODAyZmIxNjY2OTA0YWE1OTU0OTYwMTQxNmJkMDI0Y2ZjOTA0NjQ2YyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMWExMDk3Njc3MmU0ZWE5MjA0Y2Q4NmViODAyZmIxNjY2OTA0YWE1OTU0OTYwMTQxNmJkMDI0Y2ZjOTA0NjQ2YyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGRiYWVmM2YyYjUxMGY0MjU1MTJiODdkYjE1ZTRkNjcxM2ZkMmZlN2U1YWQwNjMxYzRjYmM5MzliMzA4NmZiOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTk2OWFkNDRjZGM3ZTZhN2JiMzEzMzFhOWE2M2MzZjZmZDUwNTBiMzhkZGQwNjdmYjc5OTE4ZDA3NzRkZDI0MSJ9"
+        },
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py#L185-L185",
+          "version": "repo-lines-v1:sha256:1a10976772e4ea9204cd86eb802fb1666904aa59549601416bd024cfc904646c:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMWExMDk3Njc3MmU0ZWE5MjA0Y2Q4NmViODAyZmIxNjY2OTA0YWE1OTU0OTYwMTQxNmJkMDI0Y2ZjOTA0NjQ2YyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMWExMDk3Njc3MmU0ZWE5MjA0Y2Q4NmViODAyZmIxNjY2OTA0YWE1OTU0OTYwMTQxNmJkMDI0Y2ZjOTA0NjQ2YyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMzY3MGJlY2ZiNzMyNzBjM2ZlYTdlNDc1YjRkM2EzZmJlMjkxZDgyZGRkODMyNzE0ODM4N2QwNTAxYzVmZjQ0ZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTZlMmMxMWE0ZTY4MzgwNGY2ZjU5YzVkMDVmNTMyYWM5NmY4ZDk0ZmFlMGVlNjQxODg2NjNiMDkwNjc2NTM5MiJ9"
+        },
+        {
+          "resource": "repo://transcriber/config.py#L333-L352",
+          "version": "repo-lines-v1:sha256:f0c539307a14170dddbc44fef57b423dd1f168d7c090523a4366281f7e1c8441:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkwNzY4MjExZTRkZjVkNjE3MDQ4YjgzMDIwODQwZGQ4YjVjMzdiNWJmY2RlMTZkNDYyYWI4YTk0YzhhZDc5MmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5M2ExMzA2MmYxMGVlNGYxMjE4ZDkzZTM3YTZmODFkMzQ2ZmYxMWVjN2U1NWRkNTQyZTJkMmQyZWYwNzExZjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZhZjQxZTQyNzVjMzRlNDgzOTViYmUzZjg2YWRhNmZkYmQyNTcxN2NjZmE5Y2M3ZGRiNDM1ODFjMjNlM2Q4ODQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_70ee51a5e8124996a75557dd316e3266",
+      "statement": "The transcriber has two OpenRouter HTTP seams: an OpenAI-format `/audio/transcriptions` STT seam that posts a JSON base64 audio body and a shared `/chat/completions` vision helper used by the slides backend; both resolve the API key at use time and attach public attribution headers.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/openrouter.py#L67-L180",
+          "version": "repo-lines-v1:sha256:8ffc74f11473f89e1646fc9b73dbd3fc73ec35b3985d64b8f79ae9c3c6e96e1f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJiOGYxOWU0MTQ5ZDFjNjQ1YWMyODJhODZiMDMwYzMzMGFkMjI2OGY4Mzc2OWU1ZDcyZjNhMDU5MDAyZjJkMGIyIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIzMGMxZjE4OGYxNDJlZDdhODI0NjgwYjIwNzE3MmM1NTE5YmM2MTRhNDhmZGE3Y2YxNjdlZGI4ZGRmNzk5NTZjIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI0MzkzNDdmNzU1MDZkMjY2MmE4ZGU2YjkwZGQ1ODlhNTMzYWMxYmQwOWM4MGVkYWZkYTNlZWNkMDE3MDY5MGQ2IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIyOWI0MWQ4N2MyMDc4ZjhkMDY3ZTU4OWUzNDg1NTBmMDk3MzdiYmVhYTU1YjcyM2U5MzZjNzgxZTUxOTM2MjY1In0"
+        },
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py#L149-L275",
+          "version": "repo-lines-v1:sha256:7524ce08d65995e2f6e966f7abf20c841d8f4065d833729acf5cac853e4ee6ea:eyJzZWxlY3RlZExpbmVDb3VudCI6MTI3LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJiN2Q0OWQ0MmM3NDhjYjlmNTQ4ZTVjOGQzZjFiZjFjNmVmZTllZTQzMWNhZmEzZTNkZmJiZDkzZTM5NTBlMTk4IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIzMGMxZjE4OGYxNDJlZDdhODI0NjgwYjIwNzE3MmM1NTE5YmM2MTRhNDhmZGE3Y2YxNjdlZGI4ZGRmNzk5NTZjIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI1OTkwOGZkZTg3NDAxOWViNWQ0YmViMTg5NGM1Y2Q5NTMxNzJkMGU4NDk2NDhhYTI5NWM0ZmMyYjExYTg2MjIwIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJiMzk5NGUzZGRlMGU5NWQ3YmEyMzkwZDc5N2RhOGU4NGIwOTNhYzUxYzUxNTUzNDFkYzIwYWI2NjljMjdhNzgzIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_410b601a87314903a966b863eb124ffa",
+      "statement": "Both OpenRouter seams retry transient `429`/`5xx` responses with bounded exponential backoff up to `MAX_ATTEMPTS = 4`, but a `400` from the STT seam fails immediately with no silent fallback; transport errors are also retried within the cap.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/openrouter.py#L112-L152",
+          "version": "repo-lines-v1:sha256:18e19935ee15c513c362f5be4c9e3d3e88104951c57d40ffc27acecbf143576c:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkwMjEzODM4MjQxNDZlZWIzYzQ1ZjljNzVhZWM3ODkyNjBhNzY4NzVjMmE3NTZiNWYwMmVhNzhjMjllMmViMDYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1MDMyZTk2NGQwOTMyMzUxZTVkMTg1MjY5MjgxYjE3MWEzYTA5YjA4YjI4NmU2NjFlYTQ3MDMyM2M4MmViNGQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQzMDRjM2M0MGQ3Mzg4YzRjYWRlOTQ2YjM1YzRkYmIwMWQyMTkwZjlhZWEwNTNmZTQ0ZDBlYTdhMGIwNmMxY2EiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU4OWFhMTIwOTE2NWUwZTJiOWE4NzBlZDhkMjJkOWY0ZjQ4M2RkM2Q3ZWIwNjFmYjQyYTI2YTkzN2Y0NjE3ODAifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/openrouter.py#L42-L47",
+          "version": "repo-lines-v1:sha256:a23c468e73a293fdba5c5d8fd74a7afc088795fb8d1b7cc17eace8cc3e2fbeba:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNGY0NGNhNjNhZWU2ZDQ1YTkyNmY3NWQ1ZDc1MDE1M2Q3MTcxOTJiYzU4ODEyZTIxZTZhOWUxZTA4NDgzYTE4MiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDk2OTQxYmM1MzY0NDQwYmU4NTg5Mjk2YTk4MmUxOGFjZjJmNThkZmJmOTBjZDEwMWI2MWVkZTZjYWIxZjlhMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODEzZmE3OGFiZDQwNmJhMmJjNDdhZGI3NGY4ZTllYWU1YmM3MWEyNzcyNjgwZGJmMjcyYzA1NDkyOTc1YzA5ZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiY2ZkZjI4NDdiMzBhMDA3OTVjMzljYjQwNmE4MWZkMTAzMzU3MjlhNDJiMzUzZTQzOTY3MTM5ODA4MWRmMWQ4MCJ9"
+        },
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py#L211-L251",
+          "version": "repo-lines-v1:sha256:b699f3d601a9c00bd0e7d69ef085c2fe7c223b4545269512920ffc61fbbf0f7a:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkwMjEzODM4MjQxNDZlZWIzYzQ1ZjljNzVhZWM3ODkyNjBhNzY4NzVjMmE3NTZiNWYwMmVhNzhjMjllMmViMDYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1MDMyZTk2NGQwOTMyMzUxZTVkMTg1MjY5MjgxYjE3MWEzYTA5YjA4YjI4NmU2NjFlYTQ3MDMyM2M4MmViNGQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQzMDRjM2M0MGQ3Mzg4YzRjYWRlOTQ2YjM1YzRkYmIwMWQyMTkwZjlhZWEwNTNmZTQ0ZDBlYTdhMGIwNmMxY2EiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImViZGMwMDRlMzFjZWRiZjVlY2JlYzMzNmJlNTJiZGEyNTJiNTkyMDJlYzk3ZTVjZTVlYzEyODUyODQwNmYxMTMifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py#L57-L65",
+          "version": "repo-lines-v1:sha256:355de845aa8cec79f4d8606cd127e6d7b4f7a54d042a8c9247b44e48e5235d04:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNGY0NGNhNjNhZWU2ZDQ1YTkyNmY3NWQ1ZDc1MDE1M2Q3MTcxOTJiYzU4ODEyZTIxZTZhOWUxZTA4NDgzYTE4MiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzJlMGEzYzYyNjA4NDcxMDFhYjE1NzJjMWQ3YTFiNTgyYTk2ODk1NmEzNTE2MDcwM2ZkYzU5MzVjMDE0ODljYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODEzZmE3OGFiZDQwNmJhMmJjNDdhZGI3NGY4ZTllYWU1YmM3MWEyNzcyNjgwZGJmMjcyYzA1NDkyOTc1YzA5ZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjM4YTA2MDNhYTdjOWNlNGI1MGVjNjJhMjZhZGE3YWZiYjQ2M2ZlYmE1MzYyYzc3MGE0NzEyM2ZiM2ViYzU5MSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_6b0cdab8245f47fd86b9485ea816b02d",
+      "statement": "When the `openrouter` config section is missing at a seam, the STT seam raises `TranscribeError` and the vision seam raises `SlideDescribeError`; both treat a missing config section as a hard failure rather than a silent fallback.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/openrouter.py#L154-L158",
+          "version": "repo-lines-v1:sha256:1776dea7fd43ea3e8847cf12abcc68366995b4639ca4b48534e16c8daafa4beb:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMWZjNzJhODdmYTc2MmQyNGVjYTA3N2NkYzgwNDQwYzYwZGZiYzQ4NzdhMTMwYzYwMjhlMzE2ODFmMDA0ZjgxNiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTUwMzJlOTY0ZDA5MzIzNTFlNWQxODUyNjkyODFiMTcxYTNhMDliMDhiMjg2ZTY2MWVhNDcwMzIzYzgyZWI0ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZjk4N2UzODAzMDg5MmRlNDY4NGJmOGUwMWI5N2E5MWIxYjRmNzM1OTI0MjMwMmY2N2E2OWNkODkyYzk0M2Y3MCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTJiMmFmYzU0N2Q4ODY5MWFjYjI0NjM5YjA1ZTMyMTIxOTU2MzMzMTY1M2VmOTc0ZGEwMzJiODAzN2M4ODUwZCJ9"
+        },
+        {
+          "resource": "repo://transcriber/backends/openrouter.py#L91-L95",
+          "version": "repo-lines-v1:sha256:d18d3f5a6c8459b2974ae846080d5fa195bc3cb9523843be6a0eae68ab26e2fc:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmU5ODI0ZjAwNTY4OGI1MGFmNmEzZDM1MjJhZTY5YTI0M2RhOGE5ZDcyYjQyNjc5NmFmZGE1OTcxOGI0MjU3NyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTkwOWE1M2E2MThkMDI4ZTFkMzAwMGMwYTdhYmNlZWNiZTVmYjM3ZjRlNTExZWZlNDY2NDNmYWQ2ZTY2ODcyZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMmM3NGU4ODE3MzU2NGVlN2Q2YjJmNjFlNDQ5ZTM4ZGVlYThlMzE2OTU5MjQwYjMyNjdmMzkzYjUxZWI4ODE1MCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMmRhZjc5ZGVjYWU1Y2EwNGM3OTRhNzEwNTkwMDQyZWMwN2U4YzRhYzJhMDFmNTlmYzA0ZWE0ZjlkNDVlMGUzYiJ9"
+        },
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py#L179-L183",
+          "version": "repo-lines-v1:sha256:139ee1e5b4d76f448b6d0c94858b422455a3f26d79fdadc51a375cbf19aca755:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmU5ODI0ZjAwNTY4OGI1MGFmNmEzZDM1MjJhZTY5YTI0M2RhOGE5ZDcyYjQyNjc5NmFmZGE1OTcxOGI0MjU3NyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTkwOWE1M2E2MThkMDI4ZTFkMzAwMGMwYTdhYmNlZWNiZTVmYjM3ZjRlNTExZWZlNDY2NDNmYWQ2ZTY2ODcyZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYmYxMDBjZjczY2JlN2VmMTdlODY0OTNiZDk4NTBiODRhZTcyZmU1N2NlMjAxMGM5ODY2ZjBiNjFjYTY3Y2YyZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMmRhZjc5ZGVjYWU1Y2EwNGM3OTRhNzEwNTkwMDQyZWMwN2U4YzRhYzJhMDFmNTlmYzA0ZWE0ZjlkNDVlMGUzYiJ9"
+        },
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py#L253-L259",
+          "version": "repo-lines-v1:sha256:efd1cab70e3aaec3a47c7a945f1b5f45097b05357ffee6c1bdbb05b3786f877b:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMWZjNzJhODdmYTc2MmQyNGVjYTA3N2NkYzgwNDQwYzYwZGZiYzQ4NzdhMTMwYzYwMjhlMzE2ODFmMDA0ZjgxNiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTUwMzJlOTY0ZDA5MzIzNTFlNWQxODUyNjkyODFiMTcxYTNhMDliMDhiMjg2ZTY2MWVhNDcwMzIzYzgyZWI0ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZjk4N2UzODAzMDg5MmRlNDY4NGJmOGUwMWI5N2E5MWIxYjRmNzM1OTI0MjMwMmY2N2E2OWNkODkyYzk0M2Y3MCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjEwMjljMmFkZjEzZmI3MTkwZjQzY2RhYTI2NTgyZDZhMmY5MjJhN2YwNDQ0NTQ0Njk2MzdmOGYzMDZkNTFhYSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_5631322376594f32816b1b58da13c2b9",
+      "statement": "The `describe_slides` stage uses the `openrouter` vision backend exclusively and issues one OpenRouter vision call per slide, with the descriptor being image-only and never receiving the transcript.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/openrouter.py#L1-L1",
+          "version": "repo-lines-v1:sha256:10481a667bcc0f439659ceb0a0fd02304248fd64c56df759f53684c2e468102b:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTA0ODFhNjY3YmNjMGY0Mzk2NTljZWIwYTBmZDAyMzA0MjQ4ZmQ2NGM1NmRmNzU5ZjUzNjg0YzJlNDY4MTAyYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMTA0ODFhNjY3YmNjMGY0Mzk2NTljZWIwYTBmZDAyMzA0MjQ4ZmQ2NGM1NmRmNzU5ZjUzNjg0YzJlNDY4MTAyYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjQ3YmVlZWZmZTVmMzYxOTI2YmNiNWMwNDhhZDBkMmYyZmE5NjNiMmVkYjhkYmYxZDA3YjMwMWY2MTUyZjRmOCJ9"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L448-L559",
+          "version": "repo-lines-v1:sha256:c74fe01e3bda6e26cb2a7ca94061343386f91c1bb2bdf221ff3019ac2a0df690:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlYzYzM2I3Y2FmMzU5MTU1YTY0N2M4ZTg1NTY2ODk0OTc1OWNiZmFlOGYxYTU2NzM4N2FkM2M4ZjczMWY2OTBlIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJmMjZmN2Q2ZDViZDQyNGZhMjE5YjU5NDMzZWM0MjFhZTg1MjZlZTlmZWY2Yzc5MjE3Y2U2MmVkZTY3OWI4OTBlIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJjNjNlZjYwNzRlZmRhM2I2NDIxMjQwOGMzYzhkMGM2OTZmMTVjZjZiZjUzZDI1NDBhY2RkY2QyYzUzYjI3YjM2IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_20e0ab852cb54bcfa46674562ef0465b",
+      "statement": "The OpenRouter slides backend enforces deterministic ceilings before any HTTP call: a max slide count (`MAX_SLIDES` default 60, overridable via `openrouter.max_slides`) and a whole-deck encoded-byte ceiling (`MAX_TOTAL_ENCODED_BYTES` = 48 MiB) checked once up front by `_preflight_deck_encoded_bytes`; over-ceiling decks hard-fail without chunking.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/slides.py#L350-L415",
+          "version": "repo-lines-v1:sha256:3ecded7f58be0abfdbdd55679a505918d55af6e4ff36785410b408b7261b20b8:eyJzZWxlY3RlZExpbmVDb3VudCI6NjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc3OWZlMmUyMDUyOTU2YWI4YjUwMDY5YjY4ZmY3NmQ3NGRmOTZjNWViMGM1MGFmMjg4NWYxODQ3MzBmZDlkYzIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc1ZmUwMWI4YTljM2JhZWE2NTVhOTFjNGRjYzIzYTI4YzVhNTUyNmJiMDVlYmQ0NTkyYjY3Mjk2NDJjYTc5NGIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhjYzRhN2QxY2M3OTZhYmEzZTQ2NzIzMzI3ZjUxN2U5ZjgxMTk4MmQyNTBmMDcwMjk4NmU0YjU3NjRhZDk1ODkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU4YmEwMTUyYTYyZmFhYjExOTUxMmEzYmEyM2Y4MWUyNTUwNTJlMmUyM2RkOWFiNGFiMmI1ZGYyZjMyNDE4YTkifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L495-L515",
+          "version": "repo-lines-v1:sha256:d7713d888926e13040bfe023ac89410e6a66951949baa1de39dbf7e959371d01:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1Mzc5NmE4ZTNkZWJiOWJmOTA0ODc3MWQ1ZGVkNDZhOGMxMmY2NWIwMzUwYTU1YTQ3YmE0Y2JlODVhNmZkYjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0ZjFmZDcyZDgwNmIzNjY2ODI5OTM0MDVmZWViZDUxMmYyZDI1MjFkOGYxNDIzNGQ0YjIyMWUzNjEzZGU5ZjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMxODA5ZmI0YzBlMmM2NTI3MGFmNTc5YjE4ZjUyYmZkZTA5ODhlODM3MDAyNDQzYWVlNzQyM2U5NDY2OTQxYjEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc5YmRiYjFlM2VlNGRiZDMwYzgyOGE0YjdhMDVkNjEzMDQwNTg2OGU1NjA5Y2Y4MzY2ODczNjE3NjhjMzA4NTMifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L62-L62",
+          "version": "repo-lines-v1:sha256:96ac452c8b6284be8159d123e83c094f745cfde5568a0c9b6b21fddd4011f300:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTZhYzQ1MmM4YjYyODRiZTgxNTlkMTIzZTgzYzA5NGY3NDVjZmRlNTU2OGEwYzliNmIyMWZkZGQ0MDExZjMwMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTZhYzQ1MmM4YjYyODRiZTgxNTlkMTIzZTgzYzA5NGY3NDVjZmRlNTU2OGEwYzliNmIyMWZkZGQ0MDExZjMwMCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYTJjMDM4MWRhNzY3M2FhYzQ2MzExZjAwZGMzMDUyOGIxNGYyNjU4YjA2ODdmMjhkMGMyZjdlZjIxMjM3Y2EyNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTFkNjZhMWY5ZGQ4OTVmNDBhYTM2ODhhNDM4OTJjOGNiNjNjMDNhZjljYzJlNzNhMzU1MzFjYTU2MjY2ZThhZSJ9"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L70-L71",
+          "version": "repo-lines-v1:sha256:30d24299172cbc8b9f869fde51e16795781c4915c0533c369fdcca26e7cfe9a7:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMWMyMDUwZGVkYTc4ODk2ZGIxN2Y3M2Y0NDI4NTY1ODI3MDliZjhlMjE2NDA0ZWJmOWY1NTYyMWNiYzZmODE4NSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiY2ViMzY1YzM5MTdlZDhlMjRhMjFiYjUyNWFiNTE2OGQ5OWFhMjNlMGE3YTRhZWRlYmU4OWZlYWJmMWY1YWVjNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYTMyMDVkMWViOWM4YzJmMzM3MjUxNTljNzFkODE1MDI2ZmQ5Zjc0ZjBmZTQzZmMzZDM3Zjg0NGYwZThhOGQ0ZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjdmOGFhMTJiY2JjMThjNDViNGJlN2QyNWQ1Yzk3YTQ0NmE0NjJjYjIxNDc3YmNjYmY5NGQyMDQxN2QwZDIyZCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_dfd7194a8bcc43569386dfc970268c87",
+      "statement": "Per-slide timestamps are passed as a `Timestamp: MM:SS - MM:SS` text part immediately before the `image_url` part, with unknown timing rendered as the literal `unknown`; an empty slide set returns `\"\"` with no HTTP call and a valid empty/whitespace response contributes nothing.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/interfaces.py#L50-L68",
+          "version": "repo-lines-v1:sha256:6d4dde01fa4ad6162174086c6c514c5485539bd1801d18dbde38861a75e3388f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwMzA2OWQzZjMyN2IwY2ZkMWQwODcyNzRlYzI3NTY1ODU0ZDg1MmIzMjI1NTNkMzkwMmM4OWY1M2YwMDBlZGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU2MjBkODVkZTRlZDdhYjgwMjFiNGE4ZGQ0ZmExNWVjNTE5MjVjZGZjY2RlMTgwNTg5NWE0YzhhM2MzYmE0OGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNmMWY1NjI5MGQ4ZjI2ZjY3NDgzNDUwYzkxMTdjNGIxMjc4M2Q3ZmM5NzI3ZGJmMDk0OGMzZjIwNTQ0OTkyZDciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQzYzYyNWY5MWRmYjhlNGMzZDFlYjFjN2NjNDU3NWNjOGE1NWJhOGE2N2E4ZmM1MjA1MjYwYTBiZDgyYTgyYjIifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L23-L38",
+          "version": "repo-lines-v1:sha256:7d9012f1bd2b4386bc3f0a26edbf8ace7f2f5f4f59f81ed4eaf3fb514fadf97b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVlYjgzOTNmYmVmYzUzMGEwZTUyYzMwYWY2YmFiZjQ0MTMyYzFkZmYwZjZlNWM3OTlkN2E3OWEwNWZmZTEwYTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA4OWY0ZTA3MTQ1M2MyMzVlNzJhNjQ5MGZkMDFhOTE3YTk4YTI0YTRkNWQwMjVhZTgwODQwYjEyZTM4Y2U0YzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU1YjZlODcwNmI0MzA0N2YyYTZkYjY3ZjEzMjYzODU5NTYwNGU2N2YzNjk2Njg3NmNlMDE1OGYwMDUzZTZiZDEifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L480-L480",
+          "version": "repo-lines-v1:sha256:cbfe8713a8b07c1395b5e65f20fc33aefee917ff3907db69cdc4a4ddc68781ca:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiY2JmZTg3MTNhOGIwN2MxMzk1YjVlNjVmMjBmYzMzYWVmZWU5MTdmZjM5MDdkYjY5Y2RjNGE0ZGRjNjg3ODFjYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiY2JmZTg3MTNhOGIwN2MxMzk1YjVlNjVmMjBmYzMzYWVmZWU5MTdmZjM5MDdkYjY5Y2RjNGE0ZGRjNjg3ODFjYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYzhjYTM1ZDY1MDUwNjIzNmU2M2M4ZGQ0YWY1OTUwOWQxMDgxYjI1ZGYyZGM2YmNiYTg2ZWU2MjhiZWM2YmYyYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzliZWU0NDc1YjQxZTc4M2E4NDY4YjZmMzFmYWE2NTljZmY1ZTIwMDYyMDEzN2MwYzBlNWVhZTY0MTAyNGUyNSJ9"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L526-L548",
+          "version": "repo-lines-v1:sha256:05f1a42bc70d1d6712365b920c49996e17251f931fbb05c81706313f3d071974:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAzMmY2ODlkNGI3OWFjMWFmNzE2MDA1ZGJlOGZhMzRjYzk2MTAwOTdmMjQzNjdiMTI4MDA3OTVmNmU1YzMzZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBhYWRhMzBiNDc0MmM4OGQ5ZmY2ZWY0YjZmYmU0ZDFmMzRhYjMwNWQxZGY5ODk5MDY1NTc2NGRkYTJjNzg2Y2MiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM1M2NiYzYwZDAxYjk2MzQ2ZWJhMjhkY2VkNjcxMDhjYTczZmUyMDRlZTc3YmVlNmIzYjAwYTg1YTAyMzdhOWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ0NmRmOTRkNDNmMDE4OGJiODg1OTgyYjlhMTc4MDU3MDNhMDQ1MTIxZDI1OTBlMjYwZjVmNGQ1OGE5ZDEwZGEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8bf54c5d514946518202299e568161cb",
+      "statement": "Each slide JPEG is downscaled to a bounded long edge (`MAX_IMAGE_LONG_EDGE = 1024`) and re-encoded before base64 as a size/cost control, not as redaction.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/slides.py#L350-L389",
+          "version": "repo-lines-v1:sha256:295082a4526509773584663e349ec296b8543cbcf7039739eb1c0541b576b343:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc3OWZlMmUyMDUyOTU2YWI4YjUwMDY5YjY4ZmY3NmQ3NGRmOTZjNWViMGM1MGFmMjg4NWYxODQ3MzBmZDlkYzIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlMDA5Y2U3MjIwZWU3YzE2NzQwOWI5MzY4MzhjNGY4ODNlMDUzZGU4MmUzYTNhYTlhOGM4MDNmMDYyYjhhNDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhjYzRhN2QxY2M3OTZhYmEzZTQ2NzIzMzI3ZjUxN2U5ZjgxMTk4MmQyNTBmMDcwMjk4NmU0YjU3NjRhZDk1ODkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRiY2M3ZWFjNDA1YjI4YzVhMWM3ZjAwYzA3NDJjZjhmY2JmNTI0NTMzNzlmYTZjY2MxMjAyZDQzNDk2YmIyMjEifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L386-L389",
+          "version": "repo-lines-v1:sha256:e9e40630429efc1f254f450e8fff993ad2da451254145ff9de8572e08dfbbab8:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjQ0NDkzODhlY2RkYWU3YjRmNjZlODY0MWNjMWQyMzU2ZWE2ODE1ZmQzMjJjNTIwZDA1ZjEyNTFhZmYyNjRjZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWUwMDljZTcyMjBlZTdjMTY3NDA5YjkzNjgzOGM0Zjg4M2UwNTNkZTgyZTNhM2FhOWE4YzgwM2YwNjJiOGE0NCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOWIwNjM1NWU0ZDZkNGVmMjc0ZGY0NjM1NjRiNmJjNDc4ZGI1MjQwZmJhNDJiYzdiZTk5MzU3MzkwMjczNTFiMCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNGJjYzdlYWM0MDViMjhjNWExYzdmMDBjMDc0MmNmOGZjYmY1MjQ1MzM3OWZhNmNjYzEyMDJkNDM0OTZiYjIyMSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_e4b8043a42b74ddca10634442427145d",
+      "statement": "The STT response parser is defensive: it prefers `segments`, falls back to `words` for per-speaker turns, extracts `usage.cost`, and degrades to flat `raw_text` with a warning when diarization yields no parseable shape rather than crashing silently.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py#L278-L314",
+          "version": "repo-lines-v1:sha256:3a292a50010f41d26624dd0d6a858607b5195feb370ecd364f6c402b5d8daf9e:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgxMGU5NDc0MTJhOTFkM2U1NzcyZTg2YWEzZTkxN2Y2MTYwMjRmNjdhNmJhNDU3NDkxYTE4Zjc0MjIwNTE5MjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwYzFmMTg4ZjE0MmVkN2E4MjQ2ODBiMjA3MTcyYzU1MTliYzYxNGE0OGZkYTdjZjE2N2VkYjhkZGY3OTk1NmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhjYzRhN2QxY2M3OTZhYmEzZTQ2NzIzMzI3ZjUxN2U5ZjgxMTk4MmQyNTBmMDcwMjk4NmU0YjU3NjRhZDk1ODkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM0OGEwZGFhYjkwNTdkN2ZlOGQ0Y2EyMGJmODM5ZjVhNjM4NWFmN2E1NTQ4MzhjZDYxYjlkZDJjYWJkOTA4ZmUifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py#L317-L368",
+          "version": "repo-lines-v1:sha256:7b289b4d9ebcc4eb841def7bc30234364673a2fe407a235e869d94e20a8caf14:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQwOWQ2NTg3YjdkNGFlM2M5MjAxMzVlZTU4MmU2ZDUwYjUxNTI3MDA0YjEyMDk0M2E3YzgxM2Y0MGM4NmVmMjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0NTI2YWZkNzhlMmJiZGM0N2QwODZmNjliOTdhZjYwZTQ5MjAzZDNjNDlhMTAwMDNmNTQxNzEyODlmOTYxZTQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhjYzRhN2QxY2M3OTZhYmEzZTQ2NzIzMzI3ZjUxN2U5ZjgxMTk4MmQyNTBmMDcwMjk4NmU0YjU3NjRhZDk1ODkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRhOWJiNGIyM2UxY2ZlN2MyZWYwZjAyZjE1NWM4NzI2ODY0ZDNlMDUxNTQyZmQzNTdjNzhkZjZhMTBhNGMzYWYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6541a0b5fce8497282aa3739e8efb74e",
+      "statement": "The transcription seam sends the audio as a raw base64 payload in a JSON body (`input_audio.data` with `format: \"mp3\"`), not as an OpenAI multipart or a `data:` URI, mirroring the documented P3 choice.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py#L1-L10",
+          "version": "repo-lines-v1:sha256:8bd80c0a2f1a3e07c3e2d3b591801cafa7f4fbbed2ae57a2f81dd31a964be436:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhNWQ2MDJhYTI0OGY4OTg0ZDYyMWU4MThlMjU5OTZhODI3MTBiMGMyMDUwMjgyZjAzNDIzMDRkYmI4MjljZmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZjNDMzYjlkNWZlYWQ4ZDEyOTdjODI1ZTc1MzZlZjE1ZTE5ZmNiMTJlNjA2ODQxMzdiOTBlYTAzMzk0NDE2M2YiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZjNWY0MjYwZDAxNjFmYWVlMTFiMWQyNzVjMGVkNDA1YTdkNTc2MDgzMjE1MzNjNmE5YmRiNGEyOGY3YzEzNjQifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py#L196-L197",
+          "version": "repo-lines-v1:sha256:bda6ee47a821a9897f6be488ad933dfb9a5c62c0ef29a2bfc3146a2e5ffbc4c4:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiY2YzZGZkY2NiYTZjMGMwZjA1MTI0YWVhNGVmYzlmOTU3Mjk3OTdkYWJhYmQ1MDkwYTEzNTk4OTFmYjNjOGI0MCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMmFiNmU5Y2I1NjcwNDg1NjhmOWVlYzUzN2M3N2RiMmQ1MDRkMzFiMzU0YzhlOTE4MTJmOTAxN2UwNjkxZWU1ZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjI2YTc4ODRkMjliMTgyNGM1NjlhZjA0ZGZmOWQ1YmYzMmJjODZjYzA2YWMyMDYzMTAwM2Q2ZTllMGVlM2IxMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMGRjZjdlMzhjZDY4NzIwZjEzZmI2ZGExYWEwNTU4YTAwNjhmNjE2NWFlNWU5Y2ViYTQzODY0NzZjYThmZTc3MyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_a908605596fc4153bd6c0ac4f6afe993",
+      "statement": "Per-model diarization toggles are registered by model slug substring; only `microsoft/mai-transcribe-2` currently has a provider diarization block, and an unknown model sends `verbose_json` without a toggle and relies on native diarization, failing cleanly on a 400 if unsupported.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py#L138-L143",
+          "version": "repo-lines-v1:sha256:7d461611bdfef3c79dd00c313f702d0ebc95fcbab596547ebe6da5c06ef7172b:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMmRhN2RkNDNlNWY1NGIwZDA0ZjYzOWM1MzNiYmFkZGI0YWVkNjdlN2VkOTIzYmJhN2RkMTMwZmU4ZjA4MmUxMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjdhYzg2OWUwMmU2YjgyMTk2ODg3MmI4MTBhMDgzZDg1OWQ4NmM3NjlhYmMxODNmNzI1MDkwYmIwODlkOTdkNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNDM5MzQ3Zjc1NTA2ZDI2NjJhOGRlNmI5MGRkNTg5YTUzM2FjMWJkMDljODBlZGFmZGEzZWVjZDAxNzA2OTBkNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNGE5YmI0YjIzZTFjZmU3YzJlZjBmMDJmMTU1Yzg3MjY4NjRkM2UwNTE1NDJmZDM1N2M3OGRmNmExMGE0YzNhZiJ9"
+        },
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py#L71-L77",
+          "version": "repo-lines-v1:sha256:ab16dd1e2f2b8cbf46ea1446e40ad7006f05695445d818f5cdf88de715891384:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjNlZDFhM2U2NjY5ZmZlM2E2OWI0ZDU0YjEyOGVhNWMzODVhMjg0ZjBkNDZjZWY0ZTcwN2U2YTI3MThlMTI4YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYTVkYmE0NDU1MzYzNjgzYWRiMjUxYzViZmI1MDE0NDg1OGEyMzlhNzE3OTdiNzBlZDU0MjFjMDFiOTczYWU4YyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNGE5YmI0YjIzZTFjZmU3YzJlZjBmMDJmMTU1Yzg3MjY4NjRkM2UwNTE1NDJmZDM1N2M3OGRmNmExMGE0YzNhZiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_af83e7cd161b4095a1c97d5cb930fbdc",
+      "statement": "The `transcribe` stage uses a `segments.json` manifest under `transcribe_work.<name>` for per-segment idempotency and a parameter guard; completed parts are reused and never re-issued, and a stored `segment_seconds`/`overlap_seconds` mismatch discards the work dir and rechunks.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py#L641-L693",
+          "version": "repo-lines-v1:sha256:18a6ed2227ec5355cca0019d261236a1c6eba620b13a0abb50912c45ed20d34f:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdmNTM4ZjdhMTFkNDk5OGQ4MmEzNDc3ZDFiZGJlY2MyNGRmN2UxOTY0Y2M3MzUyYjY3ZTlkOGQ4YmIwOWFhMzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEwOTU4NjU4YjdiYWJlOWJlOWVhNzljMjI1NTZjZmUzNWY1YjZmNmUzNTNiMmY0MzIzNTk5NzY0MDYxMTQ4NmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVkYWRmY2EwYzY5OTEwZmJlN2IzMTBmYjlmMWIyZmUwMjliMDc3NDUzNGU2ZmJiM2I5NjAwMTcxMWIzNGNhMTQifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py#L758-L864",
+          "version": "repo-lines-v1:sha256:cb288b30b36b825447b0af7e49785ffe18e463d5a8fbc20b7aa63cb66f129bac:eyJzZWxlY3RlZExpbmVDb3VudCI6MTA3LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI3ZjM3MTlhNTU3YjhiZWMyN2ZmN2NiMTMzNmFhMGU0Mzg5ZjhhMzAzMDg2Yzk4MjFiNTkzNTIyYzI2Yjc4OTQ4IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJiMTFhYzI3NzE5NzIwNWUzMWM5ZmEyN2I0MDY5YzJkZDM2NzZiNDg0NmRjY2Q3YjFkY2JlMjFhODg5ZDIxYTgyIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI4NzE2YTBjNzBmYjFjN2VhNTc3OTI5Nzg1ZDk3MDkwMThhMGI2OTAxNzg4N2YxMGQ5NmMyMzQyZGE3Y2QzNmQ1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_7c1252c1e25841fbb5743c5bcdf59f14",
+      "statement": "OpenRouter-related timeouts live in `transcriber.config.Timeouts` with a `DEFAULT_TIMEOUT_SECONDS = 900` default, and `summarize` is optional with a fallback to `agy` at use time.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/config.py#L113-L122",
+          "version": "repo-lines-v1:sha256:9db82da3244b022f96af30d5da4e702908db0460b8edba1b5b27dc23c8980a61:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI2ZmJhZTBiOTFkNDRmYzBkNDlmNWRlNjkxZGE2ZmM0MzFmMjYwMTM0YmY3MzFlMGUyMWY3NjQ4MDk0MzM0Y2IiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFmZTI3ZGQxNTU4M2E2MDkyYTdlOGQ1MjJhYjEwMWQ1M2Y0ZTY3Mjg1N2Y1ZGRiYzM4ZDgxMzU3MmI4YzdmNzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFkMjU0MzRmZTYxMDcwNGU1YWJkMmI3NmU3ZDEzNmU0OTZiY2NmZGM5ODYzOGRjMDliMWFiOTFhYmI1YWYyMTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZjMWYwMmZkN2VjMWQ0NjJjMGNiODE4Yjk0OGZmZTRmNzE1YjJjMmM0MzI2MzBjMjMyZGZlMzRkNDI3NDNmYTkifQ"
+        },
+        {
+          "resource": "repo://transcriber/config.py#L25-L25",
+          "version": "repo-lines-v1:sha256:33842b3d326249ac75e2e3d349dd5d3b8853895df8ba2c263916987bd252d478:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMzM4NDJiM2QzMjYyNDlhYzc1ZTJlM2QzNDlkZDVkM2I4ODUzODk1ZGY4YmEyYzI2MzkxNjk4N2JkMjUyZDQ3OCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzM4NDJiM2QzMjYyNDlhYzc1ZTJlM2QzNDlkZDVkM2I4ODUzODk1ZGY4YmEyYzI2MzkxNjk4N2JkMjUyZDQ3OCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjM1MDIyMjQ0ZjE1YjY0ZTExN2U5Y2I4NjY5MjJiMmNhZjZhZTBkNDVhODlmYzZjYzc3M2E3MzFkNTUyZjdkMCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTI0YTdjMDdlOGVkMjcwMTAxYmI1MmVkMGQ0NWRmNTI4NjAyYjA5ZDUwYmYwZDgxZDAyMzljM2QxZjAyYTQ2OSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_7dd1e7724e844fdd930701f34992c4aa",
+      "statement": "The OpenRouter integration enforces log hygiene across both seams and error types: the API key, request headers, and base64 payloads are never logged or embedded in exceptions; errors carry only the HTTP status and a short truncated body snippet bounded by `_SNIPPET_LEN = 200`.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/errors.py#L1-L42",
+          "version": "repo-lines-v1:sha256:5367d9b8a885e1434efa95b9f99dfca38b74310a70e5264a47a5901a12af2bd3:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlMzNjMzVkOGZjMGUyMjc1OTgxNjJlZGUyMGRiNzQ1YjY4ZjU0NmMwMjQxNzdhOTgwODc5ZDk5YzM5NzI2YjAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE2YTcxNTI1NzJlZTg0ZjEwOTA2Yzc0YjlmMmE5MjQzNGRkYWIwZTNjNDI4MTNiMDRlNTk3ZWZjZWM5NTFiMjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/openrouter.py#L19-L21",
+          "version": "repo-lines-v1:sha256:f40aaf2d04a4f1bf91baf3b88c439eac82295e3578b09b073e93f581928389de:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMmI4MzY2M2I2Y2E1MWI2NjgyMDdiOTM4NTBlYjQ4MWNiOTE2YTk4OWUyYzYxMWViOTcyMjgzNTIxMzMxNzhlMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOGEwYmNkZGRjODFjZmFjYjdiZDczNTk4MmEzOTYzNmQ2OTZkMGI5YmUzMjMyNDc4NTgzMjMxNGE5MDk4N2VhMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNGEyNWJmNzY2NzkzZjMxZTM0NTFiMWE3ODQ0M2IxYzhjZjZmY2VjNTkyZWQ5OGEyYWEyNjI4YmM3YWYyODdkZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMWFhZjc2MzdjYjZlN2U1ZGI4NWQ2MzQyNzQ2MDE0ZGYwNDFjY2Q1NThhOTIwYjI5ZWI2YWM3MTlkN2JhZjVjMiJ9"
+        },
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py#L27-L29",
+          "version": "repo-lines-v1:sha256:2e92000a8753f3efb1314f2eb83112c713c9e7f939baf5aa4f270d33fd425a18:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiN2JiNDIyNjE1ZTEwNGYzM2JlODZjODRiNTZmNzkzOTJhYTViMTU1Zjg1M2QwOTg5MDljYzExMThmMmM0ZjQzZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiM2M2OWI5YjRhMjNhNzcwMjQ2ODdiZGRiYmRhNWIxNmQzYjFhMjBjZmIzNTZhYTg3YWFjZjE5N2FmYzlhNDhkZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTA0NTM2YTcxMTI1ZjhlNDlkNjgzY2FlYjA4ZGIyY2I3YjE1ZGJhOGNmY2UxNGExNDUwZDRhY2FhOTNlYzQ1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMWFhZjc2MzdjYjZlN2U1ZGI4NWQ2MzQyNzQ2MDE0ZGYwNDFjY2Q1NThhOTIwYjI5ZWI2YWM3MTlkN2JhZjVjMiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_e1be9deb37104f8bb7763fec7130f38f",
+      "statement": "When `summary.backend == \"agno\"`, the summary runs through an Agno OpenRouter model, but the Notion publish is engine-side via the Notion REST API, not model tool-calling, because the official Notion MCP tool schemas break tool-calling over OpenRouter for some models.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_publish.py#L1-L27",
+          "version": "repo-lines-v1:sha256:8648e0730bf59ba250c9c0c140a4870188b7e67bfce24e3ce5d581a04fe0e3dd:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYyZGQzNzkyODEzZTIyNmJjMjYzYzc1MGQ1NDFhOTc5ZWNiZjE0YjI1ODRjZDkzMzMzYzMyOTZjZDczMmMxYzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU1YjZlODcwNmI0MzA0N2YyYTZkYjY3ZjEzMjYzODU5NTYwNGU2N2YzNjk2Njg3NmNlMDE1OGYwMDUzZTZiZDEifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py#L1-L31",
+          "version": "repo-lines-v1:sha256:ab2b25a801564c35cabc76534b4983053d60ccda0d77f3ab07b7f7b295ae646d:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA5Yjc5ZGU5Zjc2NDZmNjg0M2UwNGMxNmFkY2VhMDBjZGJiMjBiYTJkNTUyM2JmY2FkMmU1MDJiMDgzYTg2NjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU1YjZlODcwNmI0MzA0N2YyYTZkYjY3ZjEzMjYzODU5NTYwNGU2N2YzNjk2Njg3NmNlMDE1OGYwMDUzZTZiZDEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d31c6666937541269159a4cebdf37e01",
+      "statement": "The orchestrator's `_get_slides_backend` validates at config load that `stages.slides.backend == \"openrouter\"` and returns `OpenRouterSlidesBackend()`, raising on any other value rather than silently falling back.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py#L1-L32",
+          "version": "repo-lines-v1:sha256:4cc13fa44b77d097182fb92bbea4bf64e56f20d32351a0100c21b1b839e12c12:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc4YzNjMTBmY2EyZjMyMTZjNzE4MGI4MzI2YjA0OGU3ODFlMmY0Y2NjMzZhMjY4YzA3NmQ4YTdjYmQ3NWM0ZjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU1YjZlODcwNmI0MzA0N2YyYTZkYjY3ZjEzMjYzODU5NTYwNGU2N2YzNjk2Njg3NmNlMDE1OGYwMDUzZTZiZDEifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L62-L74",
+          "version": "repo-lines-v1:sha256:01669d1661dc5f12ba37de540b56748bcfa3b62ceac6432b2743c25b9ecb196d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJiMDI4NWRlZTg0MWZkMDA0MTg3ZWFiZTEyMDMxMjFiMGU4NDE0YjM0MTQzMzAwMmMzYjczODk4ZGJhYWU2MDYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwYzFmMTg4ZjE0MmVkN2E4MjQ2ODBiMjA3MTcyYzU1MTliYzYxNGE0OGZkYTdjZjE2N2VkYjhkZGY3OTk1NmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMzODAxNDFlZWEyMDZkNjk4ZjllYjZiM2Y0OWM3YzY3Y2Y1ZDBkMmU5MGM0ZDEyZDRhZWE3OGJmNTNiY2Q3MjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIwODY4ZTE1YWUwMjk1ZjQwZTA2YzNkZGNiNmM0ZjFkNzgyOWRjM2EwNjcyOTBhYzc0Y2JjMDI2N2I0NTE4NzkifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.1",
+    "at": "2026-10-02T19:10:14.922Z"
+  }
+}

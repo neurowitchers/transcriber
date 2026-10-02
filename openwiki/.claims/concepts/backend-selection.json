@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:4706054abe15ff198fbea69b4625f2392a66ea32daf5660fe975d2aa7a35cf9a",
+  "claims": [
+    {
+      "id": "claim_b9c19de56efa435f850a512d7c6605e4",
+      "statement": "describe_slides and summarize each select a backend as a pure function of config, and the selected backend is validated at config load and at the orchestrator call site with no silent cross-backend fallback.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py",
+          "version": "repo-file-v1:sha256:a2f37f12be19c971da7b21520f5ee8c08c14b1a7c6f608298808d38e698ae238"
+        },
+        {
+          "resource": "repo://transcriber/backends/interfaces.py",
+          "version": "repo-file-v1:sha256:ce3b7307308c41e3071c45cfe4afcba6c7380587cf04f31279b0c68b4ad44a62"
+        },
+        {
+          "resource": "repo://transcriber/backends/notion_publish.py",
+          "version": "repo-file-v1:sha256:7651fcdebf7ef71cae6c167159ff400631559a74f9339fa96deee6d5ff93757f"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py",
+          "version": "repo-file-v1:sha256:48a05be4e0e55ebe82b10b388a2e99c6fdb99097e16dbff2ff832e029d19dc84"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize.py",
+          "version": "repo-file-v1:sha256:3d60e50bc94f5d013e16d11069051582f4777ac6355b030ec854aeaf42eac77f"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py",
+          "version": "repo-file-v1:sha256:4d0c7eefdf47e03096686793f8cdd23cdb0fbdd724e8d860a87142bdeafc89e4"
+        },
+        {
+          "resource": "repo://transcriber/config.py",
+          "version": "repo-file-v1:sha256:176fa26c8f5d84cc86ba15cdb5a19e9e39df61285de32d0da853335f50c9306c"
+        }
+      ]
+    },
+    {
+      "id": "claim_02451a70a89d43dd848ee4f7acd7c0d4",
+      "statement": "describe_slides is now restricted to the openrouter backend; config validates stages.slides.backend to the openrouter-only SLIDES_BACKENDS tuple and defaults it to openrouter, so agy is no longer a valid slides backend in the shipped code even though the spec originally allowed agy.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py",
+          "version": "repo-file-v1:sha256:a2f37f12be19c971da7b21520f5ee8c08c14b1a7c6f608298808d38e698ae238"
+        },
+        {
+          "resource": "repo://transcriber/backends/__init__.py",
+          "version": "repo-file-v1:sha256:ef7e0d17482d7e8ed1101f32bcf4748dd629f90fa9771c3782463f0bb0c1ad44"
+        },
+        {
+          "resource": "repo://transcriber/config.py",
+          "version": "repo-file-v1:sha256:176fa26c8f5d84cc86ba15cdb5a19e9e39df61285de32d0da853335f50c9306c"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.1",
+    "at": "2026-10-02T19:10:14.922Z"
+  }
+}

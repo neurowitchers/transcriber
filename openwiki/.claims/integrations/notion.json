@@ -1,0 +1,260 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:41c3df5d083e9db32e0942e19e9c2fd252dacac2a90782345a18236eae58fb05",
+  "claims": [
+    {
+      "id": "claim_36a2aeffec7e4d41b45ea56ecf6afec4",
+      "statement": "For summary.backend == 'agno', the engine publishes the Notion subpage directly via the Notion REST API (transcriber.backends.notion_publish.publish_to_notion) — no MCP server, no model tool-calling.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_publish.py#L1-L27",
+          "version": "repo-lines-v1:sha256:8648e0730bf59ba250c9c0c140a4870188b7e67bfce24e3ce5d581a04fe0e3dd:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYyZGQzNzkyODEzZTIyNmJjMjYzYzc1MGQ1NDFhOTc5ZWNiZjE0YjI1ODRjZDkzMzMzYzMyOTZjZDczMmMxYzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU1YjZlODcwNmI0MzA0N2YyYTZkYjY3ZjEzMjYzODU5NTYwNGU2N2YzNjk2Njg3NmNlMDE1OGYwMDUzZTZiZDEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2bc529e61db9412987c2b7186e6c958f",
+      "statement": "The agno direct REST path was chosen because the official Notion MCP's oneOf/anyOf/$ref tool schemas break tool-calling on Gemini/Mistral over OpenRouter (empty null completions, zero tool calls).",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_publish.py#L1-L8",
+          "version": "repo-lines-v1:sha256:86d86cd36c0f1c7e12da99cc2a1107a195314081258604c012a92978b6ad9399:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZjJkZDM3OTI4MTNlMjI2YmMyNjNjNzUwZDU0MWE5NzllY2JmMTRiMjU4NGNkOTMzMzNjMzI5NmNkNzMyYzFjMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTY5OTNiMTEyMDIxZWQwNzM4N2I5ZDYwM2JkNDZlMzNjNWFhNTBiNGVkODcxYmQ1NmUxZTNiZmNkOWY1MTJhNCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDZjMTc3Y2I2MTM0YTQ4ZWQ5NDk1MGY5YWJhZDU0ZWQ3MGUwMDhhOTkxZDZhOGJiOGVkZDFkY2YzYmVjZjZkYyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_8a42bb29bb85489490daa8b129b5b752",
+      "statement": "transcriber.backends.notion_mcp is engine-owned and self-contained: it configures the Notion MCP integration purely from notion.token_env (+ parent_page_id/insert) and does not read or reuse agy's MCP configuration.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_mcp.py#L1-L7",
+          "version": "repo-lines-v1:sha256:e7dede2bb6e01897304df43d4afa2d13bade0ca9d693fd0a9007923b1c9346cf:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiY2M3YzBkNTk4YmQxMTAzY2UwN2QxNjRjYjhjMDRkY2VjNDE3YTkwMGY2YTc1ZDJiMjNjNmQxYjhjMTY0ZThmZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiODNhMWQ2NWY5NzY0YzExZGE3ZDgzMjM3OTRjY2MzNGVhOGE0ODJkMzdjMzIxMmI3Nzg0MWU5ODAwMzFkNzM3NiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_7e22a01695604231845379fa23036b0b",
+      "statement": "Notion config field notion.token_env is an env-var NAME only (Optional[str]); the actual secret value is never stored in the config model and is resolved at use time via resolve_env.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/config.py#L91-L97",
+          "version": "repo-lines-v1:sha256:e361e945479e8a3f03bec1849bae7cbc96fab6c8d1300aeaad226f8c847c17d2:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTNmYjY1ODEzMTc4ZGIyNmEyOGJlODE4MmExY2M5M2NlOTQ3ZTZlMDFmNWUyYTY5Yzg1MzliNWE5MWMxOGNlOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDJlZDU5YjNiODQ5NGI1YTRkMDI0Mzc4ODY2ODYwNjY5NzAyYWUxZmQ3ODA5ZWM3NmE0ZTAzNGZkMDk1YjMwZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNmMxZjAyZmQ3ZWMxZDQ2MmMwY2I4MThiOTQ4ZmZlNGY3MTViMmMyYzQzMjYzMGMyMzJkZmUzNGQ0Mjc0M2ZhOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNmMxZjAyZmQ3ZWMxZDQ2MmMwY2I4MThiOTQ4ZmZlNGY3MTViMmMyYzQzMjYzMGMyMzJkZmUzNGQ0Mjc0M2ZhOSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_37f771e068ac4f318a5ff37d62b82ab1",
+      "statement": "Config validation requires notion.token_env when summary.backend == 'agno' (raises ConfigError at load time).",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/config.py#L287-L290",
+          "version": "repo-lines-v1:sha256:2811266db15e221960275281dfb86d5fa26950607837a5cdeac3ee9d58f19c3a:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjI2MTEwZjkxNDE5YTU0NmYxYjgyZWFiZTAzNjA0NDhmZWU2M2JkYjE4MTEwMjZlZDEzMWM3YmI0YzI2NjJhZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTkwOWE1M2E2MThkMDI4ZTFkMzAwMGMwYTdhYmNlZWNiZTVmYjM3ZjRlNTExZWZlNDY2NDNmYWQ2ZTY2ODcyZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMWRkNmYyMmE3YTBkMTQyODA0YzVjYWQ2YjkzZDg1ZTg4M2UyZmNiZmFjZWY4NzNiMzU4N2U4NTBhYTgxNmQ3MiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzUzMTQ5ODhlNTA0YjI3YWJlNmVjMzg1Zjk5ZjRhZDBiMTBjMDhjYjZjMzU0MGI5MWZlNmRkOWZiYTNlNzg2MyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_a5055ddebb334f598780b8734200c831",
+      "statement": "extract_page_id accepts a bare 32-hex id, an already-hyphenated UUID, or a full Notion URL with the id embedded, and returns a hyphenated lower-case page id; empty or id-less input raises SummarizeError.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_publish.py#L75-L98",
+          "version": "repo-lines-v1:sha256:a5fdee6e0376b1ac5f4480aa28684b9c62d1a061e7b20371dbed97a1a430b22f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc5MTYwZmVmMDYyZDY3NDM2ZGY3ZGJkNmMzNjkxOGUzNGIxYTI2ZjI5MzU5ZjdhNjc1NDFmOGNhYjFmNzVjMGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIwYzRmZTBlNTEyOTA0YjJmMzcyMmE2YTIyODk3Yjk5Mzk1M2I1YTA3ZTZiN2ZiNWUzZjNlNmQ3ZmE4NDRmYzciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE5OGIwNjNkOWI0N2U2NTM3OTYyNTU3MmNjZTE5NzY2OWQ1NzY3ZTEyYzE4YmUwNzU2NTJiOGNkOTgxY2U4ZDUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBmOWI1ZjRhZTgwYTZkNjIwNjU2OGU3YTdkOWQyN2YzZTU4Y2EzNWNhZDZhYzFhNzdiMjVmMGM4MWZlZTFiMzAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_fdaf9b71b6d44d0697c1989b3d80fc24",
+      "statement": "markdown_to_blocks converts Markdown to Notion block objects losing nothing: headings (deeper than h3 clamp to heading_3), bullets, numbered lists, quotes, fenced code blocks, paragraphs; inline markers are kept verbatim; long text is chunked to respect Notion's 2000-char-per-text-object cap.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_publish.py#L119-L197",
+          "version": "repo-lines-v1:sha256:0bb54942982db6c214282219a439ec1aee1ba182821bde3bb6a88cd461ce534d:eyJzZWxlY3RlZExpbmVDb3VudCI6NzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNjMDYyN2JmNzA5M2Y3OTIwZDEyNGY2NDE2M2ZiYmQzZmI2NTc2NDRhMWZhZTI5NGMzNTRmNjcwZmFjYjY2MzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMjI5MDk4YWYyMzBiNDQ0YzY2YWFjZDQ0MmFhM2UxNzJlNTg5NjAxNmNjZDFiZjljNmYxZjIxZDgyYTlkYjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRmYmQwMDkzMTRiYzI3MDg0MTY3MzRhMDJhZTVmZjM5YTFlNDhhMDUwYmU5MWY0M2IyZmFhOTIwMDJjNjJiZmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRjOWNmZWQwNDE1ZTU5N2UwODQ5MDY5OTY4MTY0M2Q1MmQzYWVjZTRkZTk5MmVmZGZjNGJmMjQxZTg5ODM4N2YifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_af945969ee1a43d48c82088ddceb0e20",
+      "statement": "Notion caps children per request at 100; the publish splits blocks into <=100-block chunks for creation and append.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_publish.py#L55-L57",
+          "version": "repo-lines-v1:sha256:00700241f926d6e0b84bb0b6cf9b91313342766e03fd374f40732351966f752f:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmQ0ZjE0NGZlYmI4MjBjMmE1MTUxZjAyNDRiNThjNWZiZjYxY2MwMWU1N2ZkODQ3YTgzYjEzYzcyYjBjMjdkMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOGY4MmVhZjk5N2Y5NTQ3MTA5ZTdhYWJhOTY4NzQwODg4MmQ3MTVkYjdjZWUzNTRiNzE4ODM1NTcxMjFlYTIwZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGIyMDVkNmE5ZTg5MjAzOWRiYWI3YjRjMWZhNDAxOTc2ZDY0Mzg2NzI1OWM5MzczZTQzYzljYTI3YTRlYzhmNCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_542323e5f179446980fb219101d3f09d",
+      "statement": "When cleaned slide descriptions are supplied, publish_to_notion creates a child page titled 'Slide Descriptions' under the summary page (not under the parent) holding the slide blocks.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_publish.py#L294-L295",
+          "version": "repo-lines-v1:sha256:8778550c77d60f12cc812ce5110a4a4d9c18c0f22896e9c6c44be52cea108165:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNWRmNDUyMzUwOThiYzNiMGM2YzI5ZDBlNWRlZTUwMjNkYTcwYzMyNGJjNGM4OWIzN2Q5MTA4M2E1NDdhYmM0NSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDNhMDQ0ZjgyNjBhZDJkM2YwN2Q4ZTkyMWI5MjRlYjExZTUwZmI2YzhmOTA3OWUzZDAyMThjYjZmNDhhNjcxNCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODZiMGY1NjE1OGMyMGRjYWE5YjY2ODFlYzgxODYwNTA1NDdiOWNkYTljNzU2ZTI5M2JkMTY5MGRiMDAyMjcwNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTU3ODAwNDY4ZmU5OGI4MWZiZTY5OTg3YjBkMmEyZDJkODUzM2E3NDJlYjc2NjA1OGMzZDcxZDg2ZDZhMDVmNyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_3824199c2af5483593953dfc74bb79b3",
+      "statement": "The Notion token is resolved by env-var name (notion.token_env) at use time and is never logged; error messages carry only short non-sensitive context.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_publish.py#L25-L27",
+          "version": "repo-lines-v1:sha256:add414e62e50d0b98b30a32e48ee757440e9619ebfaba9a24e57f18aacc5da64:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNmRiMWY2ZTEyOWRhZjA5N2UxMzYzNjgwNDcyNzBiNmRkMDdmM2EyYzRjNjlkZWRmOWVlOTFiZTNhZTNmYjc5MCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTMwM2VjZGQ0YTRkMTBmMTljNzNmZDQyZmQxMjQzN2ZkMzM1NGE4MjY4MTYwNWRhNTI1NWE5N2EzOTA2OGRiYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYjhlNDU2ZmExOWQ1YTI5NDI1MjY5YjAwNjU4YjUwMTBlNDdmN2M0MmU5YzM3NmNmMGRmNmIwYTgwMGEwMzFlYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTViNmU4NzA2YjQzMDQ3ZjJhNmRiNjdmMTMyNjM4NTk1NjA0ZTY3ZjM2OTY2ODc2Y2UwMTU4ZjAwNTNlNmJkMSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_9fa433c648ca43a4b23addc1dedc75e7",
+      "statement": "Notion REST API version is pinned to '2022-06-28' for stable block/page shapes.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_publish.py#L52-L53",
+          "version": "repo-lines-v1:sha256:6c993fc9ee26c1dd1db33a3beaa2c30053c873e5fee40f6bfff8bf1fe85d1fd9:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZjdlYjViNTEwOTFkODcxYzc4ZDI2YTdlN2Y3Y2JiMDhhMTg5OTE0Zjc4MzliMjI1ZjJlOWY0Y2YzOTIxNjJjNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzYxNjkwMDc3MTMwYmQ0NWNhZDJhNTNhZDE0MzU4MDYzOTBmYjk4NjI3OGNmMzE5YjgwYWVhZTRjNGVmNTNjOSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjA0ZTA4YTFkZTU1MmU2NDAzZDcxMWE1OWEwNTFhMDQwM2YzM2RkYTRjMzE1MDdjMmM2MzQ4Y2Y0MDRhNmJiMCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTE2YjFhMGE0ZmUwNmVkZDNhMDIzNDdjZTBjYmQwOWNmYmQwMDRhOTU2NzdhMTY1YWViMGY1MDQ0OWE3YTZiZiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_4f87729980cb44c2b8a8752a331dd3d1",
+      "statement": "DEFAULT_NOTION_TIMEOUT is 60.0s; a bounded per-request socket timeout is required because publish runs in asyncio.to_thread and cancelling the outer wait_for cannot stop a stuck urllib worker.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_publish.py#L61-L66",
+          "version": "repo-lines-v1:sha256:39d12e948a7fada9a6222b33db18e9c3766d0bff42570b09d9d40200b288541c:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTU4YmIxZTEwZTc1YThlMDIwNjRjNjAxMzQ3OGUwZjk1MTRjNDkwNjdiMTI0MTVjZmZmZjFhYTc0NDkxYTkzNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzUwYjVjY2Y2MjIzY2E2MjZkNTBlYmNjMTZjZWZhNDNkZDEyY2YzNzU1Njc5NjA1NGQ3ZTgyOTZmNGI5MjVkNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOGIyMDVkNmE5ZTg5MjAzOWRiYWI3YjRjMWZhNDAxOTc2ZDY0Mzg2NzI1OWM5MzczZTQzYzljYTI3YTRlYzhmNCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjFiMjc0MzFkNGJlYjk2YmQyMzdiYWJmYTczNDk0NzgxYTM5NDNhOGJiZDhhZDRjMDI5OTM2ZTJlOGIyZjBiMyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_cf2e8bb14be342709ff53c3723d81d80",
+      "statement": "The agno backend persists local artifacts before publishing and writes a sidecar <name>.notion_published.json after successful publish to avoid creating duplicate Notion pages on retry.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py#L150-L158",
+          "version": "repo-lines-v1:sha256:f0d73a67ba4e8d85542341b6d2d5071ec74046ed3f5e1218a822cb38cec56d1f:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjE5M2M2NjhlMzhmNzA3NmIyZTNlNDJlZjI0MWRiZDRiZGI5ZjAzYTc4MWRhN2VkODA5ZDNiN2Q5YTFjZmU0MiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYmFlNTM0YTE5OWRlODAwNzg0YWY1NDYxYWQxZWViODE1NzliM2RkMDk2NjNjY2Q2ODRlZTc4NmU0NTI5YjkwYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZWEzMTA0MWZiODRhOTA5YTM3ZWQyYmRjNzE5ZDc5MTc2YWE2NjUxZmVhMTY1MGIzZTlkOTBjYjA5ZTQ3ZWU5NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiM2UwZGIyOWVjNDEzYzIzZDI4Y2JiMmRhY2NlYTRmZjNjNzAxMTY1YjI0N2U1OTExYjQ2YWFjZTVkNmY5MDMzMCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_7cefe6b519354f3193795d1fdd73c81c",
+      "statement": "The agno backend caps per-request Notion timeout by the summarize-stage budget via _notion_request_timeout (min(summarize_timeout, DEFAULT_NOTION_TIMEOUT)).",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py#L90-L97",
+          "version": "repo-lines-v1:sha256:bd4e96e5f1f0fcc75916eb2cfd9b68e96e88189c0b4da0f5eb128e4d8bccac9b:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTE3N2JlZjFhZjA3NjM1YzgxOGI3NGM2YmMyMWJhNWY0NzRhY2FmYjI3ZTM1OTM0ZjY3ZGIyZWEwYTU1YTEwNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzUwZjg0MzY3YmI0N2FmNTNkZjhkMmU4ZGUzYWM2YWFjNGQ1YWQ4MTViY2Y0M2NiMmY1MDc5Njc3NTM2YTViNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODliNDEzODg4OTFkMjVlNDAxMjg5NDU2MDNkYjgzOWM0ZGVlOTYzMzNhNjQwMWIzYTI1YWYyYjJkZWM2NDQ1MiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTg3NmE0NTcwNjVjOTM0NjFmYTRlMDQ5Y2UwMWE4NWVlN2FlMDczNzdiZWViNTFjMDdhMGUxMThjNTRmOWMyMiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_919b972dc4af4b90824310d5169a2ea2",
+      "statement": "The official Notion MCP server package is @notionhq/notion-mcp-server and it reads its token from the NOTION_TOKEN environment variable.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_mcp.py#L59-L64",
+          "version": "repo-lines-v1:sha256:576b6119a445ed11b920d22ed2806d9a5e13924fc3adc1b8b4e8156be1b60d25:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOGU4NWE0NjIzYjhhMTM5OWYxNTM4ZGQ5NzNhYTk0MmEyM2ZiMjhmMGI1ODk4YTYyMTNmNWNjMjk0ZWE2ODM5OCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiODIwZWQ2NjgzNTVlMDc4OTJmYWYyYTVmN2ExN2UyMDNkOTkxZjg4ZmE5ZWI1NTJmMWRjODgzODE5MDIyZjk2YyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiY2FjMjMyYjUxYTc3YjE2M2Y0ZGQ3YTFlODlhYWNkZTY3MzU1NTA5M2UzODMxMjg3YmMzNmVlZDZkNWQ2MGFjYiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTBmZDAyM2RkOTAzMTdmOGJjMDI0ZTg1NWIzZjIzZDJlMDEzOTcyMjRmMTU5ZmEwYzdmMWM2MjMxZGU0NDcyNiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_89e300b8e4da4646a989111862e1d4d0",
+      "statement": "NOTION_MCP_COMMAND uses npx.cmd on Windows and npx elsewhere (with -y to auto-confirm install) because a bare npx frequently fails to spawn from a subprocess on Windows.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_mcp.py#L81-L92",
+          "version": "repo-lines-v1:sha256:336188860748020c1c3f4db33847ef3ffc5238f3132adfbebae0e0b901e34271:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI2ZTM0MWZhMzI4Y2NjNmNhZjJmYWZjZGFiYWM1ZWY1NjYzZGUyYjU1YjAxN2QyOWFjYjllZTkzOGI2ZWEzNjciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRiNzNiZDZkYzNkNTk5ZGEwNWQ1OGVjMzFkNzAwYTEyOWMzOTYzNTlhZWNkNmZiOWE3NTk0NjIzYWQzZTBlZGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQzZDE3MWRlNzU0MzFhMDIxYTBkOTRmYTc2ZmFiZjBkNzEzOWM4OThjMWEwYjQ0YjQzY2E2MDkwM2ZhMWI4NDUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBlYTYxNWY0YzgxNjQ5ODI4Njc4OTE5NzI1NjYxN2YwOTY4NTcxZDkyMTA1ZmQzMWQ0MWE2YWFkM2RhZDlkMzEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_1a724a8faef240ca8a07bd8dacfcc3f2",
+      "statement": "The publish toolset is restricted to 5 tools (API-post-page, API-patch-block-children, API-update-page-markdown, API-post-search, API-retrieve-a-page) to avoid overwhelming the model with ~25 large tool schemas.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_mcp.py#L66-L78",
+          "version": "repo-lines-v1:sha256:358d46b77829d3140d5948955c5582f3d5ad5d339b0bce2638374b522bf5c9bf:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQyZjdkZWE1OGRhNjMyODUzYmQ0ZGNiMGZkNDlkOTUyZGUwZmE3ODZkYjA5MTdjNDYwZjk2MmY4MDUxMjEwNjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5NDE2ZTA5Zjc4YmEzMTZjMDMyNTY4MjEzYjg1NWVlNzU2ZTQxNTY1ZDkxOGYwOTUxOWM4MWZkNjIwZjQwNjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA1YTlhNzQ2ZmU5ZTAyYzAwMmNkMGM0MTU0ODE3ZjJiNWJiZDFkZTM4MjNlY2Q4ZDM3YzVkOTliZTI1YWU2NzciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcwZTkxZmY0ZTM5N2RiMDIzNjk0NWVjYjBiNGMyODA4ODI3OTE3NTkwZGRkNzhkMTFiMWU2MjFiMWIxZjU2MTAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_416bf969d89b432e9c45fe885de914c5",
+      "statement": "notion_mcp_env merges os.environ with the resolved Notion token under NOTION_TOKEN (never a bare replace) so PATH/APPDATA/SystemRoot survive on Windows; raises ValueError if notion.token_env is unset.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_mcp.py#L104-L128",
+          "version": "repo-lines-v1:sha256:52e0537b53267fff476310eb1d4b8980580b6d60bdc5d1f83227ca78d529e159:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NDE0Y2U4MDZjZDFhMTkwMTY4NDRiYmI3ZjczZGQ3YmExZTRjNDBmZmJlZTU5MTk2MGUxOTIzNTkzYjMxMTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUwNmZlNGE4Zjk2NjEyZGE3ZTE1N2UwODAwMGZjNjY1MjBjYjlmMWI2NDBkMzNlYTI4ODcyOTc1M2NlYWMwNjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI0ZDMxOTBmNzYzYjU2NGIxMjk4N2E3MWJhYjY4NDJhOTA4Y2ExYjc0MGI1NzRlY2FhMmU2Nzc1NGJlZjBmODAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkyM2YwMjE3MGYyYTM2ZTJmMjU3YWIwNjdkY2MxZGI4ZjUwZGE1MTE2ZGUwMTYzZTBlZGI5OWY0Njg3Mzk5ZmUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ed66330b24fd422eba975066faabe772",
+      "statement": "agno is imported lazily inside notion_mcp; a missing import raises AgnoImportError with an actionable install hint (uv sync --extra agno or pip install transcriber[agno]).",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_mcp.py#L131-L141",
+          "version": "repo-lines-v1:sha256:90f71c1c6182b088e93003ab4e6466c98677547a1f88312ef04526dfc3b3d0ee:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhjNjRlMzNmMjVkOWFmNWMwNmFhN2UzMzM4NWQ0OTllZGJmN2QzNWViODk1NmI1ZWNmYWI0NDgzODg0ZTcwZmMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3Yzg3Mzk2NTU2NjNhMjI3Yjk2NGM1ZDA3NTk3YWM3YjIzZDE1MmU4ZjVjOWRhYTExNTE5ODhjYzA4NzZlYjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFlYzIzZTJjMTE3YTU5Y2M2NzEwNzBiZDcwY2E0NzY1OWJkNzE4YTA1NTJkNDJlNWQ1ODlmOWQwNTBiMmE5ZGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdjZWZjYzRmN2NmZWY0MTE4NDEyODU1MmI1OTA0MmY0NDFiMmFlZjQyZmFlYzBmNDQwYzk3MjQxZTI2MWY5MjYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7e7999c8e18445b3b4f1ac76739bb214",
+      "statement": "notion_mcp_tools constructs an unconnected MCPTools instance; the caller is responsible for opening and closing it on every path (success/error/timeout) so no MCP subprocess is orphaned.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_mcp.py#L144-L171",
+          "version": "repo-lines-v1:sha256:d45e4e03d1731761d736ed4a3787858534c7ee425c9d73b4255021ab20fe455f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM5YjY5ZDc0NTJjNDgzMmQ5Yzc5MDU4NDU1NzAwMmM0NWU2MzBmYTY5MGMyNTg1MDI1NDkzYzQ5NTI4ZGViZDYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwYzFmMTg4ZjE0MmVkN2E4MjQ2ODBiMjA3MTcyYzU1MTliYzYxNGE0OGZkYTdjZjE2N2VkYjhkZGY3OTk1NmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImExYmQ2MTBmZGEwZGQ4MGFjZDcwM2NkMDhiMjliZTA2MWEwZWM1Y2Q2NzIwNWQ0MGVlMzQwMDA1Mzc0ZGI5NTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7d8ef9ff8a5d4955bb8f01325be7c822",
+      "statement": "get_summarize_backend returns AgySummarizeBackend() for 'agy' without importing agno, and lazily imports AgnoSummarizeBackend for 'agno'; unknown values raise; there is no silent cross-backend fallback.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/summarize.py#L63-L82",
+          "version": "repo-lines-v1:sha256:0db345e7abff72a869b1462661ae0e09208511089a7dfc6876f448b5a41e1928:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjMjFmZGE2NmJiZTY4MDgxODI2ODJiYWUyNmFlZWM0NjQ2NDIwNTYyMzFlZWVhN2ZmNTdkNzY2YTYyNzdlOTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwYzFmMTg4ZjE0MmVkN2E4MjQ2ODBiMjA3MTcyYzU1MTliYzYxNGE0OGZkYTdjZjE2N2VkYjhkZGY3OTk1NmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY3YTEzYTU2ZDg3NDU5MzE4NWVjMjQ5MDg2OTE5NDVlZWU3MzdiNjI0ZTA0YWI1Yjg2YTY4MWZjMDE5MDgyNWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_341a9ded8cac47d7a252639fd7c620df",
+      "statement": "Pre-flight check (preflight_check) requires the env var referenced by notion.token_env to be set when summary.backend == 'agno' (checked by name only, not by value).",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py#L122-L124",
+          "version": "repo-lines-v1:sha256:548500b65c604621dc8d5e66342cde3b5c1f7ca3662181ab59367012de704179:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMjA5OTk0MGVlZmE4ZDlkYmRlNWIyYzE2MDA4YTFhZGIxMTQwMGZmYjE3OTk5NDQ1MmFhNWRmODBiNjIyYzczZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDM0NTM4OTRjYWQ0NzhkNjJjNjRmMDEwMGE2M2M2NzI2MDI2ZGZjOGNmNzYwMGJmM2NjZTgzNzA4OWJlY2QxOSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGZkNTcyMTVlOGUwZTBlNTQ3MTMyODg4MDEwMDBlOWNmNjdiNWU4ZTMzNzA0NDI1YjY3YzdjMmM4YTY3ZDVhYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMWY4ZDZhMzBlOTRiOTgwZjVlNjJhZDgyODZiMjRmM2U3NzA1MGUzMzY5ZGUwODVkOWVmOTU0ZDFkNDBkYzhjMCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_fc0f3cadba754436b3ae4228097698ec",
+      "statement": "The engine does not hand-roll a bespoke Notion REST client for the summarize stage in the agy path: agy's Notion work is part of the agy run itself, and the engine only owns a direct REST publish for the agno path.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_mcp.py#L3-L7",
+          "version": "repo-lines-v1:sha256:3236c1a126458339dded005204825bfc1e5b2d43fbf728f3fb3f9c8b9e4c6c7a:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjgwYTJjZWI5NDQ4MTQzNzBlMWVhNTA4YzU4YzQ1YmNkZGFhMTliYjNlNmE4MGIyYjU0OTk5ZDlhYWFlYmRjZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjIsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTUwMTZhNGFkODQ4OGEzNzMwZjE4NmEyYTAzMTg3N2UxOTY5YjdlMGY2ODU3NDQxNDQ4ZmI2OTM3YzA1NzhjOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiODNhMWQ2NWY5NzY0YzExZGE3ZDgzMjM3OTRjY2MzNGVhOGE0ODJkMzdjMzIxMmI3Nzg0MWU5ODAwMzFkNzM3NiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_248100bb060a44f080637924e491a717",
+      "statement": "tests/test_notion_mcp.py exercises notion_mcp with agno fully mocked (fake agno.tools.mcp module injected); no real MCP subprocess is spawned and no network calls are made.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_notion_mcp.py#L1-L7",
+          "version": "repo-lines-v1:sha256:52d6df90ebecc0246cb195c5cf91b652d9b9ec143569d03f8c029a4fea903fb7:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjcwMmRjYWVlODIyZjc3NjY4MGU5ZjYxOWNiYTNhZWY0ZTBkN2U0NjJmNzM1MTI4YTgxZGQzYWM5NWM1MGQ3NyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTMwM2VjZGQ0YTRkMTBmMTljNzNmZDQyZmQxMjQzN2ZkMzM1NGE4MjY4MTYwNWRhNTI1NWE5N2EzOTA2OGRiYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTViNmU4NzA2YjQzMDQ3ZjJhNmRiNjdmMTMyNjM4NTk1NjA0ZTY3ZjM2OTY2ODc2Y2UwMTU4ZjAwNTNlNmJkMSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_25a085bf820141dc93bb357fe7b7245d",
+      "statement": "tests/test_notion_publish.py tests extract_page_id (hyphenated UUID, bare hex, Notion URL, uppercase lowered, empty/no-id raises), markdown_to_blocks (headings incl. deeper-heading clamping, bullets/numbers, quote/code/paragraph, blank-line skipping, inline markers kept verbatim, long-paragraph chunking), bounded per-request timeout, socket TimeoutError wrapped as SummarizeError, default bounded timeout, and slides child subpage creation (parented under summary page, titled 'Slide Descriptions', absent when slides empty/whitespace).",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_notion_publish.py#L1-L12",
+          "version": "repo-lines-v1:sha256:91897ab9c9253e368edd06baea6866b444272b3d6758ffdc1695974c677af61f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3ZDMxOTg4OTQzOTFmNWZlODg0YzM5NDY5Njk4M2U5NTQwODY1ZTVjYTRmZTViOWM2NDE2NTc1ODI0MzUxZTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc2MzcyOTczZjg3NWVmOGYyMjEzMjI0YzhlZWUzZDRmYzIwZjAwYzc0YzIwZTNhMDU5NmI3NWI0Mzc4YzM0YTcifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.1",
+    "at": "2026-10-02T19:10:14.922Z"
+  }
+}
