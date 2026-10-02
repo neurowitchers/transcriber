@@ -19,6 +19,7 @@ Design constraints (see ``docs/tasks/transcriber-engine/task-4-agent-summarize-n
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from typing import Optional, Sequence
 
@@ -150,17 +151,53 @@ def append_slide_descriptions(
     The engine owns slide concatenation so the slide content never consumes the
     summarizing model's bounded output budget (which previously truncated the
     summary before the Slide Descriptions section was reached). The model
-    produces the transcript summary; this function stitches the verbatim
+    produces the transcript summary; this function stitches the
     ``<name>.slides.md`` on as a final ``## Slide Descriptions`` section.
 
+    Empty-slide markers are **stripped here, not in ``<name>.slides.md``**: the
+    slides backend keeps every slide's output (including ``[[SLIDE_EMPTY
+    <timestamp>]]`` markers) in ``<name>.slides.md`` so empty scenes stay
+    identifiable for debugging. This function removes those markers — plus any
+    stray placeholder forms a model emits instead (``== no information ==``,
+    ``<!-- no information -->``, apologetic ``(No essential visual …)``
+    parentheticals) — so only real slide descriptions reach the reader-facing
+    summary and Notion page.
+
+    The ``## Slide Descriptions`` heading is omitted entirely when nothing
+    survives filtering (every slide was empty) — treated exactly like
+    slides-off (Spec R3), with no dangling empty heading.
+
     Returns ``summary_markdown`` unchanged (modulo a single trailing newline)
-    when ``slides_markdown`` is ``None``/empty/whitespace — an absent/empty
-    ``<name>.slides.md`` is treated exactly like slides-off (Spec R3).
+    when ``slides_markdown`` is ``None``/empty/whitespace.
     """
     body = summary_markdown.rstrip()
     if slides_markdown is None or not slides_markdown.strip():
         return body + "\n"
-    return body + "\n\n## Slide Descriptions\n\n" + slides_markdown.strip() + "\n"
+    kept = _strip_empty_slide_markers(slides_markdown)
+    if not kept.strip():
+        # Every slide was an empty marker/placeholder — omit the section.
+        return body + "\n"
+    return body + "\n\n## Slide Descriptions\n\n" + kept.strip() + "\n"
+
+
+def _strip_empty_slide_markers(slides_markdown: str) -> str:
+    """Remove empty-slide markers/placeholders from a ``.slides.md`` block.
+
+    The block is a sequence of per-slide chunks joined by blank lines. A chunk
+    that is an empty-slide marker (``[[SLIDE_EMPTY …]]``) or a recognised
+    placeholder (see :func:`transcriber.backends.slides.
+    is_placeholder_slide_response`) is dropped; real descriptions are kept
+    verbatim. Reuses the slides-backend recogniser so the emit side and the
+    strip side share one definition of "empty".
+    """
+    # Function-local import avoids a module-load cycle (slides.py imports from
+    # this module at call time).
+    from transcriber.backends.slides import is_placeholder_slide_response
+
+    # Split into blank-line-separated chunks (the per-slide join is "\n\n").
+    chunks = re.split(r"\n\s*\n", slides_markdown.strip())
+    kept = [c for c in chunks if c.strip() and not is_placeholder_slide_response(c)]
+    return "\n\n".join(kept)
 
 
 def build_prompt(

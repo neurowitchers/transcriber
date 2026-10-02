@@ -166,6 +166,50 @@ def test_append_slide_descriptions_single_copy() -> None:
     assert out.count("## Slide Descriptions") == 1
 
 
+def test_append_strips_slide_empty_markers_keeps_real() -> None:
+    """[[SLIDE_EMPTY ...]] markers are stripped from the appended summary while
+    the real slide descriptions are kept verbatim (markers stay in .slides.md,
+    not in the reader-facing summary)."""
+    slides_md = (
+        "[[SLIDE_EMPTY 00:00 - 00:05]]\n\n"
+        "### Real Slide\n**Timestamp:** 00:05 - 00:15\n\n- actual content\n\n"
+        "[[SLIDE_EMPTY 00:15 - 00:20]]"
+    )
+    out = agent.append_slide_descriptions("# Summary\n\nBody.", slides_md)
+    assert "## Slide Descriptions" in out
+    assert "SLIDE_EMPTY" not in out
+    assert "### Real Slide" in out
+    assert "actual content" in out
+
+
+def test_append_strips_fallback_placeholder_forms() -> None:
+    """Stray placeholder forms (apology parenthetical, HTML comment, == form)
+    are also stripped as a fallback net for a disobedient model."""
+    slides_md = (
+        "### Keep Me\n**Timestamp:** 00:00 - 00:05\n\n- real\n\n"
+        "(No essential visual content — just a webcam view. Omitting per rules.)\n\n"
+        "<!-- no information -->\n\n"
+        "== no information =="
+    )
+    out = agent.append_slide_descriptions("# Summary", slides_md)
+    assert "### Keep Me" in out
+    assert "no essential visual content" not in out.lower()
+    assert "no information" not in out.lower()
+
+
+def test_append_omits_heading_when_all_slides_empty() -> None:
+    """When every slide is an empty marker/placeholder, the Slide Descriptions
+    heading is omitted entirely (no dangling empty section)."""
+    slides_md = (
+        "[[SLIDE_EMPTY 00:00 - 00:05]]\n\n"
+        "[[SLIDE_EMPTY 00:05 - 00:10]]\n\n"
+        "<!-- no information -->"
+    )
+    out = agent.append_slide_descriptions("# Summary\n\nBody.", slides_md)
+    assert "## Slide Descriptions" not in out
+    assert out.rstrip() == "# Summary\n\nBody."
+
+
 
 def test_slide_block_has_no_image_paths() -> None:
     """The refactored slide block must NOT reference any image paths."""
