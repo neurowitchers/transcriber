@@ -117,12 +117,54 @@ def test_slide_block_omitted_when_empty_or_whitespace(empty: str) -> None:
 def test_slide_block_embeds_markdown_when_non_empty() -> None:
     block = agent._slide_block(SLIDES_MD)
     assert block  # non-empty
-    # The prepared markdown is embedded verbatim.
+    # The prepared markdown is embedded verbatim (as reference context).
     assert SLIDES_MD in block
-    # Instruction to append it as the Slide Descriptions section.
+    # Instruction references the Slide Descriptions section (appended by engine).
     assert "Slide Descriptions" in block
     # It is wrapped in a Markdown code fence (non-XML encapsulation).
     assert re.search(r"`{3,}\n" + re.escape(SLIDES_MD) + r"\n`{3,}", block)
+
+
+def test_slide_block_tells_model_not_to_reproduce() -> None:
+    """The slide block must instruct the model NOT to reproduce the slides.
+
+    The engine appends the slide descriptions deterministically; the model
+    echoing a large slide block previously truncated the summary before the
+    Slide Descriptions section was reached.
+    """
+    block = agent._slide_block(SLIDES_MD)
+    lowered = block.lower()
+    assert "do not reproduce" in lowered or "not reproduce" in lowered
+    # It must signal the engine appends them (reference-only framing).
+    assert "reference" in lowered
+    assert "append" in lowered
+
+
+# --------------------------------------------------------------------------- #
+# append_slide_descriptions — deterministic engine-side concatenation
+# --------------------------------------------------------------------------- #
+def test_append_slide_descriptions_appends_section() -> None:
+    out = agent.append_slide_descriptions("# Summary\n\nBody.", SLIDES_MD)
+    assert out.startswith("# Summary\n\nBody.")
+    assert "## Slide Descriptions" in out
+    # The slide markdown is appended verbatim after the heading.
+    assert SLIDES_MD.strip() in out
+    # Heading comes after the summary body.
+    assert out.index("Body.") < out.index("## Slide Descriptions")
+
+
+@pytest.mark.parametrize("empty", [None, "", "   ", "\n\t \n"])
+def test_append_slide_descriptions_noop_when_empty(empty) -> None:
+    out = agent.append_slide_descriptions("# Summary\n\nBody.", empty)
+    assert "## Slide Descriptions" not in out
+    assert out.rstrip() == "# Summary\n\nBody."
+
+
+def test_append_slide_descriptions_single_copy() -> None:
+    """Exactly one Slide Descriptions section is produced (no duplication)."""
+    out = agent.append_slide_descriptions("# Summary", SLIDES_MD)
+    assert out.count("## Slide Descriptions") == 1
+
 
 
 def test_slide_block_has_no_image_paths() -> None:
@@ -313,6 +355,48 @@ def test_run_agent_embeds_slide_markdown_in_prompt(tmp_path: Path, monkeypatch) 
     assert "Slide Descriptions" in prompt
     assert ".png" not in prompt
     assert ".jpg" not in prompt
+
+
+def test_run_agent_appends_slide_descriptions_to_file(tmp_path: Path, monkeypatch) -> None:
+    """The engine must append the prepared slides to the agy-written file
+    deterministically (the model is told not to reproduce them)."""
+    cfg = make_config()
+    rec_dir = tmp_path / "rec"
+    rec_dir.mkdir()
+    tp = write_transcript(rec_dir)
+
+    def fake_run(prompt, *, add_dirs, extra_args, timeout, **kwargs):
+        # Model writes ONLY the transcript summary (no slide block, per prompt).
+        (rec_dir / "meeting.md").write_text(
+            "# Summary\n\n## Overview\nStuff happened.\n", encoding="utf-8"
+        )
+        return ""
+
+    monkeypatch.setattr(agent, "run", fake_run)
+    out = run_agent(cfg, tp, rec_dir, slides_markdown=SLIDES_MD)
+
+    text = out.read_text(encoding="utf-8")
+    assert "## Slide Descriptions" in text
+    assert SLIDES_MD.strip() in text
+    # Exactly one slide section — no duplication.
+    assert text.count("## Slide Descriptions") == 1
+    # Slides come after the summary body.
+    assert text.index("Stuff happened.") < text.index("## Slide Descriptions")
+
+
+def test_run_agent_no_slide_section_when_slides_absent(tmp_path: Path, monkeypatch) -> None:
+    cfg = make_config()
+    rec_dir = tmp_path / "rec"
+    rec_dir.mkdir()
+    tp = write_transcript(rec_dir)
+
+    def fake_run(prompt, *, add_dirs, extra_args, timeout, **kwargs):
+        (rec_dir / "meeting.md").write_text("# Summary\n\nBody.\n", encoding="utf-8")
+        return ""
+
+    monkeypatch.setattr(agent, "run", fake_run)
+    out = run_agent(cfg, tp, rec_dir, slides_markdown=None)
+    assert "## Slide Descriptions" not in out.read_text(encoding="utf-8")
 
 
 def test_run_agent_references_transcript_by_file_not_inline(tmp_path: Path, monkeypatch) -> None:

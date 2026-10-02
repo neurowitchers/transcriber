@@ -40,6 +40,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from transcriber.agent import (
+    append_slide_descriptions,
     build_agno_digest_prompt,
     build_agno_summarize_prompt,
     digest_path_for,
@@ -244,8 +245,19 @@ class AgnoSummarizeBackend:
         # Notion publish (but before the manifest is marked) still leaves valid
         # local artifacts, so a retry regenerates nothing and — guarded by the
         # publish record below — does not create a duplicate Notion page.
+        # Build the FINAL summary document: the model-produced transcript
+        # summary with the prepared slide descriptions appended by the ENGINE
+        # (deterministic concatenation). The model is told not to reproduce the
+        # slide block (see transcriber.agent._slide_block), so slide content
+        # never consumes the model's bounded output budget — which previously
+        # truncated the summary before the Slide Descriptions section was
+        # reached. An absent/empty <name>.slides.md is a no-op (treated as
+        # slides-off). The DIGEST intentionally stays slide-free (it is derived
+        # from the transcript summary only, inside _run_agent).
+        final_document = append_slide_descriptions(summary_text, slides_markdown)
+
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(summary_text.strip() + "\n", encoding="utf-8")
+        output_path.write_text(final_document, encoding="utf-8")
 
         # Digest: write when non-empty, otherwise CLEAR any stale digest so a
         # retry/reprocess never disseminates an old digest. The telegram stage
@@ -289,7 +301,7 @@ class AgnoSummarizeBackend:
                         publish_to_notion,
                         config,
                         basename,
-                        summary_text.strip(),
+                        final_document,
                         timeout=notion_timeout,
                     ),
                     timeout,

@@ -336,6 +336,60 @@ def test_agno_summarize_prompt_carries_slide_markdown(tmp_path, monkeypatch):
     assert slides_md in FakeAgent.instances[0].arun_called_with
 
 
+def test_agno_appends_slide_descriptions_to_file_and_notion(tmp_path, monkeypatch):
+    """The engine appends the prepared slides deterministically to BOTH the
+    written <name>.md and the Notion-published document, so slide content never
+    depends on the model's bounded output (which previously truncated it)."""
+    monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
+    monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
+    backend = _agno_backend(monkeypatch)
+    publish = _patch_publish(monkeypatch)
+
+    cfg = make_config(backend="agno")
+    rec_dir = tmp_path / "rec"
+    rec_dir.mkdir()
+    tp = write_transcript(rec_dir)
+    slides_md = "### Slide 1\n**Timestamp:** 00:00 - 00:10\n\nIntro slide.\n"
+
+    result = backend.summarize(tp, slides_md, rec_dir, cfg)
+
+    # Written summary file carries the model summary + appended slides.
+    file_text = result.summary_path.read_text(encoding="utf-8")
+    assert "Body." in file_text
+    assert "## Slide Descriptions" in file_text
+    assert slides_md.strip() in file_text
+    assert file_text.count("## Slide Descriptions") == 1
+
+    # The Notion publish received the SAME final document (summary + slides).
+    assert len(publish.calls) == 1
+    _title, published_md, _timeout = publish.calls[0]
+    assert "## Slide Descriptions" in published_md
+    assert slides_md.strip() in published_md
+
+    # The digest stays slide-free (derived from the transcript summary only).
+    digest_text = result.telegram_path.read_text(encoding="utf-8")
+    assert "Slide Descriptions" not in digest_text
+
+
+def test_agno_no_slide_section_when_slides_absent(tmp_path, monkeypatch):
+    monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
+    monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
+    backend = _agno_backend(monkeypatch)
+    publish = _patch_publish(monkeypatch)
+
+    cfg = make_config(backend="agno")
+    rec_dir = tmp_path / "rec"
+    rec_dir.mkdir()
+    tp = write_transcript(rec_dir)
+
+    result = backend.summarize(tp, None, rec_dir, cfg)
+    assert "## Slide Descriptions" not in result.summary_path.read_text(
+        encoding="utf-8"
+    )
+    _title, published_md, _timeout = publish.calls[0]
+    assert "## Slide Descriptions" not in published_md
+
+
 def test_agno_empty_summary_fails_stage(tmp_path, monkeypatch):
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
