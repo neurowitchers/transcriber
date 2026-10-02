@@ -75,44 +75,105 @@ _SCENES_CSV_SUFFIX = ".scenes.csv"
 
 
 # Placeholder phrases a vision model may emit for a slide that carries no
-# essential visual content, despite the prompt asking it to omit such slides.
-# Matched case-insensitively, tolerant of surrounding ``==``/``—``/``-`` markers,
-# markdown emphasis, and trailing punctuation. These are filtered out before the
-# per-slide markdown is stitched so empty-slide placeholders never reach the
-# <name>.slides.md block (and therefore the summary's "Slide Descriptions").
+# essential visual content. The slide prompt now instructs the model to emit a
+# single ``[[SLIDE_EMPTY <timestamp>]]`` marker line for such a slide, but models
+# sometimes still editorialise (an apologetic parenthetical, an ``== no
+# information ==`` line, or an ``<!-- no information -->`` comment). These
+# phrases back the :func:`is_placeholder_slide_response` recogniser.
+#
+# NOTE (debuggability): the slides backend no longer *drops* empty slides — it
+# keeps the model's output (markers included) in ``<name>.slides.md`` so empty
+# scenes stay identifiable. Stripping markers + stray placeholders happens later,
+# in :func:`transcriber.agent.append_slide_descriptions`, only for the summary /
+# Notion output. These constants are shared with that stripping step.
 _PLACEHOLDER_PHRASES = (
     "no information",
     "no essential information",
     "no essential visual information",
+    "no essential visual content",
     "no visual information",
+    "no visual content",
     "no relevant content",
+    "no essential content",
     "no content",
     "none",
     "n/a",
     "empty",
 )
 
-# Strip leading/trailing decoration (==, --, —, *, #, whitespace, quotes) so a
-# response like "== no information ==" or "**None**" reduces to its core phrase.
-_PLACEHOLDER_DECORATION = r"[\s=\-\u2014*#>_`.,:;!\"'()\[\]]+"
+# Strip leading/trailing decoration (==, <, >, --, —, *, #, whitespace, quotes)
+# so a response like "== no information ==", "**None**", or
+# "<!-- no information -->" reduces to its core phrase.
+_PLACEHOLDER_DECORATION = r"[\s=<>\-\u2014*#_`.,:;!\"'()\[\]]+"
+
+# The exact empty-slide marker the model is instructed to emit (optionally
+# carrying a timestamp): e.g. ``[[SLIDE_EMPTY 01:05 - 02:10]]`` or
+# ``[[SLIDE_EMPTY unknown]]`` or a bare ``[[SLIDE_EMPTY]]``.
+_SLIDE_EMPTY_MARKER_RE = re.compile(r"^\s*\[\[\s*SLIDE_EMPTY\b.*?\]\]\s*$", re.IGNORECASE)
 
 
-def _is_empty_slide_response(content: str) -> bool:
-    """Return True when a slide response is empty or a 'no information' placeholder.
+def _is_slide_empty_marker(line: str) -> bool:
+    """Return True when ``line`` is a ``[[SLIDE_EMPTY ...]]`` marker line."""
+    return bool(_SLIDE_EMPTY_MARKER_RE.match(line))
 
-    The slide prompt tells the model to OMIT empty slides, but models sometimes
-    emit a placeholder like ``== no information ==`` anyway. This deterministic
-    guard drops such responses so they never reach ``<name>.slides.md``.
+
+def is_placeholder_slide_response(content: str) -> bool:
+    """Return True when a slide response conveys *no* real visual content.
+
+    Recognises three forms (used to STRIP such slides from the summary output,
+    not to drop them from ``<name>.slides.md``):
+
+    * the exact ``[[SLIDE_EMPTY ...]]`` marker (the instructed convention);
+    * a single short line matching a known placeholder phrase (``none``,
+      ``== no information ==``, ``<!-- no information -->``, etc.);
+    * a single-line apologetic placeholder that LEADS with a *specific*
+      ``no essential/visual …`` phrase AND is parenthetical or mentions
+      "omit", e.g. ``(No essential visual content — this is a video call
+      interface… Omitting per rules.)``. (Bare phrases like "no information"
+      match by exact equality only, so a real sentence such as "no information
+      was lost during the migration" is kept.)
+
+    Multi-line real descriptions are always kept.
     """
     core = content.strip()
     if not core:
         return True
-    # A placeholder is a SINGLE short line; multi-line real descriptions are kept.
+    if _is_slide_empty_marker(core):
+        return True
+    # A placeholder is a SINGLE line; multi-line real descriptions are kept.
     lines = [ln for ln in (l.strip() for l in core.splitlines()) if ln]
     if len(lines) != 1:
         return False
-    stripped = re.sub(_PLACEHOLDER_DECORATION, " ", lines[0].lower()).strip()
-    return stripped in _PLACEHOLDER_PHRASES
+    normalised = re.sub(_PLACEHOLDER_DECORATION, " ", lines[0].lower()).strip()
+    if normalised in _PLACEHOLDER_PHRASES:
+        return True
+    # Apologetic parenthetical/sentence that LEADS with a placeholder phrase,
+    # e.g. "(no essential visual content — ... omitting per rules.)". Only the
+    # Apologetic placeholder sentence, e.g.
+    # "(No essential visual content — this is a video call view. Omitting per
+    # rules.)". To avoid dropping a legitimate short description that merely
+    # STARTS with a common phrase (e.g. "no information was lost during the
+    # migration"), this fallback is deliberately narrow: it fires only when the
+    # line LEADS with one of the SPECIFIC placeholder phrases (those naming
+    # "essential"/"visual" content — unlikely to open a real description) AND
+    # carries an apology/omission tell (a parenthetical wrapper or the word
+    # "omit"). The bare phrases ("no information", "no content", "none") match by
+    # EXACT equality only (handled above).
+    raw = lines[0].strip()
+    is_parenthetical = raw.startswith("(") and raw.endswith(")")
+    mentions_omit = "omit" in normalised
+    if is_parenthetical or mentions_omit:
+        for phrase in _PLACEHOLDER_PHRASES:
+            if (
+                ("essential" in phrase or "visual" in phrase)
+                and normalised.startswith(phrase)
+            ):
+                return True
+    return False
+
+
+# Backwards-compatible alias: the old name meant "empty OR placeholder".
+_is_empty_slide_response = is_placeholder_slide_response
 
 
 # --------------------------------------------------------------------------- #
@@ -463,14 +524,27 @@ class OpenRouterSlidesBackend:
                 encoded_bytes,
             )
             content = _openrouter_vision(config, messages, model, timeout=timeout)
-            if _is_empty_slide_response(content):
+            # Keep the model's output verbatim in <name>.slides.md — including a
+            # [[SLIDE_EMPTY ...]] marker or a stray placeholder — so empty scenes
+            # stay identifiable for debugging. Markers/placeholders are stripped
+            # LATER (transcriber.agent.append_slide_descriptions), only for the
+            # summary / Notion output. A genuinely empty/whitespace response
+            # carries nothing to record, so it is still skipped here.
+            if not content.strip():
                 logger.info(
-                    "describe_slides[openrouter]: slide %d/%d produced no "
-                    "usable content (empty/placeholder), omitting",
+                    "describe_slides[openrouter]: slide %d/%d returned an empty "
+                    "response, nothing to record",
                     i + 1,
                     n_slides,
                 )
                 continue
+            if is_placeholder_slide_response(content):
+                logger.info(
+                    "describe_slides[openrouter]: slide %d/%d is empty "
+                    "(marker/placeholder kept in .slides.md for debugging)",
+                    i + 1,
+                    n_slides,
+                )
             parts.append(content.strip())
 
         elapsed = time.monotonic() - started

@@ -174,8 +174,8 @@ class _RecordingPublish:
         self.calls: list[tuple] = []
         self.exc: Exception | None = None
 
-    def __call__(self, config, title, summary_markdown, *, timeout=None):
-        self.calls.append((title, summary_markdown, timeout))
+    def __call__(self, config, title, summary_markdown, *, slides_markdown=None, timeout=None):
+        self.calls.append((title, summary_markdown, slides_markdown, timeout))
         if self.exc is not None:
             raise self.exc
         return "https://app.notion.com/p/new-page-123"
@@ -304,11 +304,12 @@ def test_agno_builds_model_and_publishes_to_notion(tmp_path, monkeypatch):
     assert len(FakeAgent.instances) == 2
 
     # Engine published once via the Notion REST helper, with the summary text
-    # and the recording basename as the page title.
+    # and the recording basename as the page title. No slides here -> no subpage.
     assert len(publish.calls) == 1
-    title, summary_md, _timeout = publish.calls[0]
+    title, summary_md, slides_md, _timeout = publish.calls[0]
     assert title == tp.stem
     assert "Body." in summary_md
+    assert slides_md is None  # no slide descriptions supplied
 
     # Engine wrote the files from the plain-text summary + digest.
     assert isinstance(result, SummaryResult)
@@ -336,10 +337,10 @@ def test_agno_summarize_prompt_carries_slide_markdown(tmp_path, monkeypatch):
     assert slides_md in FakeAgent.instances[0].arun_called_with
 
 
-def test_agno_appends_slide_descriptions_to_file_and_notion(tmp_path, monkeypatch):
-    """The engine appends the prepared slides deterministically to BOTH the
-    written <name>.md and the Notion-published document, so slide content never
-    depends on the model's bounded output (which previously truncated it)."""
+def test_agno_splits_slides_into_clean_file_and_notion_subpage(tmp_path, monkeypatch):
+    """Split model: the summary file holds ONLY the summary; cleaned slide
+    descriptions go to a separate <name>.slides-clean.md and to the Notion
+    publish as slides_markdown (which creates a 'Slide Descriptions' subpage)."""
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
     backend = _agno_backend(monkeypatch)
@@ -349,26 +350,39 @@ def test_agno_appends_slide_descriptions_to_file_and_notion(tmp_path, monkeypatc
     rec_dir = tmp_path / "rec"
     rec_dir.mkdir()
     tp = write_transcript(rec_dir)
-    slides_md = "### Slide 1\n**Timestamp:** 00:00 - 00:10\n\nIntro slide.\n"
+    # Includes a [[SLIDE_EMPTY]] marker that must be stripped from the clean output.
+    slides_md = (
+        "[[SLIDE_EMPTY 00:00 - 00:05]]\n\n"
+        "### Slide 1\n**Timestamp:** 00:05 - 00:10\n\nIntro slide.\n"
+    )
 
     result = backend.summarize(tp, slides_md, rec_dir, cfg)
 
-    # Written summary file carries the model summary + appended slides.
+    # Summary file holds ONLY the summary — no slides, no Slide Descriptions heading.
     file_text = result.summary_path.read_text(encoding="utf-8")
     assert "Body." in file_text
-    assert "## Slide Descriptions" in file_text
-    assert slides_md.strip() in file_text
-    assert file_text.count("## Slide Descriptions") == 1
+    assert "## Slide Descriptions" not in file_text
+    assert "Slide 1" not in file_text
 
-    # The Notion publish received the SAME final document (summary + slides).
+    # Cleaned slides live in <name>.slides-clean.md (markers stripped).
+    clean_path = result.summary_path.with_suffix(".slides-clean.md")
+    assert clean_path.exists()
+    clean_text = clean_path.read_text(encoding="utf-8")
+    assert "### Slide 1" in clean_text
+    assert "Intro slide." in clean_text
+    assert "SLIDE_EMPTY" not in clean_text
+
+    # Notion publish got the summary + the cleaned slides (as the subpage source).
     assert len(publish.calls) == 1
-    _title, published_md, _timeout = publish.calls[0]
-    assert "## Slide Descriptions" in published_md
-    assert slides_md.strip() in published_md
+    _title, published_summary, published_slides, _timeout = publish.calls[0]
+    assert "Body." in published_summary
+    assert "## Slide Descriptions" not in published_summary  # subpage, not inline
+    assert published_slides is not None
+    assert "### Slide 1" in published_slides
+    assert "SLIDE_EMPTY" not in published_slides
 
-    # The digest stays slide-free (derived from the transcript summary only).
-    digest_text = result.telegram_path.read_text(encoding="utf-8")
-    assert "Slide Descriptions" not in digest_text
+    # The digest stays slide-free.
+    assert "Slide" not in result.telegram_path.read_text(encoding="utf-8")
 
 
 def test_agno_no_slide_section_when_slides_absent(tmp_path, monkeypatch):
@@ -386,8 +400,11 @@ def test_agno_no_slide_section_when_slides_absent(tmp_path, monkeypatch):
     assert "## Slide Descriptions" not in result.summary_path.read_text(
         encoding="utf-8"
     )
-    _title, published_md, _timeout = publish.calls[0]
-    assert "## Slide Descriptions" not in published_md
+    # No cleaned-slides file created when there are no slides.
+    assert not result.summary_path.with_suffix(".slides-clean.md").exists()
+    _title, published_summary, published_slides, _timeout = publish.calls[0]
+    assert "## Slide Descriptions" not in published_summary
+    assert published_slides is None  # no slides subpage
 
 
 def test_agno_empty_summary_fails_stage(tmp_path, monkeypatch):

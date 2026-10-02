@@ -206,3 +206,118 @@ def test_default_notion_timeout_is_bounded():
 
     assert isinstance(DEFAULT_NOTION_TIMEOUT, (int, float))
     assert 0 < DEFAULT_NOTION_TIMEOUT < 3600
+
+
+# --------------------------------------------------------------------------- #
+# Slides child subpage
+# --------------------------------------------------------------------------- #
+class _CaptureResp:
+    def __init__(self, body: bytes) -> None:
+        self._body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self):
+        return self._body
+
+
+def _install_capturing_urlopen(monkeypatch):
+    """Patch urlopen to record (method, url, parsed-payload) and return new ids."""
+    import json as _json
+    import transcriber.backends.notion_publish as np
+
+    calls: list[dict] = []
+    counter = {"n": 0}
+
+    def fake_urlopen(req, timeout=None):
+        counter["n"] += 1
+        payload = _json.loads(req.data.decode()) if req.data else None
+        calls.append(
+            {"method": req.get_method(), "url": req.full_url, "payload": payload}
+        )
+        pid = f"page-{counter['n']}"
+        body = (
+            '{"id": "' + pid + '", "url": "https://notion.so/' + pid + '"}'
+        ).encode()
+        return _CaptureResp(body)
+
+    monkeypatch.setattr(np.urllib.request, "urlopen", fake_urlopen)
+    return calls
+
+
+def test_publish_creates_slides_child_subpage(monkeypatch):
+    """When slides_markdown is supplied, a 'Slide Descriptions' child page is
+    created UNDER the summary page (parent = summary page id)."""
+    import transcriber.backends.notion_publish as np
+
+    monkeypatch.setenv("MY_NOTION_TOKEN", "ntn_secret")
+    calls = _install_capturing_urlopen(monkeypatch)
+
+    cfg = _make_config_for_publish()
+    url = np.publish_to_notion(
+        cfg,
+        "My Meeting",
+        "# Summary\n\nBody.",
+        slides_markdown="### Slide 1\n\n- a visual",
+        timeout=10.0,
+    )
+    assert url == "https://notion.so/page-1"  # summary page URL returned
+
+    # Two page-creation POSTs: summary (under parent), slides (under summary).
+    create_posts = [
+        c for c in calls if c["method"] == "POST" and c["url"].endswith("/pages")
+    ]
+    assert len(create_posts) == 2
+
+    summary_post, slides_post = create_posts
+    # Summary page is parented to the configured parent page id.
+    assert summary_post["payload"]["parent"]["page_id"] == (
+        "3e541441-7aa3-8019-80c0-f402a9386a52"
+    )
+    assert summary_post["payload"]["properties"]["title"]["title"][0]["text"][
+        "content"
+    ] == "My Meeting"
+
+    # Slides child page is parented to the SUMMARY page (page-1), titled
+    # "Slide Descriptions".
+    assert slides_post["payload"]["parent"]["page_id"] == "page-1"
+    assert slides_post["payload"]["properties"]["title"]["title"][0]["text"][
+        "content"
+    ] == np.SLIDES_SUBPAGE_TITLE
+
+
+def test_publish_no_subpage_when_slides_absent(monkeypatch):
+    import transcriber.backends.notion_publish as np
+
+    monkeypatch.setenv("MY_NOTION_TOKEN", "ntn_secret")
+    calls = _install_capturing_urlopen(monkeypatch)
+
+    cfg = _make_config_for_publish()
+    np.publish_to_notion(cfg, "My Meeting", "# Summary\n\nBody.", timeout=10.0)
+
+    create_posts = [
+        c for c in calls if c["method"] == "POST" and c["url"].endswith("/pages")
+    ]
+    # Only the summary page is created — no slides child page.
+    assert len(create_posts) == 1
+
+
+def test_publish_no_subpage_when_slides_whitespace(monkeypatch):
+    import transcriber.backends.notion_publish as np
+
+    monkeypatch.setenv("MY_NOTION_TOKEN", "ntn_secret")
+    calls = _install_capturing_urlopen(monkeypatch)
+
+    cfg = _make_config_for_publish()
+    np.publish_to_notion(
+        cfg, "My Meeting", "# Summary\n\nBody.", slides_markdown="   \n\t ",
+        timeout=10.0,
+    )
+    create_posts = [
+        c for c in calls if c["method"] == "POST" and c["url"].endswith("/pages")
+    ]
+    assert len(create_posts) == 1

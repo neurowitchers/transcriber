@@ -238,9 +238,20 @@ def test_openrouter_empty_slides_no_http_returns_empty(
         "== no essential visual information ==",
         "",
         "   \n  ",
+        # Exact empty-slide markers (the instructed convention).
+        "[[SLIDE_EMPTY 01:05 - 02:10]]",
+        "[[SLIDE_EMPTY unknown]]",
+        "[[SLIDE_EMPTY]]",
+        "  [[slide_empty 00:00 - 00:05]]  ",
+        # Fallback forms a disobedient model may emit instead of the marker.
+        "<!-- no information -->",
+        "(No essential visual content — this is a video call interface, "
+        "not a presentation slide. Omitting per rules.)",
     ],
 )
-def test_is_empty_slide_response_detects_placeholders(text: str) -> None:
+def test_is_placeholder_slide_response_detects_placeholders(text: str) -> None:
+    assert slides_mod.is_placeholder_slide_response(text) is True
+    # Backwards-compatible alias behaves identically.
     assert slides_mod._is_empty_slide_response(text) is True
 
 
@@ -251,18 +262,30 @@ def test_is_empty_slide_response_detects_placeholders(text: str) -> None:
         "The slide shows a bar chart of Q3 revenue.",
         "Title: Roadmap. Three milestones are listed.",
         "no information was lost during the migration",  # phrase inside real text
+        # A real multi-line description that merely mentions a slide marker-like
+        # token mid-content must be kept.
+        "### Risks\n**Timestamp:** 00:00 - 00:10\n\n- Partner withdrawal",
     ],
 )
-def test_is_empty_slide_response_keeps_real_content(text: str) -> None:
-    assert slides_mod._is_empty_slide_response(text) is False
+def test_is_placeholder_slide_response_keeps_real_content(text: str) -> None:
+    assert slides_mod.is_placeholder_slide_response(text) is False
 
 
-def test_openrouter_filters_placeholder_slides(
+def test_openrouter_keeps_marker_slides_in_slides_md(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Slides whose vision response is a 'no information' placeholder are dropped."""
+    """Empty-slide markers are KEPT in <name>.slides.md for debugging.
+
+    The backend no longer drops empty slides — markers (and stray placeholders)
+    stay verbatim so empty scenes are identifiable. Stripping happens later, in
+    the summarize stage (append_slide_descriptions), not here.
+    """
     returns = iter(
-        ["## Slide A\nreal content", "== no information ==", "## Slide C\nmore"]
+        [
+            "## Slide A\nreal content",
+            "[[SLIDE_EMPTY 00:05 - 00:10]]",
+            "## Slide C\nmore",
+        ]
     )
 
     def fake_vision(config, messages, model, *, timeout):
@@ -277,15 +300,20 @@ def test_openrouter_filters_placeholder_slides(
     result = OpenRouterSlidesBackend().describe(
         slides, "transcript body", make_config(), timeout=30
     )
-    # The placeholder slide is omitted; only the two real descriptions remain.
-    assert result == "## Slide A\nreal content\n\n## Slide C\nmore"
-    assert "no information" not in result
+    # All three slides are present — the marker is retained verbatim.
+    assert result == (
+        "## Slide A\nreal content\n\n"
+        "[[SLIDE_EMPTY 00:05 - 00:10]]\n\n"
+        "## Slide C\nmore"
+    )
+    assert "[[SLIDE_EMPTY 00:05 - 00:10]]" in result
 
 
-def test_openrouter_all_placeholders_returns_empty(
+def test_openrouter_all_markers_kept_not_empty(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _capture_vision(monkeypatch, "== no information ==")
+    """A deck of all-empty slides keeps the markers in .slides.md (not dropped)."""
+    _capture_vision(monkeypatch, "[[SLIDE_EMPTY 00:00 - 00:05]]")
     slides = [
         SlideInput(image_path=tmp_path / "a.jpg", timestamp="00:00 - 00:05"),
         SlideInput(image_path=tmp_path / "b.jpg", timestamp="00:05 - 00:10"),
@@ -293,7 +321,10 @@ def test_openrouter_all_placeholders_returns_empty(
     result = OpenRouterSlidesBackend().describe(
         slides, "t", make_config(), timeout=5
     )
-    assert result == ""
+    # Markers are retained (two, joined) — NOT dropped to "".
+    assert result == (
+        "[[SLIDE_EMPTY 00:00 - 00:05]]\n\n[[SLIDE_EMPTY 00:00 - 00:05]]"
+    )
 
 
 def test_openrouter_valid_empty_response_returns_empty(
