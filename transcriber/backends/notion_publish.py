@@ -18,6 +18,9 @@ What it does
 3. Create a new subpage under the parent (title = the recording basename) with
    up to the first 100 blocks, then append the remainder in <=100-block chunks
    (Notion caps children per request at 100).
+4. When cleaned slide descriptions are supplied, create a child page titled
+   "Slide Descriptions" **under the summary page** holding the slide blocks, so
+   the summary page stays short and the long slide detail lives one click away.
 
 Secrets: the token is resolved by env-var *name* (``notion.token_env``) at use
 time and is **never logged**.
@@ -41,6 +44,7 @@ __all__ = [
     "extract_page_id",
     "markdown_to_blocks",
     "publish_to_notion",
+    "SLIDES_SUBPAGE_TITLE",
     "NOTION_VERSION",
     "DEFAULT_NOTION_TIMEOUT",
 ]
@@ -240,50 +244,29 @@ def _notion_request(
         raise SummarizeError(f"Notion API request failed: {exc.reason}") from exc
 
 
-def publish_to_notion(
-    config: Config,
+def _create_page(
+    token: str,
+    parent: dict[str, Any],
     title: str,
-    summary_markdown: str,
+    blocks: list[dict[str, Any]],
     *,
-    timeout: float = DEFAULT_NOTION_TIMEOUT,
-) -> str:
-    """Create a Notion subpage under the parent and write the summary.
+    timeout: float,
+) -> tuple[str, str]:
+    """Create a Notion page under ``parent`` with ``blocks``; return (id, url).
 
-    Returns the new page URL. Raises ``SummarizeError`` on any failure so the
-    summarize stage fails (retryable) rather than silently dropping the publish.
-
-    ``timeout`` bounds each individual REST request (seconds). Because this runs
-    in a worker thread under the outer summarize ``wait_for``, a bounded socket
-    timeout is what actually caps the Notion phase — a cancelled ``wait_for``
-    cannot interrupt a blocked ``urlopen`` worker.
+    ``parent`` is a Notion parent object — ``{"page_id": ...}`` for a subpage
+    under a page. Blocks beyond Notion's 100-per-request cap are appended in
+    follow-up PATCH requests. Raises ``SummarizeError`` on any failure.
     """
-    if not config.notion.token_env:
-        raise SummarizeError(
-            "notion.token_env is required for summary.backend == 'agno'"
-        )
-    token = resolve_env(config.notion.token_env)
-    parent_id = extract_page_id(config.notion.parent_page_id)
-
-    blocks = markdown_to_blocks(summary_markdown)
-    if not blocks:
-        raise SummarizeError("summary produced no Notion blocks to publish")
-
-    first, rest = blocks[:_MAX_CHILDREN_PER_REQUEST], blocks[
-        _MAX_CHILDREN_PER_REQUEST:
-    ]
-
+    first, rest = (
+        blocks[:_MAX_CHILDREN_PER_REQUEST],
+        blocks[_MAX_CHILDREN_PER_REQUEST:],
+    )
     create_payload = {
-        "parent": {"page_id": parent_id},
-        "properties": {
-            "title": {"title": [{"text": {"content": title}}]},
-        },
+        "parent": parent,
+        "properties": {"title": {"title": [{"text": {"content": title}}]}},
         "children": first,
     }
-    logger.info(
-        "notion publish: creating subpage title=%r under parent (blocks=%d)",
-        title,
-        len(blocks),
-    )
     page = _notion_request(
         "https://api.notion.com/v1/pages",
         token,
@@ -296,7 +279,6 @@ def publish_to_notion(
     if not page_id:
         raise SummarizeError("Notion create-page returned no page id")
 
-    # Append any remaining blocks in <=100-block chunks.
     for start in range(0, len(rest), _MAX_CHILDREN_PER_REQUEST):
         chunk = rest[start : start + _MAX_CHILDREN_PER_REQUEST]
         _notion_request(
@@ -306,6 +288,82 @@ def publish_to_notion(
             "PATCH",
             timeout=timeout,
         )
+    return page_id, page_url
 
-    logger.info("notion publish: created page url=%s", page_url)
+
+#: Title of the child page that holds the slide descriptions.
+SLIDES_SUBPAGE_TITLE = "Slide Descriptions"
+
+
+def publish_to_notion(
+    config: Config,
+    title: str,
+    summary_markdown: str,
+    *,
+    slides_markdown: Optional[str] = None,
+    timeout: float = DEFAULT_NOTION_TIMEOUT,
+) -> str:
+    """Create a Notion subpage with the summary; optionally a slides child page.
+
+    Creates a new page titled ``title`` under ``notion.parent_page_id`` holding
+    the **summary** blocks. When ``slides_markdown`` is a non-empty block of
+    cleaned slide descriptions, a child page titled
+    :data:`SLIDES_SUBPAGE_TITLE` is then created **under the summary page** with
+    the slide blocks — so the summary page stays readable and the (often long)
+    slide descriptions live one click away. Returns the **summary** page URL.
+
+    ``slides_markdown`` must already be the reader-facing, markers-stripped slide
+    text (``<name>.slides-clean.md``); this function does not strip markers.
+    ``None``/empty/whitespace → no slides child page is created.
+
+    Raises ``SummarizeError`` on any failure so the summarize stage fails
+    (retryable). Note: if the summary page is created but the slides child page
+    then fails, the whole call raises; the caller must not record a successful
+    publish, so a retry re-creates both (a narrow duplicate-summary-page window,
+    unchanged in risk from the single-page design).
+
+    ``timeout`` bounds each individual REST request (seconds). Because this runs
+    in a worker thread under the outer summarize ``wait_for``, a bounded socket
+    timeout is what actually caps the Notion phase.
+    """
+    if not config.notion.token_env:
+        raise SummarizeError(
+            "notion.token_env is required for summary.backend == 'agno'"
+        )
+    token = resolve_env(config.notion.token_env)
+    parent_id = extract_page_id(config.notion.parent_page_id)
+
+    blocks = markdown_to_blocks(summary_markdown)
+    if not blocks:
+        raise SummarizeError("summary produced no Notion blocks to publish")
+
+    logger.info(
+        "notion publish: creating summary subpage title=%r under parent "
+        "(blocks=%d)",
+        title,
+        len(blocks),
+    )
+    page_id, page_url = _create_page(
+        token, {"page_id": parent_id}, title, blocks, timeout=timeout
+    )
+
+    # Optional slides child page under the just-created summary page.
+    if slides_markdown and slides_markdown.strip():
+        slide_blocks = markdown_to_blocks(slides_markdown)
+        if slide_blocks:
+            logger.info(
+                "notion publish: creating %r child page under summary "
+                "(blocks=%d)",
+                SLIDES_SUBPAGE_TITLE,
+                len(slide_blocks),
+            )
+            _create_page(
+                token,
+                {"page_id": page_id},
+                SLIDES_SUBPAGE_TITLE,
+                slide_blocks,
+                timeout=timeout,
+            )
+
+    logger.info("notion publish: created summary page url=%s", page_url)
     return page_url

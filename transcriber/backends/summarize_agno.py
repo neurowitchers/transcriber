@@ -40,10 +40,11 @@ from pathlib import Path
 from typing import Any, Optional
 
 from transcriber.agent import (
-    append_slide_descriptions,
     build_agno_digest_prompt,
     build_agno_summarize_prompt,
+    clean_slide_descriptions,
     digest_path_for,
+    slides_clean_path_for,
 )
 from transcriber.backends.errors import SummarizeError
 from transcriber.backends.interfaces import SummaryResult
@@ -157,6 +158,30 @@ def _publish_record_path(summary_path: Path) -> Path:
     return summary_path.with_suffix(".notion_published.json")
 
 
+def _publish_summary_and_slides(
+    config: Config,
+    title: str,
+    summary_markdown: str,
+    cleaned_slides: str,
+    notion_timeout: float,
+) -> str:
+    """Thread entry point: publish the summary page (+ optional slides subpage).
+
+    A thin positional-arg wrapper around
+    :func:`transcriber.backends.notion_publish.publish_to_notion` so it can be
+    handed to :func:`asyncio.to_thread` cleanly (``publish_to_notion`` takes
+    ``slides_markdown``/``timeout`` as keyword-only args). ``cleaned_slides`` is
+    already markers-stripped; an empty string means no slides child page.
+    """
+    return publish_to_notion(
+        config,
+        title,
+        summary_markdown,
+        slides_markdown=cleaned_slides or None,
+        timeout=notion_timeout,
+    )
+
+
 class AgnoSummarizeBackend:
     """Summarize via an Agno/OpenRouter model + direct Notion REST publish.
 
@@ -245,19 +270,34 @@ class AgnoSummarizeBackend:
         # Notion publish (but before the manifest is marked) still leaves valid
         # local artifacts, so a retry regenerates nothing and — guarded by the
         # publish record below — does not create a duplicate Notion page.
-        # Build the FINAL summary document: the model-produced transcript
-        # summary with the prepared slide descriptions appended by the ENGINE
-        # (deterministic concatenation). The model is told not to reproduce the
-        # slide block (see transcriber.agent._slide_block), so slide content
-        # never consumes the model's bounded output budget — which previously
-        # truncated the summary before the Slide Descriptions section was
-        # reached. An absent/empty <name>.slides.md is a no-op (treated as
-        # slides-off). The DIGEST intentionally stays slide-free (it is derived
-        # from the transcript summary only, inside _run_agent).
-        final_document = append_slide_descriptions(summary_text, slides_markdown)
+        #
+        # SPLIT MODEL: slide descriptions are kept OUT of the summary. The
+        # summary file (<name>.md) holds only the transcript summary; the
+        # cleaned, reader-facing slide descriptions (markers stripped) go to a
+        # separate durable file (<name>.slides-clean.md) and, on Notion, to a
+        # "Slide Descriptions" child page under the summary page. The raw
+        # <name>.slides.md (markers kept) remains the debug intermediate. The
+        # DIGEST stays slide-free (derived from the transcript summary only,
+        # inside _run_agent).
+        cleaned_slides = clean_slide_descriptions(slides_markdown)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(final_document, encoding="utf-8")
+        output_path.write_text(summary_text.strip() + "\n", encoding="utf-8")
+
+        # Cleaned slides: write the durable <name>.slides-clean.md when there is
+        # real slide content; otherwise CLEAR any stale one so a reprocess never
+        # leaves outdated slides behind.
+        slides_clean_path = slides_clean_path_for(output_path)
+        if cleaned_slides:
+            slides_clean_path.write_text(
+                cleaned_slides + "\n", encoding="utf-8"
+            )
+        elif slides_clean_path.exists():
+            logger.info(
+                "agno summarize: no slide content, removing stale %s",
+                slides_clean_path.name,
+            )
+            slides_clean_path.unlink()
 
         # Digest: write when non-empty, otherwise CLEAR any stale digest so a
         # retry/reprocess never disseminates an old digest. The telegram stage
@@ -291,18 +331,25 @@ class AgnoSummarizeBackend:
             )
         else:
             notion_timeout = _notion_request_timeout(config)
-            logger.info("agno summarize: publishing to Notion (title=%r)", basename)
+            logger.info(
+                "agno summarize: publishing to Notion (title=%r, slides_subpage=%s)",
+                basename,
+                "yes" if cleaned_slides else "no",
+            )
             # Blocking urllib in a worker thread so the outer wait_for does not
             # stall the loop; the bounded per-request socket timeout is what
-            # actually caps the Notion phase.
+            # actually caps the Notion phase. The summary page carries ONLY the
+            # summary; cleaned slide descriptions (when present) become a
+            # "Slide Descriptions" child page under it.
             page_url = asyncio.run(
                 asyncio.wait_for(
                     asyncio.to_thread(
-                        publish_to_notion,
+                        _publish_summary_and_slides,
                         config,
                         basename,
-                        final_document,
-                        timeout=notion_timeout,
+                        summary_text.strip(),
+                        cleaned_slides,
+                        notion_timeout,
                     ),
                     timeout,
                 )

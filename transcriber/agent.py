@@ -94,6 +94,18 @@ def digest_path_for(summary_path: str | os.PathLike[str]) -> Path:
     return summary_path.with_suffix(".telegram.md")
 
 
+def slides_clean_path_for(summary_path: str | os.PathLike[str]) -> Path:
+    """The reader-facing cleaned-slides file path derived from the summary path.
+
+    ``<dir>/<name>.md`` -> ``<dir>/<name>.slides-clean.md``. This is the durable
+    slides output (markers stripped), distinct from the ``<name>.slides.md``
+    debug intermediate (markers kept). Kept public so the orchestrator / both
+    backends derive it consistently.
+    """
+    summary_path = Path(summary_path)
+    return summary_path.with_suffix(".slides-clean.md")
+
+
 # Backwards/internal alias used within run_agent.
 _digest_path_for = digest_path_for
 
@@ -198,6 +210,24 @@ def _strip_empty_slide_markers(slides_markdown: str) -> str:
     chunks = re.split(r"\n\s*\n", slides_markdown.strip())
     kept = [c for c in chunks if c.strip() and not is_placeholder_slide_response(c)]
     return "\n\n".join(kept)
+
+
+def clean_slide_descriptions(slides_markdown: str | None) -> str:
+    """Return the reader-facing slide descriptions with empty markers removed.
+
+    Takes the raw ``<name>.slides.md`` (which keeps ``[[SLIDE_EMPTY …]]`` markers
+    and any stray placeholder forms for debugging) and returns only the real
+    slide descriptions, suitable for writing to ``<name>.slides-clean.md`` and
+    for publishing as the Notion "Slide Descriptions" child page.
+
+    Returns ``""`` when ``slides_markdown`` is ``None``/empty/whitespace or when
+    every slide was an empty marker/placeholder — callers then write no
+    ``<name>.slides-clean.md`` and create no slides subpage (treated like
+    slides-off).
+    """
+    if slides_markdown is None or not slides_markdown.strip():
+        return ""
+    return _strip_empty_slide_markers(slides_markdown).strip()
 
 
 def build_prompt(
@@ -430,7 +460,7 @@ def run_agent(
         # summary file before the kill, accept it; otherwise re-raise so the
         # caller can decide to resume.
         if output_path.exists() and output_path.read_text(encoding="utf-8").strip():
-            _append_slides_to_file(output_path, slides_markdown)
+            _write_clean_slides_file(output_path, slides_markdown)
             return output_path
         # Attach partial context by re-raising the original error (it carries
         # ``.partial`` already).
@@ -443,31 +473,37 @@ def run_agent(
     if not output_path.read_text(encoding="utf-8").strip():
         raise RuntimeError(f"agy wrote an empty summary file: {output_path}")
 
-    # Deterministically append the prepared slide descriptions to the file agy
-    # wrote. The model is instructed NOT to reproduce the slide block (see
-    # _slide_block), so the engine owns concatenation — this keeps the slide
-    # content out of the model's bounded output and guarantees it reaches the
-    # final summary verbatim.
-    _append_slides_to_file(output_path, slides_markdown)
+    # Split model: the summary file holds ONLY the summary (agy was told the
+    # slide block is reference-only). The engine writes the cleaned slide
+    # descriptions to a separate durable file (<name>.slides-clean.md).
+    #
+    # agy LIMITATION: agy publishes its own Notion page via its MCP from the
+    # prompt, which the engine does not control, so the Notion "Slide
+    # Descriptions" child page is NOT created on the agy path — only the local
+    # <name>.slides-clean.md is produced. The agno backend creates the Notion
+    # slides subpage. (Hosts needing the slides subpage use summary.backend:
+    # agno.)
+    _write_clean_slides_file(output_path, slides_markdown)
 
     return output_path
 
 
-def _append_slides_to_file(
+def _write_clean_slides_file(
     summary_path: Path, slides_markdown: str | None
 ) -> None:
-    """Rewrite ``summary_path`` with the prepared slide descriptions appended.
+    """Write the reader-facing ``<name>.slides-clean.md`` beside the summary.
 
-    No-op when ``slides_markdown`` is ``None``/empty/whitespace. Idempotent for
-    a given (file, slides) pair is **not** guaranteed — callers invoke this once
-    per successful run on a freshly model-written file.
+    Writes the markers-stripped slide descriptions when there is real slide
+    content; clears any stale file otherwise. No-op (and clears a stale file)
+    when ``slides_markdown`` is ``None``/empty/whitespace or all slides were
+    empty markers. Keeps the summary file untouched (the split).
     """
-    if slides_markdown is None or not slides_markdown.strip():
-        return
-    current = summary_path.read_text(encoding="utf-8")
-    summary_path.write_text(
-        append_slide_descriptions(current, slides_markdown), encoding="utf-8"
-    )
+    clean_path = slides_clean_path_for(summary_path)
+    cleaned = clean_slide_descriptions(slides_markdown)
+    if cleaned:
+        clean_path.write_text(cleaned + "\n", encoding="utf-8")
+    elif clean_path.exists():
+        clean_path.unlink()
 
 
 # --------------------------------------------------------------------------- #

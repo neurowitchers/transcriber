@@ -402,8 +402,9 @@ def test_run_agent_embeds_slide_markdown_in_prompt(tmp_path: Path, monkeypatch) 
 
 
 def test_run_agent_appends_slide_descriptions_to_file(tmp_path: Path, monkeypatch) -> None:
-    """The engine must append the prepared slides to the agy-written file
-    deterministically (the model is told not to reproduce them)."""
+    """Split model: the summary file stays summary-only; the engine writes the
+    cleaned slide descriptions to a separate <name>.slides-clean.md (markers
+    stripped). agy itself writes only the summary."""
     cfg = make_config()
     rec_dir = tmp_path / "rec"
     rec_dir.mkdir()
@@ -419,13 +420,39 @@ def test_run_agent_appends_slide_descriptions_to_file(tmp_path: Path, monkeypatc
     monkeypatch.setattr(agent, "run", fake_run)
     out = run_agent(cfg, tp, rec_dir, slides_markdown=SLIDES_MD)
 
-    text = out.read_text(encoding="utf-8")
-    assert "## Slide Descriptions" in text
-    assert SLIDES_MD.strip() in text
-    # Exactly one slide section — no duplication.
-    assert text.count("## Slide Descriptions") == 1
-    # Slides come after the summary body.
-    assert text.index("Stuff happened.") < text.index("## Slide Descriptions")
+    # Summary file holds ONLY the summary — no slides appended.
+    summary_text = out.read_text(encoding="utf-8")
+    assert "Stuff happened." in summary_text
+    assert "## Slide Descriptions" not in summary_text
+    assert "Slide 1" not in summary_text
+
+    # Cleaned slides live in the separate durable file.
+    clean_path = out.with_suffix(".slides-clean.md")
+    assert clean_path.exists()
+    clean_text = clean_path.read_text(encoding="utf-8")
+    assert SLIDES_MD.strip() in clean_text
+
+
+def test_run_agent_strips_markers_in_clean_slides_file(tmp_path: Path, monkeypatch) -> None:
+    """The <name>.slides-clean.md drops [[SLIDE_EMPTY]] markers, keeps real slides."""
+    cfg = make_config()
+    rec_dir = tmp_path / "rec"
+    rec_dir.mkdir()
+    tp = write_transcript(rec_dir)
+    slides_md = (
+        "[[SLIDE_EMPTY 00:00 - 00:05]]\n\n"
+        "### Real\n**Timestamp:** 00:05 - 00:10\n\n- content"
+    )
+
+    def fake_run(prompt, *, add_dirs, extra_args, timeout, **kwargs):
+        (rec_dir / "meeting.md").write_text("# Summary\n\nBody.\n", encoding="utf-8")
+        return ""
+
+    monkeypatch.setattr(agent, "run", fake_run)
+    out = run_agent(cfg, tp, rec_dir, slides_markdown=slides_md)
+    clean_text = out.with_suffix(".slides-clean.md").read_text(encoding="utf-8")
+    assert "### Real" in clean_text
+    assert "SLIDE_EMPTY" not in clean_text
 
 
 def test_run_agent_no_slide_section_when_slides_absent(tmp_path: Path, monkeypatch) -> None:
@@ -441,6 +468,8 @@ def test_run_agent_no_slide_section_when_slides_absent(tmp_path: Path, monkeypat
     monkeypatch.setattr(agent, "run", fake_run)
     out = run_agent(cfg, tp, rec_dir, slides_markdown=None)
     assert "## Slide Descriptions" not in out.read_text(encoding="utf-8")
+    # No cleaned-slides file when there are no slides.
+    assert not out.with_suffix(".slides-clean.md").exists()
 
 
 def test_run_agent_references_transcript_by_file_not_inline(tmp_path: Path, monkeypatch) -> None:

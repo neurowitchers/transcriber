@@ -3,10 +3,13 @@
 After a recording finishes processing, its intermediate artifacts are removed
 to keep the recordings directory tidy. The **durable outputs are preserved**:
 
-- KEEP: the source ``<name>.mp4``, the final ``<name>.md`` summary, and the
-  ``<name>.txt`` speech-to-text transcript.
+- KEEP: the source ``<name>.mp4``, the final ``<name>.md`` summary, the
+  ``<name>.txt`` speech-to-text transcript, and the ``<name>.slides-clean.md``
+  reader-facing slide descriptions (markers stripped — the durable slides
+  output).
 - DELETE: ``<name>.mp3``, ``<name>.telegram.md``,
-  ``<name>.slides.md`` (the intermediate slide-description artifact),
+  ``<name>.slides.md`` (the markers-kept slide-description **debug**
+  intermediate; its cleaned counterpart ``<name>.slides-clean.md`` is kept),
   ``<name>.notion_published.json`` (the ``agno`` publish record), the
   ``extracted_slides.<name>/`` directory (which also holds
   ``<name>.scenes.csv``), and the ``transcribe_work.<name>/`` directory (which

@@ -23,10 +23,11 @@ def _make_all_artifacts(directory: Path) -> dict[str, Path]:
     mp3 = directory / f"{NAME}.mp3"
     txt = directory / f"{NAME}.txt"
     slides_md = directory / f"{NAME}.slides.md"
+    slides_clean = directory / f"{NAME}.slides-clean.md"
     slides_dir = directory / f"extracted_slides.{NAME}"
     transcribe_work_dir = directory / f"transcribe_work.{NAME}"
 
-    for f in (mp4, md, mp3, txt, slides_md):
+    for f in (mp4, md, mp3, txt, slides_md, slides_clean):
         f.write_text("data", encoding="utf-8")
     slides_dir.mkdir()
     (slides_dir / "slide-001.jpg").write_text("img", encoding="utf-8")
@@ -45,6 +46,7 @@ def _make_all_artifacts(directory: Path) -> dict[str, Path]:
         "mp3": mp3,
         "txt": txt,
         "slides_md": slides_md,
+        "slides_clean": slides_clean,
         "scenes": scenes,
         "slides_dir": slides_dir,
         "transcribe_work_dir": transcribe_work_dir,
@@ -60,6 +62,7 @@ def test_cleanup_deletes_intermediates_and_keeps_durable(tmp_path):
     assert art["mp4"].exists()
     assert art["md"].exists()
     assert art["txt"].exists()  # speech-to-text transcript is kept
+    assert art["slides_clean"].exists()  # reader-facing cleaned slides are kept
 
     # Intermediates gone.
     for key in ("mp3", "scenes", "slides_md", "slides_dir", "transcribe_work_dir"):
@@ -188,6 +191,25 @@ def test_cleanup_deletes_slides_md_keeps_summary(tmp_path):
     assert not slides_md.exists(), "the .slides.md artifact must be deleted"
     assert slides_md in removed
     assert mp4.exists()
+
+
+def test_cleanup_keeps_slides_clean_but_deletes_slides_md(tmp_path):
+    """<name>.slides-clean.md (reader-facing, markers stripped) is DURABLE;
+    <name>.slides.md (markers-kept debug intermediate) is deleted."""
+    mp4 = tmp_path / f"{NAME}.mp4"
+    mp4.write_text("video", encoding="utf-8")
+    (tmp_path / f"{NAME}.md").write_text("# summary", encoding="utf-8")
+    slides_md = tmp_path / f"{NAME}.slides.md"
+    slides_md.write_text("[[SLIDE_EMPTY 00:00 - 00:05]]\n\n### Real\n- x", encoding="utf-8")
+    slides_clean = tmp_path / f"{NAME}.slides-clean.md"
+    slides_clean.write_text("### Real\n- x", encoding="utf-8")
+
+    removed = cleanup(mp4)
+
+    assert slides_clean.exists(), "the durable .slides-clean.md must be kept"
+    assert slides_clean not in removed
+    assert not slides_md.exists(), "the .slides.md debug artifact must be deleted"
+    assert slides_md in removed
 
 
 def test_keep_intermediates_preserves_slides_md(tmp_path):
