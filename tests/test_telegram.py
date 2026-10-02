@@ -27,6 +27,7 @@ from transcriber.publish.telegram import (
     TelegramPublisher,
     chunk_message,
     resolve_chat_id,
+    strip_markdown,
 )
 
 TOKEN_ENV = "TELEGRAM_BOT_TOKEN"
@@ -131,6 +132,77 @@ def test_send_routes_unmatched_topic_to_default():
 
     payloads = transport.payloads()
     assert payloads[0]["chat_id"] == "default-chat"
+
+
+# --------------------------------------------------------------------------- #
+# Markdown stripping (sent with no parse_mode -> must be clean plain text)
+# --------------------------------------------------------------------------- #
+_BULLET = "\u2022"
+
+
+def test_strip_markdown_removes_emphasis_and_code():
+    assert (
+        strip_markdown("Plain **bold** and _italic_ and `code`.")
+        == "Plain bold and italic and code."
+    )
+    assert strip_markdown("__also bold__ and *also italic*") == "also bold and also italic"
+
+
+def test_strip_markdown_removes_headings():
+    assert strip_markdown("# Title") == "Title"
+    assert strip_markdown("### Sub heading") == "Sub heading"
+
+
+def test_strip_markdown_converts_bullets():
+    assert strip_markdown("- item one") == f"{_BULLET} item one"
+    assert strip_markdown("* item two") == f"{_BULLET} item two"
+    assert strip_markdown("+ item three") == f"{_BULLET} item three"
+    # Indentation preserved.
+    assert strip_markdown("  - nested") == f"  {_BULLET} nested"
+
+
+def test_strip_markdown_links_keep_target():
+    assert (
+        strip_markdown("See [the doc](https://notion.so/x) now.")
+        == "See the doc (https://notion.so/x) now."
+    )
+
+
+def test_strip_markdown_images_keep_alt_and_url():
+    assert strip_markdown("![alt](http://img/x.png)") == "alt (http://img/x.png)"
+
+
+def test_strip_markdown_drops_code_fences_keeps_content():
+    assert strip_markdown("```\ncode line\n```") == "code line"
+
+
+def test_strip_markdown_blockquote():
+    assert strip_markdown("> quoted") == "quoted"
+
+
+def test_strip_markdown_preserves_line_structure():
+    md = "# HIVE Weekly\n\n- **Dario:** follow up\n- *Alex:* draft"
+    assert strip_markdown(md) == (
+        f"HIVE Weekly\n\n{_BULLET} Dario: follow up\n{_BULLET} Alex: draft"
+    )
+
+
+def test_send_transmits_stripped_markdown():
+    """send() must transmit clean plain text (no raw Markdown markers)."""
+    config = make_config()
+    transport = RecordingTransport()
+    publisher = make_publisher(config, transport)
+
+    publisher.send("# Title\n\n- **A:** do x\n- do y")
+
+    payloads = transport.payloads()
+    sent = payloads[0]["text"]
+    assert "**" not in sent
+    assert "# " not in sent
+    assert sent.startswith("Title")
+    assert f"{_BULLET} A: do x" in sent
+    # No parse_mode is set (we send clean plain text).
+    assert "parse_mode" not in payloads[0]
 
 
 # --------------------------------------------------------------------------- #
