@@ -75,6 +75,8 @@ def test_simple_example_shape():
     assert cfg.notion.token_env == "NOTION_API_KEY"
     assert cfg.telegram.bot_token_env == "TELEGRAM_BOT_TOKEN"
     assert cfg.telegram.routing == {}
+    # No routing -> topic_descriptions defaults to an empty map.
+    assert cfg.telegram.topic_descriptions == {}
     assert cfg.s3 is None
     # Slides are enabled, so the openrouter block is present (vision call).
     assert cfg.openrouter is not None
@@ -100,6 +102,9 @@ def test_full_example_shape():
         "topic-a": "REPLACE_WITH_TOPIC_A_CHAT_ID",
         "topic-b": "REPLACE_WITH_TOPIC_B_CHAT_ID",
     }
+    # Optional topic_descriptions (steers the routing partition call) parse per
+    # topic; keys match the routing topics.
+    assert set(cfg.telegram.topic_descriptions) == {"topic-a", "topic-b"}
     assert cfg.s3 is not None
     assert cfg.s3.profile == "acme"
     # openrouter block present and parses api_key_env + per-stage models;

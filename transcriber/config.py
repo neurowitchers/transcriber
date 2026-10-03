@@ -107,6 +107,11 @@ class Telegram:
     bot_token_env: str
     default_chat_id: str
     routing: dict[str, str]
+    # Optional human-readable description per routing topic, used to steer the
+    # summary-partition (routing) model call. Keys SHOULD match ``routing``
+    # keys; a topic without a description falls back to its bare label. Topics
+    # present here but absent from ``routing`` are ignored for routing.
+    topic_descriptions: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass

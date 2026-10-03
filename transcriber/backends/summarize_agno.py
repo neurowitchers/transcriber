@@ -46,6 +46,7 @@ from transcriber.agent import (
     digest_path_for,
     slides_clean_path_for,
 )
+from transcriber.agent import DEFAULT_ROUTE_KEY, build_agno_route_prompt
 from transcriber.backends.errors import SummarizeError
 from transcriber.backends.interfaces import SummaryResult
 from transcriber.backends.notion_mcp import AgnoImportError
@@ -362,3 +363,105 @@ class AgnoSummarizeBackend:
         elapsed = time.monotonic() - started
         logger.info("agno summarize: complete in %.1fs", elapsed)
         return SummaryResult(summary_path=output_path, telegram_path=digest_path)
+
+
+
+# --------------------------------------------------------------------------- #
+# Telegram topic routing (Option B): partition one summary into per-topic +
+# default digests via a SINGLE model call, parsed from strict JSON.
+# --------------------------------------------------------------------------- #
+def _strip_json_fence(text: str) -> str:
+    """Return ``text`` with a surrounding Markdown code fence removed, if any.
+
+    Models often wrap JSON in ```` ```json … ``` ```` despite being told not to.
+    This strips a single leading fence line (``` or ```json) and a trailing
+    fence line so :func:`json.loads` sees bare JSON. Non-fenced text is returned
+    unchanged (modulo surrounding whitespace).
+    """
+    s = text.strip()
+    if not s.startswith("```"):
+        return s
+    lines = s.splitlines()
+    # Drop the opening fence line (``` or ```json).
+    if lines and lines[0].lstrip().startswith("```"):
+        lines = lines[1:]
+    # Drop the closing fence line.
+    if lines and lines[-1].strip().startswith("```"):
+        lines = lines[:-1]
+    return "\n".join(lines).strip()
+
+
+def _parse_route_json(raw: str, config: Config) -> "dict[str, str]":
+    """Parse the partition model's JSON into a ``{bucket: digest}`` mapping.
+
+    Robust against the common model deviations:
+
+    * a surrounding ```` ``` ````/```` ```json ```` fence (stripped);
+    * missing buckets (filled with ``""`` so every configured topic + the
+      default key is always present);
+    * extra keys the model invents (ignored — only the configured routing
+      topics and :data:`DEFAULT_ROUTE_KEY` are kept);
+    * non-string values (coerced to ``""`` — treated as empty, not an error).
+
+    Raises :class:`SummarizeError` only when the payload is not a JSON object at
+    all (so the caller can fall back to the single-digest path rather than drop
+    the Telegram notification entirely).
+
+    The returned mapping always has exactly the configured topic keys plus
+    :data:`DEFAULT_ROUTE_KEY`; values are stripped strings (possibly empty).
+    """
+    allowed = list(config.telegram.routing) + [DEFAULT_ROUTE_KEY]
+    try:
+        data = json.loads(_strip_json_fence(raw))
+    except (ValueError, TypeError) as exc:
+        raise SummarizeError(
+            f"routing partition returned non-JSON output: {type(exc).__name__}"
+        ) from exc
+    if not isinstance(data, dict):
+        raise SummarizeError(
+            "routing partition JSON was not an object "
+            f"(got {type(data).__name__})"
+        )
+    result: dict[str, str] = {}
+    for key in allowed:
+        value = data.get(key, "")
+        result[key] = value.strip() if isinstance(value, str) else ""
+    return result
+
+
+async def _run_route(route_prompt: str, config: Config) -> str:
+    """Run the single partition model call; return its raw text output."""
+    Agent, AgnoOpenRouter = _import_agno()
+    api_key = resolve_env(config.openrouter.api_key_env)
+    base_url = config.openrouter.base_url
+    model_id = config.openrouter.summary_model
+    logger.info("agno routing: partition call (model=%s)", model_id)
+    router = Agent(model=AgnoOpenRouter(id=model_id, api_key=api_key, base_url=base_url))
+    out = await router.arun(route_prompt)
+    return (out.get_content_as_string() or "").strip()
+
+
+def build_routed_digests(config: Config, summary_markdown: str) -> "dict[str, str]":
+    """Partition ``summary_markdown`` into ``{bucket: digest}`` via one model call.
+
+    Returns a mapping whose keys are the configured ``telegram.routing`` topics
+    plus :data:`DEFAULT_ROUTE_KEY`; each value is a Telegram digest for that
+    bucket (possibly ``""`` when the bucket has no relevant content). The caller
+    routes each non-empty bucket to ``telegram.routing[topic]`` and the
+    ``DEFAULT_ROUTE_KEY`` bucket to ``telegram.default_chat_id``.
+
+    Only meaningful when ``telegram.routing`` is non-empty; the caller gates on
+    that. Raises :class:`SummarizeError` on an unusable (non-object) model
+    response so the caller can fall back to the single-digest path.
+    """
+    timeout = _summarize_timeout(config)
+    prompt = build_agno_route_prompt(config, summary_markdown)
+    raw = asyncio.run(asyncio.wait_for(_run_route(prompt, config), timeout))
+    buckets = _parse_route_json(raw, config)
+    nonempty = sum(1 for v in buckets.values() if v)
+    logger.info(
+        "agno routing: partitioned into %d bucket(s), %d non-empty",
+        len(buckets),
+        nonempty,
+    )
+    return buckets

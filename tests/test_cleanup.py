@@ -177,6 +177,46 @@ def test_cleanup_deletes_digest_keeps_summary(tmp_path):
     assert mp4.exists()
 
 
+def test_cleanup_deletes_routed_telegram_digests(tmp_path):
+    """Per-topic routed digests (``<name>.telegram.<topic>.md``) are
+    intermediates and must be deleted, while the durable ``<name>.md`` summary
+    and ``<name>.slides-clean.md`` are kept."""
+    mp4 = tmp_path / f"{NAME}.mp4"
+    mp4.write_text("video", encoding="utf-8")
+    summary = tmp_path / f"{NAME}.md"
+    summary.write_text("# full summary", encoding="utf-8")
+    slides_clean = tmp_path / f"{NAME}.slides-clean.md"
+    slides_clean.write_text("### Real slide", encoding="utf-8")
+    single = tmp_path / f"{NAME}.telegram.md"
+    single.write_text("single digest", encoding="utf-8")
+    routed_a = tmp_path / f"{NAME}.telegram.ECL2-0.md"
+    routed_a.write_text("ecl digest", encoding="utf-8")
+    routed_b = tmp_path / f"{NAME}.telegram.default.md"
+    routed_b.write_text("rest digest", encoding="utf-8")
+
+    removed = cleanup(mp4)
+
+    assert summary.exists(), "durable .md summary must be kept"
+    assert slides_clean.exists(), "durable .slides-clean.md must be kept"
+    assert not single.exists(), "single .telegram.md must be deleted"
+    assert not routed_a.exists(), "routed .telegram.ECL2-0.md must be deleted"
+    assert not routed_b.exists(), "routed .telegram.default.md must be deleted"
+    assert routed_a in removed
+    assert routed_b in removed
+
+
+def test_keep_intermediates_preserves_routed_digests(tmp_path):
+    mp4 = tmp_path / f"{NAME}.mp4"
+    mp4.write_text("video", encoding="utf-8")
+    routed = tmp_path / f"{NAME}.telegram.ECL2-0.md"
+    routed.write_text("ecl digest", encoding="utf-8")
+
+    removed = cleanup(mp4, keep_intermediates=True)
+
+    assert removed == []
+    assert routed.exists(), "--keep-intermediates must preserve routed digests"
+
+
 def test_cleanup_deletes_slides_md_keeps_summary(tmp_path):
     mp4 = tmp_path / f"{NAME}.mp4"
     mp4.write_text("video", encoding="utf-8")

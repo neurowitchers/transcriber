@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 import shutil
 import sys
 import time
@@ -260,6 +261,111 @@ class RecordingOutcome:
     error: Optional[str] = None
 
 
+def _routed_digest_path(summary_path: Path, topic: str) -> Path:
+    """Per-topic Telegram-digest file path: ``<name>.telegram.<topic>.md``.
+
+    The topic label is slugified (any char outside ``[0-9A-Za-z_-]`` -> ``-``,
+    so dots in topics like ``ECL2.0`` become ``ECL2-0``) to yield a safe,
+    unambiguous filename with a single trailing ``.md`` suffix. These are
+    debug/intermediate artifacts alongside the single ``<name>.telegram.md``.
+
+    Built with :meth:`Path.with_name` (not ``with_suffix``) so the composed
+    name is never subject to ``with_suffix``'s single-suffix validation.
+    """
+    slug = re.sub(r"[^0-9A-Za-z_-]+", "-", topic).strip("-") or "topic"
+    stem = summary_path.stem  # "<name>" from "<name>.md"
+    return summary_path.with_name(f"{stem}.telegram.{slug}.md")
+
+
+def _single_digest_text(mp4: Path, config: Config, name: str) -> str:
+    """The single-digest message body (today's behaviour).
+
+    Prefers the concise ``<name>.telegram.md`` the summarize backend wrote;
+    falls back to the full ``<name>.md`` summary when the digest is
+    missing/empty.
+    """
+    summary_file = _summary_path(mp4, config)
+    digest_file = agent_mod.digest_path_for(summary_file)
+    if digest_file.exists() and digest_file.read_text(encoding="utf-8").strip():
+        return digest_file.read_text(encoding="utf-8")
+    logger.warning(
+        "[%s] telegram: digest missing/empty, sending full summary", name
+    )
+    return summary_file.read_text(encoding="utf-8")
+
+
+def _disseminate_telegram(mp4: Path, config: Config, name: str) -> None:
+    """Send the meeting notification to Telegram.
+
+    When ``telegram.routing`` is empty, sends the single digest to the default
+    chat (today's behaviour). When routing is configured, partitions the summary
+    into one digest per topic plus a default remainder (Option B — a single
+    model partition call), writes each non-empty bucket to a
+    ``<name>.telegram.<topic>.md`` file, and routes it to its chat. A partition
+    failure falls back to the single-digest-to-default path so a routing hiccup
+    never drops the notification entirely.
+    """
+    publisher = TelegramPublisher(config)
+
+    if not config.telegram.routing:
+        publisher.send(_single_digest_text(mp4, config, name))
+        return
+
+    # Routed path: partition the full summary (richer than the digest) into
+    # per-topic buckets. Import here so the base engine never needs the agno
+    # extra on the no-routing path.
+    from transcriber.backends.summarize_agno import (
+        DEFAULT_ROUTE_KEY,
+        build_routed_digests,
+    )
+    from transcriber.backends.errors import SummarizeError
+
+    summary_file = _summary_path(mp4, config)
+    summary_text = summary_file.read_text(encoding="utf-8")
+
+    try:
+        buckets = build_routed_digests(config, summary_text)
+    except SummarizeError as exc:
+        logger.warning(
+            "[%s] telegram: routing partition failed (%s); falling back to a "
+            "single digest to the default chat",
+            name,
+            exc,
+        )
+        publisher.send(_single_digest_text(mp4, config, name))
+        return
+
+    sent_any = False
+    for topic in config.telegram.routing:
+        text = buckets.get(topic, "")
+        if not text:
+            logger.info("[%s] telegram: topic %r empty, skipping", name, topic)
+            continue
+        _routed_digest_path(summary_file, topic).write_text(
+            text + "\n", encoding="utf-8"
+        )
+        publisher.send(text, topic=topic)
+        sent_any = True
+
+    default_text = buckets.get(DEFAULT_ROUTE_KEY, "")
+    if default_text:
+        _routed_digest_path(summary_file, "default").write_text(
+            default_text + "\n", encoding="utf-8"
+        )
+        publisher.send(default_text)  # topic=None -> default_chat_id
+        sent_any = True
+
+    if not sent_any:
+        # Every bucket came back empty — avoid total silence by sending the
+        # single digest to the default chat.
+        logger.warning(
+            "[%s] telegram: all routed buckets empty; sending single digest to "
+            "the default chat",
+            name,
+        )
+        publisher.send(_single_digest_text(mp4, config, name))
+
+
 def _process_one(
     mp4: Path,
     config: Config,
@@ -369,19 +475,7 @@ def _process_one(
             logger.info("[%s] telegram: already complete, skipping", name)
         else:
             logger.info("[%s] telegram: sending", name)
-            summary_file = _summary_path(mp4, config)
-            digest_file = agent_mod.digest_path_for(summary_file)
-            # Prefer the concise digest the summarize backend wrote for chat;
-            # fall back to the full summary only if the digest is missing/empty.
-            if digest_file.exists() and digest_file.read_text(encoding="utf-8").strip():
-                message_text = digest_file.read_text(encoding="utf-8")
-            else:
-                logger.warning(
-                    "[%s] telegram: digest missing/empty, sending full summary",
-                    name,
-                )
-                message_text = summary_file.read_text(encoding="utf-8")
-            TelegramPublisher(config).send(message_text)
+            _disseminate_telegram(mp4, config, name)
             state.mark_complete("telegram")
 
         # 5. S3 sync (gated).

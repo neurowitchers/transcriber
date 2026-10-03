@@ -29,6 +29,7 @@ Ordering / safety contract (requirements R12):
 
 from __future__ import annotations
 
+import re
 import shutil
 from pathlib import Path
 
@@ -76,6 +77,13 @@ def intermediate_paths(recording: Path) -> list[Path]:
         # extracted-slides directory.
         transcribe_work_dir,  # directory
     ]
+    # Per-topic routed Telegram digests (``<name>.telegram.<topic>.md``) have
+    # dynamic topic slugs, so glob for them rather than list fixed names. The
+    # single ``<name>.telegram.md`` is already listed above; filter it out so it
+    # is not duplicated.
+    for routed in sorted(directory.glob(f"{name}.telegram.*.md")):
+        if routed.name != f"{name}.telegram.md":
+            candidates.append(routed)
     return candidates
 
 
@@ -124,8 +132,12 @@ def cleanup(recording: Path, keep_intermediates: bool = False) -> list[Path]:
 
 def _has_keep_suffix(path: Path) -> bool:
     name = path.name.lower()
-    # The Telegram digest and the slide-description artifact both end in ``.md``
+    # The Telegram digests and the slide-description artifact all end in ``.md``
     # but are intermediates, not the durable summary — allow them to be deleted.
-    if name.endswith(".telegram.md") or name.endswith(".slides.md"):
+    # This covers the single ``<name>.telegram.md`` and the per-topic routed
+    # digests ``<name>.telegram.<topic>.md`` (any ``.telegram*.md``), plus the
+    # ``<name>.slides.md`` debug block. The durable ``<name>.slides-clean.md``
+    # is NOT matched here, so it is kept.
+    if re.search(r"\.telegram(\.[^.]+)?\.md$", name) or name.endswith(".slides.md"):
         return False
     return any(name.endswith(suffix) for suffix in KEEP_SUFFIXES)

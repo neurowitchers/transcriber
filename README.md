@@ -74,6 +74,46 @@ per stage so you can confirm the run's engine mix before it executes. A slides-o
 audio-extract, scene-extract, transcribe [openrouter:microsoft/mai-transcribe-2], describe-slides [openrouter], summarize+notion [agno], telegram, s3-sync
 ```
 
+### Telegram topic routing
+
+The **Disseminate** stage sends a concise digest to Telegram. How it is routed
+depends on `telegram.routing`:
+
+- **No routing (default, `routing: {}`)** — one digest is sent to
+  `telegram.default_chat_id`.
+- **Routing configured** — the final summary is **partitioned** into one digest
+  **per routing topic** plus a *remainder*, in a **single** OpenRouter model
+  call (the `agno` summarize model). Each topic's digest is sent to its chat id
+  in `telegram.routing[topic]`; the remainder — everything the model did not
+  assign to a listed topic — is sent to `telegram.default_chat_id`.
+
+The partition is **constructive**: the model assigns each item to exactly one
+bucket and places anything unmatched (or uncertain) into the remainder, so no
+content is dropped and buckets do not overlap. A topic with no relevant content
+produces an empty bucket and **no message is sent** to that chat — so a meeting
+entirely about one topic sends only to that topic's chat and **nothing** to the
+default. If the partition call fails or every bucket is empty, the engine falls
+back to sending the single digest to `default_chat_id`, so a routing hiccup
+never drops the notification.
+
+`telegram.topic_descriptions` (optional) gives the model a short description of
+each topic to classify more accurately; a topic without a description falls back
+to its bare label. Each non-empty bucket is also written to a
+`<name>.telegram.<topic>.md` intermediate file (topic slugified; cleaned up with
+the other intermediates unless `debug`/`--keep-intermediates` is set).
+
+```yaml
+telegram:
+  bot_token_env: TELEGRAM_BOT_TOKEN
+  default_chat_id: "100"            # receives the remainder bucket
+  routing:
+    engineering: "201"
+    product: "202"
+  topic_descriptions:               # optional — steers classification only
+    engineering: "backend/infra work, deploys, incidents"
+    product: "roadmap, UX, product decisions"
+```
+
 ## Configuration
 
 A single config file drives the engine. The format is chosen by **file
@@ -114,11 +154,12 @@ See ready-to-adopt examples in [`examples/`](./examples):
 | `notion.insert` | string | Insertion mode (e.g. `subpage`). |
 | `notion.token_env` | string | *(optional)* **Env-var name** of the Notion integration token. For the `agno` backend the engine uses it to publish the subpage via the Notion REST API. Required iff `summary.backend == "agno"`. |
 | `telegram.bot_token_env` | string | **Env-var name** of the bot token. |
-| `telegram.default_chat_id` | string | Fallback chat id. |
-| `telegram.routing` | map[string,string] | Topic → chat id routes. |
+| `telegram.default_chat_id` | string | Fallback chat id. Also receives the **remainder** bucket when `telegram.routing` is set (see *Telegram topic routing* below). |
+| `telegram.routing` | map[string,string] | Topic → chat id routes. When non-empty, the summary is partitioned into one digest **per topic** plus a remainder sent to `default_chat_id` (see *Telegram topic routing* below). Empty (the default) → a single digest to `default_chat_id`. |
+| `telegram.topic_descriptions` | map[string,string] | *(optional)* Per-topic human-readable description used **only** to steer the routing-partition model call (which content belongs to which topic). Keys SHOULD match `telegram.routing` keys; a topic without a description falls back to its bare label. Has no effect when `telegram.routing` is empty. |
 | `timeouts` | map[string,int] | *(optional)* Per-stage timeouts (seconds); defaults to 900. Keys: `ffmpeg`, `scenedetect`, `slides` (the `describe_slides` stage), `transcribe`, `summarize`, `s3`. The legacy `timeouts.elevenlabs` key is **renamed to `timeouts.transcribe`** and is silently ignored if left behind. `timeouts.summarize` is optional and **falls back to the default 900s** when unset. (The legacy `timeouts.agy` key has been removed and is ignored if left behind.) |
 | `s3` | object | *(optional)* `bucket` + `profile`. Required only when `stages.s3_sync` is true. |
-| `debug` | bool | *(optional, default `false`)* When `true`, intermediate artifacts are **kept** after a successful run (same effect as the `--keep-intermediates` CLI flag, but persistent in config). Preserves `.mp3`, `.slides.md`, `.telegram.md`, the `transcribe_work.<name>/` dir, extracted slides, and the scenes CSV for inspection while the tool matures. The CLI flag and `debug` are OR'd — either one keeps intermediates. |
+| `debug` | bool | *(optional, default `false`)* When `true`, intermediate artifacts are **kept** after a successful run (same effect as the `--keep-intermediates` CLI flag, but persistent in config). Preserves `.mp3`, `.slides.md`, `.telegram.md` (and any per-topic `.telegram.<topic>.md` routed digests), the `transcribe_work.<name>/` dir, extracted slides, and the scenes CSV for inspection while the tool matures. The CLI flag and `debug` are OR'd — either one keeps intermediates. |
 
 Example (YAML):
 

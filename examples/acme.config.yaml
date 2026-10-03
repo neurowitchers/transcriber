@@ -69,11 +69,18 @@ notion:
 
 telegram:
   bot_token_env: ACME_BOT_TOKEN
-  # Default fallback chat when no topic route matches.
+  # Default fallback chat. With routing set, it receives the REMAINDER bucket —
+  # content the partition did not assign to any topic below (a meeting entirely
+  # about one topic sends nothing here).
   default_chat_id: "REPLACE_WITH_DEFAULT_CHAT_ID"
   routing:
     topic-a: "REPLACE_WITH_TOPIC_A_CHAT_ID"
     topic-b: "REPLACE_WITH_TOPIC_B_CHAT_ID"
+  # Optional — steers the routing partition call ONLY (which content belongs to
+  # which topic). A topic without a description falls back to its bare label.
+  topic_descriptions:
+    topic-a: "what topic-a covers (e.g. backend/infra work, deploys, incidents)"
+    topic-b: "what topic-b covers (e.g. roadmap, UX, product decisions)"
 
 s3:
   bucket: "s3://acme-recordings/recordings/"
