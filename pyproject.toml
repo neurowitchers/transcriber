@@ -10,6 +10,12 @@ dependencies = [
     "av",
     "PyYAML",
     "httpx",
+    # The `summarize` stage always runs on the `agno` backend, so these are
+    # core (promoted from the former optional `agno` extra). Pinned
+    # (compatible-release) to the confirmed 3.0.x API; includes the MCP tooling
+    # (agno.tools.mcp.MCPTools) and the OpenRouter model provider.
+    "agno[mcp]~=3.0",
+    "openai~=1.0",
 ]
 
 [project.scripts]
@@ -19,14 +25,10 @@ transcriber = "transcriber.__main__:main"
 dev = [
     "pytest",
 ]
-# Summarize `agno` backend: only needed when summary.backend == "agno".
-# Pinned (compatible-release) to the confirmed 3.0.x API. Includes the MCP
-# tooling (agno.tools.mcp.MCPTools) and OpenRouter model provider used by the
-# Agno summarize path.
-agno = [
-    "agno[mcp]~=3.0",
-    "openai~=1.0",
-]
+# Deprecated no-op: `agno` is now a core dependency (above). This empty extra
+# is retained so existing host dependency strings `transcriber[agno]` keep
+# resolving during the migration window; drop it once all hosts drop `[agno]`.
+agno = []
 
 [dependency-groups]
 dev = [

@@ -34,26 +34,94 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import re
 import shutil
 import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Mapping, Optional, Sequence
 
 from transcriber import agent as agent_mod
 from transcriber import cleanup as cleanup_mod
 from transcriber import pipeline as pipeline_mod
 from transcriber import state as state_mod
 from transcriber import backends as backends_mod
-from transcriber.config import Config, MissingEnvVarError, load, resolve_env
+from transcriber.config import (
+    Config,
+    ConfigNotFoundError,
+    MissingEnvVarError,
+    load,
+    resolve_env,
+)
 from transcriber.publish import s3 as s3_mod
 from transcriber.publish.telegram import TelegramPublisher
 
 logger = logging.getLogger("transcriber")
 
-DEFAULT_CONFIG = "config.yaml"
+CONFIG_ENV_VAR = "TRANSCRIBER_CONFIG"
+# CWD-relative config filenames tried, in order, when neither --config nor
+# TRANSCRIBER_CONFIG is supplied. `transcriber.config.yaml` wins over
+# `config.yaml` (and a shadow notice is logged when both exist).
+CONFIG_CANDIDATES = ("transcriber.config.yaml", "config.yaml")
+
+
+def _require_regular_file(path: Path, source: str) -> Path:
+    """Validate that an *authoritative* config source points at a regular file.
+
+    Authoritative sources (``--config`` and a non-empty ``TRANSCRIBER_CONFIG``)
+    never fall back to CWD candidates: a missing path or a non-file (e.g. a
+    directory) is a hard error (Spec R1; critique E3/E5).
+    """
+    if not path.is_file():
+        raise ConfigNotFoundError(
+            f"config path from {source} does not exist or is not a regular "
+            f"file: '{path}'"
+        )
+    return path
+
+
+def resolve_config_path(
+    cli_config: Optional[str],
+    env: Mapping[str, str],
+    cwd: Path,
+) -> Path:
+    """Resolve the config file path by strict precedence (Spec R1).
+
+    1. explicit ``--config PATH`` — authoritative; must be a regular file.
+    2. ``TRANSCRIBER_CONFIG`` — when set and non-empty (after strip),
+       authoritative; must be a regular file. Empty/whitespace is *unset*.
+    3. first existing CWD candidate (``transcriber.config.yaml`` then
+       ``config.yaml``); when both exist, pick the former and log a shadow
+       notice (critique P6).
+    4. otherwise raise :class:`ConfigNotFoundError` naming all four sources.
+
+    Pure function of its arguments: ``env`` and ``cwd`` are injected so the
+    resolver is unit-testable without mutating the real environment or CWD.
+    """
+    if cli_config is not None:
+        return _require_regular_file(Path(cli_config), "--config")
+
+    env_value = env.get(CONFIG_ENV_VAR)
+    if env_value is not None and env_value.strip():
+        return _require_regular_file(Path(env_value.strip()), CONFIG_ENV_VAR)
+
+    present = [name for name in CONFIG_CANDIDATES if (cwd / name).is_file()]
+    if len(present) > 1:
+        logger.info(
+            "multiple config candidates in %s; using '%s' (shadowing %s)",
+            cwd, present[0], ", ".join(f"'{n}'" for n in present[1:]),
+        )
+    if present:
+        return cwd / present[0]
+
+    raise ConfigNotFoundError(
+        "no config file found. Provide one via --config PATH, the "
+        f"{CONFIG_ENV_VAR} environment variable, or place "
+        f"'{CONFIG_CANDIDATES[0]}' or '{CONFIG_CANDIDATES[1]}' in the current "
+        "directory."
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -219,9 +287,11 @@ def _telegram_chats(config: Config) -> list[str]:
     return chats
 
 
-def print_plan(config: Config, recordings: Sequence[Path]) -> None:
+def print_plan(
+    config: Config, recordings: Sequence[Path], config_path: Path
+) -> None:
     """Print the dry-run execution plan; performs NO side effects."""
-    lines: list[str] = ["Execution plan (dry-run):"]
+    lines: list[str] = ["Execution plan (dry-run):", f"  config: {config_path}"]
 
     if not recordings:
         lines.append("  no new recordings found in "
@@ -546,8 +616,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--config",
-        default=DEFAULT_CONFIG,
-        help="Path to the config file (.json/.yaml/.yml).",
+        default=None,
+        help="Path to the config file (.json/.yaml/.yml). When omitted, "
+             "TRANSCRIBER_CONFIG then CWD candidates "
+             "(transcriber.config.yaml, config.yaml) are tried.",
     )
     parser.add_argument(
         "--keep-intermediates",
@@ -567,7 +639,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     check.add_argument(
         "--config",
-        default=DEFAULT_CONFIG,
+        # SUPPRESS so an omitted subparser --config never overwrites a
+        # root-level --config placed before the subcommand (critique P5).
+        default=argparse.SUPPRESS,
         help="Path to the config file (.json/.yaml/.yml).",
     )
     return parser
@@ -581,7 +655,7 @@ def _configure_logging() -> None:
         )
 
 
-def _cmd_check(config: Config) -> int:
+def _cmd_check(config: Config, config_path: Path) -> int:
     problems = preflight_check(config)
     # Surface the selected backend per post-transcript stage (R24).
     slides_desc = (
@@ -592,12 +666,14 @@ def _cmd_check(config: Config) -> int:
     summarize_desc = f"summarize backend='{config.summary.backend}'"
     if problems:
         print("Pre-flight check FAILED:", file=sys.stderr)
+        print(f"  config: {config_path}", file=sys.stderr)
         print(f"  {slides_desc}", file=sys.stderr)
         print(f"  {summarize_desc}", file=sys.stderr)
         for problem in problems:
             print(f"  - {problem}", file=sys.stderr)
         return 1
     print("Pre-flight check passed: all required binaries and env vars present.")
+    print(f"  config: {config_path}")
     print(f"  {slides_desc}")
     print(f"  {summarize_desc}")
     return 0
@@ -609,21 +685,30 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
+    config_path = None
     try:
-        config = load(args.config)
+        config_path = resolve_config_path(args.config, os.environ, Path.cwd())
+        config = load(config_path)
+    except ConfigNotFoundError as exc:
+        print(f"transcriber: {exc}", file=sys.stderr)
+        return 2
     except Exception as exc:  # config errors -> clear message, non-zero exit
-        print(f"transcriber: failed to load config '{args.config}': {exc}",
+        print(f"transcriber: failed to load config '{config_path}': {exc}",
               file=sys.stderr)
         return 2
 
+    # Record which config was loaded on every run (critique E8/X3): aids
+    # diagnosis of config drift / accidental fallback in unattended runs.
+    logger.info("using config: %s", config_path)
+
     # `transcriber check` subcommand.
     if args.command == "check":
-        return _cmd_check(config)
+        return _cmd_check(config, config_path)
 
     # Dry-run: plan only, no pre-flight enforcement, no side effects.
     if args.dry_run:
         recordings = discover_new_recordings(config)
-        print_plan(config, recordings)
+        print_plan(config, recordings, config_path)
         return 0
 
     # Fail fast on pre-flight problems before doing any real work.

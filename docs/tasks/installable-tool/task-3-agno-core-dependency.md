@@ -1,6 +1,6 @@
 # Task 3 — Promote `agno` to a core dependency
 
-Status: [ ]
+Status: [x]
 
 Source spec: `docs/specs/installable-tool.md` (R5, R6; findings P3/X1, E6, E9)
 

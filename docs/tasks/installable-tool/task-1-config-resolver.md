@@ -1,6 +1,6 @@
 # Task 1 — Config auto-discovery resolver
 
-Status: [ ]
+Status: [x]
 
 Source spec: `docs/specs/installable-tool.md` (R1, R2, R3, R4, R5b; findings P5, E1, E2, E3, E5, E7, E8, P6)
 

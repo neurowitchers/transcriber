@@ -1,6 +1,6 @@
 # Task 2 — Surface resolved config path in `--dry-run` and `check`
 
-Status: [ ]
+Status: [x]
 
 Source spec: `docs/specs/installable-tool.md` (R3)
 
