@@ -1,6 +1,6 @@
 # Task 4 — README + release docs
 
-Status: [ ]
+Status: [x]
 
 Source spec: `docs/specs/installable-tool.md` (R7; findings P2, P4, E4)
 

@@ -1,6 +1,6 @@
 # Task 5 — Host migration runbook (documentation only)
 
-Status: [ ]
+Status: [x]
 
 Source spec: `docs/specs/installable-tool.md` (R8 — external integration runbook, NOT an engine PR acceptance criterion; finding P7)
 

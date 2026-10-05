@@ -257,9 +257,11 @@ bytes are never logged.
   API, so the `openrouter` block and its key are mandatory on every run.
 - The **`aws`** CLI configured with the profile referenced by `s3.profile`
   (only when `stages.s3_sync` is enabled).
-- **The `agno` optional dependency** — the `summarize` stage always runs on the
-  `agno` backend. Install the extra with `uv sync --extra agno` (or `uv pip
-  install 'transcriber[agno]'`).
+- **The `agno` dependency** — the `summarize` stage always runs on the `agno`
+  backend, so `agno` and `openai` are **core dependencies**, installed by a
+  plain `uv sync`. No extra to enable. (A deprecated no-op `transcriber[agno]`
+  extra is retained so existing host dependency strings keep resolving during
+  migration; new hosts should depend on plain `transcriber`.)
 - **Notion integration token** (env var named by `notion.token_env`) — required
   by the `agno` summarize backend. The engine uses this key to publish the
   Notion subpage via the **Notion REST API** (env-var name only in config; the
@@ -284,33 +286,78 @@ uv run transcriber --config examples/acme.config.yaml
 uv run pytest -q
 ```
 
-## Adopting as a git submodule
+## Adopting as a git-ref dependency
 
-Host repos consume `transcriber` as a submodule and keep only their own config,
-secrets, and recordings:
+Host repos consume `transcriber` as an **installable git-ref dependency** (not a
+vendored submodule) and keep only their own config, secrets, and recordings. The
+engine exposes a `transcriber` console entry point, so a host runs it with `uv
+run transcriber` from the host root.
+
+```toml
+# host pyproject.toml
+[project]
+dependencies = [
+    "transcriber",            # plain; the no-op [agno] extra also still resolves
+]
+
+[tool.uv.sources]
+# Branch form — tracks the latest commit during active engine development:
+transcriber = { git = "ssh://git@github.com/scartill/transcriber.git", branch = "enhanced-pipeline" }
+# Immutable tag form — preferred once a release is cut (reproducible pins):
+# transcriber = { git = "ssh://git@github.com/scartill/transcriber.git", tag = "v0.2.0" }
+# HTTPS + token form — for non-interactive CI/Docker runners without an SSH agent:
+# transcriber = { git = "https://<token>@github.com/scartill/transcriber.git", tag = "v0.2.0" }
+```
 
 ```bash
-# 1. Add the engine as a submodule inside the host repo.
-git submodule add <transcriber-repo-url> transcriber
-git submodule update --init --recursive
-
-# 2. Provide a host config (copy an example and edit ids/paths).
-cp transcriber/examples/example.config.yaml ./my-host.config.yaml
+# 1. Provide a host config (copy an example and edit ids/paths). The engine
+#    auto-discovers transcriber.config.yaml or config.yaml in the CWD.
+cp transcriber/examples/example.config.yaml ./transcriber.config.yaml
 #   edit recordings_dir, notion.parent_page_id, telegram ids, s3.* as needed.
 
-# 3. Export the referenced secrets (names only live in config).
+# 2. Export the referenced secrets (names only live in config).
 export TELEGRAM_BOT_TOKEN=...      # or ACME_BOT_TOKEN, per config
 export OPENROUTER_API_KEY=...      # always required (transcription runs over OpenRouter)
 
-# 4. Run the engine from the host repo.
-uv --directory transcriber run transcriber --config ../my-host.config.yaml
+# 3. Install and run the engine from the host root.
+uv sync
+uv run transcriber                 # auto-discovers ./transcriber.config.yaml
 ```
 
-To update the engine later:
+To update the engine later (branch form), re-resolve the git ref — a plain `uv
+sync` after re-locking, with **no** `--reinstall-package` step:
 
 ```bash
-git submodule update --remote transcriber
+uv lock --upgrade-package transcriber
+uv sync
 ```
+
+### Config discovery
+
+`transcriber` resolves its config file in strict precedence:
+
+1. an explicit `--config PATH`;
+2. the `TRANSCRIBER_CONFIG` environment variable (when set and non-empty);
+3. the first existing of `transcriber.config.yaml`, then `config.yaml`, in the
+   **current working directory**;
+4. otherwise it exits non-zero with an error naming all four sources.
+
+An explicit `--config` and a non-empty `TRANSCRIBER_CONFIG` are **authoritative**: the path must be an existing regular file, and the engine never silently falls back to the CWD candidates if it is missing or is a directory. An empty/whitespace `TRANSCRIBER_CONFIG` is treated as unset. When both `transcriber.config.yaml` and `config.yaml` exist, the former wins and a shadow notice is logged. Relative config paths (and `recordings_dir: ./recordings`) resolve against the current working directory, so run `transcriber` from the host root. The resolved config path is shown in `transcriber --dry-run` / `transcriber check` output and logged at `INFO` on every run.
+
+### Migrating a host off the old submodule layout
+
+For each host that still vendors the engine as a `./transcriber` submodule:
+
+1. Repoint `[tool.uv.sources]` from `{ path = "transcriber" }` to the git ref above.
+2. Simplify the dependency string to `transcriber` (the no-op `[agno]` extra keeps `transcriber[agno]` resolving too).
+3. Remove the submodule: `git submodule deinit -f transcriber`, `git rm -f transcriber`, and drop its `.gitmodules` entry.
+4. Delete the host's `transcribe.py` launcher (config auto-discovery replaces it).
+5. Re-lock and sync: `uv lock --upgrade-package transcriber` then `uv sync` (no more `uv sync --reinstall-package transcriber`).
+6. Verify: `uv run transcriber check` (binaries + env + resolved config) and `uv run transcriber --dry-run` (right config auto-discovered, publishing plan intact).
+
+### Cutting a release (maintainers)
+
+Hosts pin to an immutable tag once the engine stabilises. To cut one: bump `version` in `pyproject.toml`, `git tag vX.Y.Z`, and `git push --tags`; then switch each host's `[tool.uv.sources]` to the `tag = "vX.Y.Z"` form.
 
 > **Host maintainers — config migration.** This release moves transcription
 > from the ElevenLabs CLI to the **OpenRouter speech-to-text API**:
@@ -332,11 +379,19 @@ git submodule update --remote transcriber
 > field is gone (each slide is now sent in its own vision call) and is silently
 > ignored if left in a config. This release also **removes the `agy` summarize
 > backend**: `summary.backend` now accepts only `agno` (the default). If you
-> previously ran `summary.backend: agy`, switch to `agno` — install the `agno`
-> extra (`uv sync --extra agno`) and set `notion.token_env` (plus the
-> `openrouter` block). The legacy `agent.cli` / `agent.extra_args` and
-> `timeouts.agy` fields are no longer used and are silently ignored if left in a
-> config. Keeping slides disabled avoids the slides egress, but the `openrouter`
-> block and its API key remain required because transcription itself runs over
-> OpenRouter, and `agno` additionally egresses the transcript to OpenRouter and
-> the summary to Notion.
+> previously ran `summary.backend: agy`, switch to `agno` (now a **core
+> dependency**, installed by a plain `uv sync` — no extra) and set
+> `notion.token_env` (plus the `openrouter` block). The legacy `agent.cli` /
+> `agent.extra_args` and `timeouts.agy` fields are no longer used and are
+> silently ignored if left in a config. Keeping slides disabled avoids the
+> slides egress, but the `openrouter` block and its API key remain required
+> because transcription itself runs over OpenRouter, and `agno` additionally
+> egresses the transcript to OpenRouter and the summary to Notion.
+>
+> **This release also makes the engine an installable git-ref dependency.**
+> Stop vendoring it as a `./transcriber` submodule: point `[tool.uv.sources]` at
+> the git ref, depend on plain `transcriber` (the no-op `[agno]` extra keeps
+> `transcriber[agno]` resolving), delete the host `transcribe.py` launcher, and
+> run `uv run transcriber` from the host root — config is auto-discovered
+> (`transcriber.config.yaml` → `config.yaml`, or `TRANSCRIBER_CONFIG`). See
+> *Adopting as a git-ref dependency* above for the full per-host runbook.
