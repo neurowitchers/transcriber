@@ -2,11 +2,11 @@
   "version": 1,
   "skills": {
     "scartill-sdd-lite": {
-      "source": "git@github.com:scartill/scartill-sdd-lite",
-      "sourceUrl": "git@github.com:scartill/scartill-sdd-lite",
+      "source": "git@github.com:neurowitchers/scartill-sdd-lite",
+      "sourceUrl": "git@github.com:neurowitchers/scartill-sdd-lite",
       "sourceType": "git",
       "skillPath": "skills/scartill-sdd-lite/SKILL.md",
-      "computedHash": "8f8b333e584b585c541e99933e0c93dba0adf0da73a7f2a015306e81b26e2fd9"
+      "computedHash": "99a7cbdedbd0ce71b0d2979dc5746cff4785cb70f080021d5220e1db83b2e57c"
     }
   }
 }
