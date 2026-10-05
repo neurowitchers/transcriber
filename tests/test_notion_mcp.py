@@ -232,9 +232,8 @@ def test_missing_agno_import_raises_actionable_error(monkeypatch):
 
     msg = str(excinfo.value)
     assert "agno" in msg
-    assert "extra" in msg
-    # Actionable install hint.
-    assert "uv sync --extra agno" in msg or "transcriber[agno]" in msg
+    # agno is now a core dependency; the actionable hint is to reinstall env.
+    assert "uv sync" in msg
 
 
 # --------------------------------------------------------------------------- #

@@ -84,6 +84,30 @@ def test_directory_rejected(tmp_path):
         main_mod.resolve_config_path(str(d), {}, tmp_path)
 
 
+def test_env_directory_rejected(tmp_path):
+    # TRANSCRIBER_CONFIG pointing at a directory fails like --config does (L2).
+    d = tmp_path / "adir"
+    d.mkdir()
+    env = {"TRANSCRIBER_CONFIG": str(d)}
+    with pytest.raises(ConfigNotFoundError):
+        main_mod.resolve_config_path(None, env, tmp_path)
+
+
+def test_relative_cli_path_anchored_to_injected_cwd(tmp_path):
+    # A relative --config is resolved against the injected cwd, not the process
+    # CWD, and the returned path is anchored consistently (critique M1).
+    _touch(tmp_path / "rel.yaml")
+    resolved = main_mod.resolve_config_path("rel.yaml", {}, tmp_path)
+    assert resolved == tmp_path / "rel.yaml"
+    assert resolved.is_absolute() or resolved.parent == tmp_path
+
+
+def test_relative_env_path_anchored_to_injected_cwd(tmp_path):
+    _touch(tmp_path / "rel-env.yaml")
+    env = {"TRANSCRIBER_CONFIG": "rel-env.yaml"}
+    assert main_mod.resolve_config_path(None, env, tmp_path) == tmp_path / "rel-env.yaml"
+
+
 def test_no_config_anywhere_raises_naming_sources(tmp_path):
     with pytest.raises(ConfigNotFoundError) as exc:
         main_mod.resolve_config_path(None, {}, tmp_path)

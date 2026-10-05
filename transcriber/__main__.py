@@ -82,6 +82,17 @@ def _require_regular_file(path: Path, source: str) -> Path:
     return path
 
 
+def _anchor(path: Path, cwd: Path) -> Path:
+    """Resolve a relative path against the injected ``cwd``.
+
+    Keeps :func:`resolve_config_path` a pure function of its arguments: a
+    relative ``--config``/``TRANSCRIBER_CONFIG`` value is anchored to ``cwd``
+    (not the process working directory), and every returned path is anchored
+    consistently with the CWD-candidate branch (critique M1).
+    """
+    return path if path.is_absolute() else cwd / path
+
+
 def resolve_config_path(
     cli_config: Optional[str],
     env: Mapping[str, str],
@@ -99,13 +110,16 @@ def resolve_config_path(
 
     Pure function of its arguments: ``env`` and ``cwd`` are injected so the
     resolver is unit-testable without mutating the real environment or CWD.
+    Relative CLI/env paths are anchored against ``cwd`` (critique M1).
     """
     if cli_config is not None:
-        return _require_regular_file(Path(cli_config), "--config")
+        return _require_regular_file(_anchor(Path(cli_config), cwd), "--config")
 
     env_value = env.get(CONFIG_ENV_VAR)
     if env_value is not None and env_value.strip():
-        return _require_regular_file(Path(env_value.strip()), CONFIG_ENV_VAR)
+        return _require_regular_file(
+            _anchor(Path(env_value.strip()), cwd), CONFIG_ENV_VAR
+        )
 
     present = [name for name in CONFIG_CANDIDATES if (cwd / name).is_file()]
     if len(present) > 1:

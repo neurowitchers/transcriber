@@ -25,9 +25,10 @@ Design notes
   and closing it — ``MCPTools`` must be closed on every path
   (success/error/timeout) so no MCP subprocess is orphaned.
 
-``agno`` is imported **lazily** inside this module so the engine only requires
-the ``agno`` extra when ``summary.backend == "agno"``. A missing import raises a
-clear, actionable "install the agno extra" error.
+``agno`` is imported **lazily** inside this module. ``agno`` is now a core
+dependency (always installed), so the import normally succeeds; the lazy guard
+remains only to surface a clear, actionable error if the dependency is somehow
+unavailable (e.g. a broken environment).
 """
 
 from __future__ import annotations
@@ -133,9 +134,9 @@ def _import_mcptools() -> "type[MCPTools]":
         from agno.tools.mcp import MCPTools  # noqa: WPS433 (intentional lazy import)
     except ImportError as exc:  # pragma: no cover - exercised via monkeypatch in tests
         raise AgnoImportError(
-            "The 'agno' extra is required for summary.backend == 'agno' "
-            "(Agno + Notion MCP). Install it with: "
-            "`uv sync --extra agno` (or `pip install 'transcriber[agno]'`)."
+            "The 'agno' package (a core dependency) could not be imported, "
+            "which is required for summary.backend == 'agno' (Agno + Notion "
+            "MCP). Reinstall the project environment with `uv sync`."
         ) from exc
     return MCPTools
 
