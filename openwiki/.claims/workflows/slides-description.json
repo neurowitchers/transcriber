@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:daf96d75f44d49d8b9c98c2a1f067abd833fa53d5ad130c69496146f0a420a97",
+  "pageVersion": "sha256:5f22ea9189f37ffc8b0cc38e1274e91c430253818052e94f1e20c40ac2896950",
   "claims": [
     {
       "id": "claim_a3a5871fc9c0453486ae58391f0a81b4",
@@ -59,7 +59,7 @@
       "statement": "The orchestrator skips the paid slides backend call when <name>.slides.md already exists (artifact-present idempotent skip), marking describe_slides complete without re-issuing the call — this handles a prior crash after write but before mark.",
       "evidence": [
         {
-          "resource": "repo://transcriber/__main__.py#L301-L317",
+          "resource": "repo://transcriber/__main__.py#L479-L495",
           "version": "repo-lines-v1:sha256:25ed2c284cabcf6cca386bafe57b05811f21e5a11d4148b6fefe918ccea39f25:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQzZThjNjY4OWIyZTFiNjhmOGEwOTEwZDhlNjllMzMxMjBmMWVjOGIyOTk4ODFmNjNjOWNjNDRkYzVhY2Y2ZjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIyYWRlZDA1OGNhMDg3ZDY4ZmNiMDdhMGI2NTIxN2QxY2FhYTcxNTVhOWFiNTg0NDlmZGY1NjE4YTgyNWYyZmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjViZjQ3NTU5YzQwMWExZjhkMTNiNWMwMzVlYTQ5NzM3ZTk0ZGZiNDFjY2Q3NzcyMzI3YmZmZmEwZmY1NGNiZjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM2OTJjMDAzZjMxNWJkN2MyMWNlMWNkZWIzZThmNzQxZDgxMjUxNWU3MDFiZmM0ZWRjNTRjZjY2NjIwMDA3ZmMifQ"
         }
       ]
@@ -87,10 +87,120 @@
           "version": "repo-lines-v1:sha256:5f9c31322cb4cd61f4b6578d0c9484b7744afea061b7b91b5bcf42e63b83bd31:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEzNmYzNWI5MmJiYTNmNjFiYjQwZDgxYmI0ZmY5ZDY0YWNmMWMzZjk5YmM1YzQ3MjQ0Y2I5YTEyYjk1YWM0NzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBhYWRhMzBiNDc0MmM4OGQ5ZmY2ZWY0YjZmYmU0ZDFmMzRhYjMwNWQxZGY5ODk5MDY1NTc2NGRkYTJjNzg2Y2MiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU0YTYzOTg3MTcwZjgxZTNjZTk1ZGMwYTM4YmE1ZjIxY2MyZTlmMGM0NmQ2NjZjNTJjNWY3YWExYWZiNzhmMmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ0NmRmOTRkNDNmMDE4OGJiODg1OTgyYjlhMTc4MDU3MDNhMDQ1MTIxZDI1OTBlMjYwZjVmNGQ1OGE5ZDEwZGEifQ"
         }
       ]
+    },
+    {
+      "id": "claim_d8f746df892c40f18b8e42db2453f1b3",
+      "statement": "The orchestrator runs the OpenRouterSlidesBackend.describe call only after three skip paths: stages.slides.enabled is false, the manifest already marks describe_slides complete, or the <name>.slides.md artifact already exists (in which case it marks complete without a paid call).",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py#L477-L527",
+          "version": "repo-lines-v1:sha256:5fd8783dff4f34ed9409856b9bdcf732d38e9855202a7a4af4305bb4b5f8be21:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0NmU1YzEwZTZjNDkyNWVjZDZhMjEwOGI2OGVlN2ZmNzc2N2E5MzFjOGZmNTNlNzY4YjI5MWQ2NGE1YThiM2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIyYWRlZDA1OGNhMDg3ZDY4ZmNiMDdhMGI2NTIxN2QxY2FhYTcxNTVhOWFiNTg0NDlmZGY1NjE4YTgyNWYyZmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk4NDJkZDQ3OTUwOWEzZDQzMDUyOWIyYWY1MTgwMTYxYmIwNTczNzczNzY3NGJlZjg5ZWM3ODY1NDY2MzM5MjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMzMjVjYjk4ZTE2NDgzM2Y2NGNhZGMyOGI1NzNlMjgzN2Q2YjhjZWEwN2FkZDFjYzY3MGQwM2Y2ZmFjNjgxZmIifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L457-L558",
+          "version": "repo-lines-v1:sha256:66e345bd2012e195a80ceb1d9dcc7a6e2ac2144e4f8f14e66cfe6f8e26d258fd:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJjZGY3ZGZjOTY0M2FiYjlkYmY4MWRjNjBiZjhjMzE4MjFiYjQxYTY2ZTA3MzM3NmRhMjU4MjM0OWFlZTVhNjQyIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIyNWMxN2QwZTU2ZTBjMjYzMTU1ZTAyNjAzMTM0YWZmNjg0YmQ1YjYzNDExODBjYzM5MTEyNTA4NjFhN2U5MTFhIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJmOTQwNmZjZmE2YThjMmQ2MTE4ZTY5MjQwNWFjMjA2NDUyN2YwMGRhOTVlZDcxMzgwN2U2YTcwNTM5MjVjMDBjIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MSwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJmMjZmN2Q2ZDViZDQyNGZhMjE5YjU5NDMzZWM0MjFhZTg1MjZlZTlmZWY2Yzc5MjE3Y2U2MmVkZTY3OWI4OTBlIn0"
+        }
+      ]
+    },
+    {
+      "id": "claim_a8b89cb0fc8d473c9931e74e7e5b2599",
+      "statement": "build_slide_inputs locates extracted_slides.<name>/, lists slide JPEGs in sorted-by-name order, and parses the <name>.scenes.csv that lives inside that slides dir into MM:SS - MM:SS ranges, emitting the literal 'unknown' when timing is missing or the CSV is shorter than the image count.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/interfaces.py#L23-L36",
+          "version": "repo-lines-v1:sha256:a228ce188f1b7c01a511448f98827b1578fec40196cf3e68ece2abff487d6321:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI2ZmJhZTBiOTFkNDRmYzBkNDlmNWRlNjkxZGE2ZmM0MzFmMjYwMTM0YmY3MzFlMGUyMWY3NjQ4MDk0MzM0Y2IiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFhMGVhYjU0MGEzMWU5OTk2ZDIwODc1MTMzNTk4NDdlMGI3YjljN2U2M2ZjNTdlMjQ5OTc2MTFiNjY5NmQzNzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjNDY3MzA1ODQ2MDEyNTYzYzRhZTU2MDJiNDJhZjM3ZjRlNzkwY2VmM2M5Y2Y4YjQ0NjJmYzQ3MjQ0YWZhMzkifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L268-L316",
+          "version": "repo-lines-v1:sha256:441f9b9fd960ccbbbe5a0c2a55c9a9d92840988603fec12524f532336ea0b615:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVjZmZjYzQ2YzFiYmVmMjIzZDk0OTdkZWM0OGY4Y2M2ZThmODdiMzA4YWJjNmU4ZmU4ZmUwNWRkNDczZGY5ZWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM3NWIyNWJhNjBlMTY0YWRlYmQ1MWZjNTk5OWNmMjczM2M0MDZhZmM3ZjI1NjZmMGE5ZWIwZTcxNjk1N2JiOGIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRiMTg3M2Y4OGQzODNjOTg4Y2E3NWU3YmE5ODJkNTFkMDhiYzA4NTEwZDNlY2I4ZWI0YzZjMWNhNzU1YTIzMWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRhOWJiNGIyM2UxY2ZlN2MyZWYwZjAyZjE1NWM4NzI2ODY0ZDNlMDUxNTQyZmQzNTdjNzhkZjZhMTBhNGMzYWYifQ"
+        },
+        {
+          "resource": "repo://transcriber/pipeline.py#L135-L168",
+          "version": "repo-lines-v1:sha256:d363de2655cc8d86346527bbd85204b7d22fe3a135cf6a95adbe7fbf389a56df:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI2ZjFhZDJjNjcyMTUxOWRmOWJkOWQxMmM4NDQyYzNiM2YyMzY1YjU2MWYwOTFmZjVjMzUxY2Q4YjA2OGFkMzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ5YTc0ZjQxNWU0YjVkZjNkNTAyMWFlY2JjYzAzYTRjYzdmNWE2OWM3M2RjZjE3OGRmYTFjZmIxNTBmYjI4NTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjExZDY0ZTIzNmNmY2FkMTlhNTUyMmVhNDdhMTMyMWM0OGVkMTIwZDRkZDZjYThmMDA0MWZmYzQzM2RhMjVhNjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjljYWJkMzVjMzQzODdlYjMwNmEzZmRiZjU2MmY3OTZjODI5ZmZiOTM5YzY4NjA4YzNhNzQ0YWMzNDQwNWRlNTcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d5830a4a176f42848bddb9158a0f9b07",
+      "statement": "OpenRouterSlidesBackend.describe enforces a slide-count ceiling and a whole-deck encoded-byte ceiling before any HTTP call, builds one image-only user message per slide with a Timestamp text part immediately before the image_url part, downscales each JPEG to a 1024 px long edge, and never uses the transcript text.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/slides.py#L386-L442",
+          "version": "repo-lines-v1:sha256:229f4f11a61a63451ee33712f91fed6bc59d8152ab6d7ab3b884431784fb5fde:eyJzZWxlY3RlZExpbmVDb3VudCI6NTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0NDQ5Mzg4ZWNkZGFlN2I0ZjY2ZTg2NDFjYzFkMjM1NmVhNjgxNWZkMzIyYzUyMGQwNWYxMjUxYWZmMjY0Y2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYxMjQ1ZTgzMTUyNTE3MDRkN2FiNzNlYmVhY2Y1Y2RmNjY4YjkzOWRhOTY2NDg0ZjY5YWJlMjA3M2ZmMzY1ZmEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjliMDYzNTVlNGQ2ZDRlZjI3NGRmNDYzNTY0YjZiYzQ3OGRiNTI0MGZiYTQyYmM3YmU5OTM1NzM5MDI3MzUxYjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRhOWJiNGIyM2UxY2ZlN2MyZWYwZjAyZjE1NWM4NzI2ODY0ZDNlMDUxNTQyZmQzNTdjNzhkZjZhMTBhNGMzYWYifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L392-L415",
+          "version": "repo-lines-v1:sha256:990c8ad08058732acf62086c992d971e97fc838e14262c87f0800378a59ebdf2:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwYTU2OTk1MzQzOWVhNDAxMzc3YjgxZTRlZjYwZWE2MzJiMTJlYjBjMzQyZDZlZTg5OWFkZWE4ZjAyNzNmNDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc1ZmUwMWI4YTljM2JhZWE2NTVhOTFjNGRjYzIzYTI4YzVhNTUyNmJiMDVlYmQ0NTkyYjY3Mjk2NDJjYTc5NGIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA1Njc1NGIzNDA1MGM0ZTgxMDc5YjY4MmZkYzcwZDRhM2E3MDM2ZjZmNjBkOWI5ZjI0ZmNhNTkzNzZiNmZjNWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU4YmEwMTUyYTYyZmFhYjExOTUxMmEzYmEyM2Y4MWUyNTUwNTJlMmUyM2RkOWFiNGFiMmI1ZGYyZjMyNDE4YTkifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L457-L510",
+          "version": "repo-lines-v1:sha256:8b9a8ce2a68ebaf3cb0e1ab7f3230eb1033e0f3632ef5c5aa81fb86a26799fba:eyJzZWxlY3RlZExpbmVDb3VudCI6NTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNkZjdkZmM5NjQzYWJiOWRiZjgxZGM2MGJmOGMzMTgyMWJiNDFhNjZlMDczMzc2ZGEyNTgyMzQ5YWVlNWE2NDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY5NDA2ZmNmYTZhOGMyZDYxMThlNjkyNDA1YWMyMDY0NTI3ZjAwZGE5NWVkNzEzODA3ZTZhNzA1MzkyNWMwMGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIyY2MzYmUzZTdhMzMzZjcyODY0ZGM1NGFhM2I0NDNkYzQ3MWVlNTg3ZmMyZDUwNzAxODM4OTY5ZDA0NjVmOGIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_1c914613e36b4212961a582154ee4081",
+      "statement": "Each slide is sent through _openrouter_vision, which POSTs chat/completions with Bearer auth, retries 429/5xx with bounded backoff, and raises SlideDescribeError on non-2xx after retries, malformed JSON, or missing choices[0].message.content.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/openrouter.py#L67-L180",
+          "version": "repo-lines-v1:sha256:8ffc74f11473f89e1646fc9b73dbd3fc73ec35b3985d64b8f79ae9c3c6e96e1f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJiOGYxOWU0MTQ5ZDFjNjQ1YWMyODJhODZiMDMwYzMzMGFkMjI2OGY4Mzc2OWU1ZDcyZjNhMDU5MDAyZjJkMGIyIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIzMGMxZjE4OGYxNDJlZDdhODI0NjgwYjIwNzE3MmM1NTE5YmM2MTRhNDhmZGE3Y2YxNjdlZGI4ZGRmNzk5NTZjIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI0MzkzNDdmNzU1MDZkMjY2MmE4ZGU2YjkwZGQ1ODlhNTMzYWMxYmQwOWM4MGVkYWZkYTNlZWNkMDE3MDY5MGQ2IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIyOWI0MWQ4N2MyMDc4ZjhkMDY3ZTU4OWUzNDg1NTBmMDk3MzdiYmVhYTU1YjcyM2U5MzZjNzgxZTUxOTM2MjY1In0"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L514-L548",
+          "version": "repo-lines-v1:sha256:d749f67f9a4b0f0f8851962b0203a08ecd130f870c0defddd3df03520f78b323:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwM2RiMGVkNzNjMjM2NDE1M2Q1MmIxM2Q5YTExM2VlYmIyY2Q0OWQxNjZmYjkwNjAxMzcyMTIwZmE2OWQ4ZGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBhYWRhMzBiNDc0MmM4OGQ5ZmY2ZWY0YjZmYmU0ZDFmMzRhYjMwNWQxZGY5ODk5MDY1NTc2NGRkYTJjNzg2Y2MiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIyY2MzYmUzZTdhMzMzZjcyODY0ZGM1NGFhM2I0NDNkYzQ3MWVlNTg3ZmMyZDUwNzAxODM4OTY5ZDA0NjVmOGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ0NmRmOTRkNDNmMDE4OGJiODg1OTgyYjlhMTc4MDU3MDNhMDQ1MTIxZDI1OTBlMjYwZjVmNGQ1OGE5ZDEwZGEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b903f5b44bd84a3dad9da192a2d00cf5",
+      "statement": "The slides backend keeps placeholder responses verbatim in <name>.slides.md for debugging and only strips markers/placeholders later in transcriber.agent.append_slide_descriptions for the summary/Notion output.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/slides.py#L120-L172",
+          "version": "repo-lines-v1:sha256:4283c14bdc84c0cb6f39d3dc975835de26baae9619b3313b81f634a9ba280104:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4OGZhMjQ0ZjgyZTU4YzExMGZjMmQyYmJjNzE0ZDE4NmJhZmZiMDg5ZjRjMzVmMGIyYTkxOGY2MTBiMWRiODQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU1YmM0NzExZWNjYTA0NTBhZmM4MzI3NzlhODg2NzZhN2M2OTYwZmEzZGE1YWY0MTBlZTAyZDFlMDE1MTU5MWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU3NDg0YmM0NTU3NGEwY2YyYTUwNGI4MDVkNzAxNjIzN2ZiMDFmOWQ2NzFjMzFhOWY1NWFlZTQwMWRlNWRhOTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc2ZDRkZjUyMDFkNTE0MGMzM2VlODI0ZWE1YmZiZDE4ZjQyZGNmYzVlMDQxOWVmNTRmMmQ1YWRjMjE0ZmI3ZjkifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L527-L548",
+          "version": "repo-lines-v1:sha256:5f9c31322cb4cd61f4b6578d0c9484b7744afea061b7b91b5bcf42e63b83bd31:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEzNmYzNWI5MmJiYTNmNjFiYjQwZDgxYmI0ZmY5ZDY0YWNmMWMzZjk5YmM1YzQ3MjQ0Y2I5YTEyYjk1YWM0NzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBhYWRhMzBiNDc0MmM4OGQ5ZmY2ZWY0YjZmYmU0ZDFmMzRhYjMwNWQxZGY5ODk5MDY1NTc2NGRkYTJjNzg2Y2MiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU0YTYzOTg3MTcwZjgxZTNjZTk1ZGMwYTM4YmE1ZjIxY2MyZTlmMGM0NmQ2NjZjNTJjNWY3YWExYWZiNzhmMmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ0NmRmOTRkNDNmMDE4OGJiODg1OTgyYjlhMTc4MDU3MDNhMDQ1MTIxZDI1OTBlMjYwZjVmNGQ1OGE5ZDEwZGEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a76c97b50634406fbca8dd46c578a3ac",
+      "statement": "An empty slide set returns an empty string with no HTTP call, and a valid empty or whitespace-only backend response contributes nothing; neither case is an error.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py#L464-L495",
+          "version": "repo-lines-v1:sha256:2a568570c2398666ba1fe07993fbeb8b5231c5a95e73771f7ed8f11271b9c595:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjllNjQ0MzAzN2I1MGJhOWI3YTdmNWRmOTdkNDVjYmE5ZTFhOWU5Yzk2ZDdmMjNjNTA5ZjE2MzJiZDQ2MDNhMTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIyYWRlZDA1OGNhMDg3ZDY4ZmNiMDdhMGI2NTIxN2QxY2FhYTcxNTVhOWFiNTg0NDlmZGY1NjE4YTgyNWYyZmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ2MDAxNzBhNjUyMTVmYzI0ZDg4MjMyZTFhYjE4M2IzYjdmOGQ2ZTE2MDU2MzJiYzdjNmFlMTI1N2FjYjZlZTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM2OTJjMDAzZjMxNWJkN2MyMWNlMWNkZWIzZThmNzQxZDgxMjUxNWU3MDFiZmM0ZWRjNTRjZjY2NjIwMDA3ZmMifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L482-L485",
+          "version": "repo-lines-v1:sha256:1f24bba50bd5c67c1e85f98daee834dfaa40d3d33373be6521a14f19b764cc76:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMGIxY2U3YTIxN2FjMzM2ZTIzNmUwMTVkOTg4OGM5ZWM5ODE5M2Q4NzFjM2NhYWEzNGRmZTRjYWFjYWRjZjNlYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiODJhOWNkNjA0NTlhM2UxZGI3OTdjMzUyODllOTNjMzM4OWY3ODdiN2M1NTQ4ZmZjNDM0NDYwMjIwMzU2NGRmZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjU1MWIwOGQ1NDA2Y2RkYWQwYmNlMWQzYTMwNTI0NWU1MmJiMjc5ZTEwNGYzZTYzMzQ2ZTU2NjY4ZGNjMTcxZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGYzYjQ0MjE3M2Q0MzQ5OWI0MDQ1N2UzODQ2NTI4NjdmOTMwZGRiNzk2NjZiZWY3YjQzNTI2NWFlMTIxNjc1YiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_9cffe6a65c054636b406de46ac2777e8",
+      "statement": "SlideDescribeError is raised for missing openrouter config, transport/format failures, over-ceiling decks, and missing content, and its messages carry only non-sensitive context such as HTTP status plus a truncated body snippet.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/errors.py#L15-L22",
+          "version": "repo-lines-v1:sha256:4028135106f21db7e13172908423f5a718c900705cd3df1618d35a9ba9b28d52:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDhmY2E3N2E5OThiYjJhMzlhMDhjODUwODg5ZTVkODU0NGNhYjYyNTg3NWZiZDQxMzQxMDI1MDA5MGQ1MmFhOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTZhNzE1MjU3MmVlODRmMTA5MDZjNzRiOWYyYTkyNDM0ZGRhYjBlM2M0MjgxM2IwNGU1OTdlZmNlYzk1MWIyNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYWRiNDM2MzQ1M2E0NTgwMDZlZjgzNjdhZjJlMzEyZWE4NTQ3Njc5MGM4NDE4NWI3ZmJjZjU5NjQwMjc4OTRlYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTQyYzA2OWU1OGYxMmZjYWUzODkwMzU3NDBhMzE2NjhjMzI1MzEyYjE4NDc2ZjIwOWMyMTA2NDIxYzNhMDU0NSJ9"
+        },
+        {
+          "resource": "repo://transcriber/backends/openrouter.py#L91-L95",
+          "version": "repo-lines-v1:sha256:d18d3f5a6c8459b2974ae846080d5fa195bc3cb9523843be6a0eae68ab26e2fc:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmU5ODI0ZjAwNTY4OGI1MGFmNmEzZDM1MjJhZTY5YTI0M2RhOGE5ZDcyYjQyNjc5NmFmZGE1OTcxOGI0MjU3NyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTkwOWE1M2E2MThkMDI4ZTFkMzAwMGMwYTdhYmNlZWNiZTVmYjM3ZjRlNTExZWZlNDY2NDNmYWQ2ZTY2ODcyZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMmM3NGU4ODE3MzU2NGVlN2Q2YjJmNjFlNDQ5ZTM4ZGVlYThlMzE2OTU5MjQwYjMyNjdmMzkzYjUxZWI4ODE1MCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMmRhZjc5ZGVjYWU1Y2EwNGM3OTRhNzEwNTkwMDQyZWMwN2U4YzRhYzJhMDFmNTlmYzA0ZWE0ZjlkNDVlMGUzYiJ9"
+        },
+        {
+          "resource": "repo://transcriber/backends/slides.py#L487-L491",
+          "version": "repo-lines-v1:sha256:9fa91b52ce42e24fc5e9ed74b7fdcfa127520fe97cdcd9a64cc99e1792ce4a6d:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNWE4NzE4NTIwNTA5MmJhODUzYjBmMDgwNDkyNjNkNTUwMjg1YmVjYTZjZWVhMDJhYzM0NzYyMjcwMjJkMmIzNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTUwMzJlOTY0ZDA5MzIzNTFlNWQxODUyNjkyODFiMTcxYTNhMDliMDhiMjg2ZTY2MWVhNDcwMzIzYzgyZWI0ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTY0ZTMzNWY5MzIwYzE5YTVjMTE3OWMzNTI5MTg2Y2VlYmQwYzJmYjVlYTZkYzM5MTNlMGM4NGYwNjJkMGM2NiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzE4MDlmYjRjMGUyYzY1MjcwYWY1NzliMThmNTJiZmRlMDk4OGU4MzcwMDI0NDNhZWU3NDIzZTk0NjY5NDFiMSJ9"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.6.1",
-    "at": "2026-10-02T19:10:14.922Z"
+    "at": "2026-10-06T06:48:26.024Z"
   }
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:8ec3ef69a054324116bbc56dfcd7a53a0364aa9776cb8d6984e0a3161113d81c",
+  "pageVersion": "sha256:d20ba3197e1d1c1eea0dad3751c41195ae6a8797a6c5298bbe078c2a5395a495",
   "claims": [
     {
       "id": "claim_af7deb86f8cc4297ad72aef249585065",
@@ -46,7 +46,7 @@
       "evidence": [
         {
           "resource": "repo://transcriber/backends/errors.py",
-          "version": "repo-file-v1:sha256:5367d9b8a885e1434efa95b9f99dfca38b74310a70e5264a47a5901a12af2bd3"
+          "version": "repo-file-v1:sha256:ebf5efe8f03e158fdb15ab48e45386533795042930a16c49fd39fb6f2d00dfb5"
         },
         {
           "resource": "repo://transcriber/backends/transcribe_openrouter.py",
@@ -54,7 +54,7 @@
         },
         {
           "resource": "repo://transcriber/config.py",
-          "version": "repo-file-v1:sha256:176fa26c8f5d84cc86ba15cdb5a19e9e39df61285de32d0da853335f50c9306c"
+          "version": "repo-file-v1:sha256:fc1a3f37c4464443e19993d706d07a8606a33331c7576a5b53aa9aef9dc2a4cb"
         }
       ]
     },
@@ -81,6 +81,6 @@
   ],
   "verification": {
     "by": "openwiki/0.6.1",
-    "at": "2026-10-02T19:10:14.922Z"
+    "at": "2026-10-06T06:48:26.024Z"
   }
 }

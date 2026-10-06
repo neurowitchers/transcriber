@@ -2,9 +2,6 @@
 type: "Reference"
 title: "Transcriber Test Strategy"
 openwiki_generated: true
-verified:
-  - by: openwiki/0.6.1
-    at: 2026-10-02T19:10:14.922Z
 sources:
   - id: openwiki-source-8b176c94b018259ee14f35b7
     resource: repo://tests/test_main.py
@@ -12,7 +9,10 @@ sources:
     resource: repo://transcriber/__main__.py
   - id: openwiki-source-c4777b8db8d4806695ac8b6a
     resource: repo://transcriber/config.py
-generated: { by: "openwiki/0.6.1", at: "2026-10-02T19:10:14.922Z" }
+generated: { by: "openwiki/0.6.1", at: "2026-10-06T06:48:26.024Z" }
+verified:
+  - by: openwiki/0.6.1
+    at: 2026-10-06T06:48:26.024Z
 ---
 
 
@@ -20,8 +20,8 @@ generated: { by: "openwiki/0.6.1", at: "2026-10-02T19:10:14.922Z" }
 
 Testing for the transcriber CLI and orchestrator is intentionally narrow and opinionated: **no real binaries, network calls, agents, or publishing destinations are exercised in tests**. Every external is replaced with a stub at a well-defined seam, so the tests stay focused on wiring, ordering, idempotency, failure isolation, config validation, log hygiene, and the absence of secrets in outputs.
 
-<!-- openwiki: broken internal link [/tests/test_main.py] link "/tests/test_main.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-The primary source of truth for what is covered and how externals are isolated is [`/tests/test_main.py`](/tests/test_main.py).
+<!-- openwiki: broken internal link [../tests/test_main.py] file "../tests/test_main.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+The primary source of truth for what is covered and how externals are isolated is [`tests/test_main.py`](../tests/test_main.py).
 
 ## What the test suite covers
 
@@ -49,8 +49,8 @@ Beyond that, the suite also covers:
 
 ## Isolation strategy: monkeypatch at the stage-call seam
 
-<!-- openwiki: broken internal link [/tests/test_main.py] link "/tests/test_main.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-The central test helper is the `stage_calls` fixture in [`/tests/test_main.py`](/tests/test_main.py). It monkeypatches the stage functions and records calls in order:
+<!-- openwiki: broken internal link [../tests/test_main.py] file "../tests/test_main.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+The central test helper is the `stage_calls` fixture in [`tests/test_main.py`](../tests/test_main.py). It monkeypatches the stage functions and records calls in order:
 
 - `process_recording` (pipeline)
 - `_get_slides_backend` / `get_summarize_backend` (backend selection seams)
@@ -62,21 +62,23 @@ The summarize backend stub is more than a no-op: it writes the summary `.md` and
 
 Externals are isolated at these seams in the production code:
 
-<!-- openwiki: broken internal link [/transcriber/__main__.py] link "/transcriber/__main__.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-- Pipeline binaries: [`/transcriber/__main__.py`](/transcriber/__main__.py) relies on `shutil.which` for pre-flight and on the pipeline’s `_run_command` for media stages; tests replace `shutil.which` and the stage functions directly.
+Externals are isolated at these seams in the production code:
+
+<!-- openwiki: broken internal link [../transcriber/__main__.py] file "../transcriber/__main__.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+- Pipeline binaries: [`transcriber/__main__.py`](../transcriber/__main__.py) relies on `shutil.which` for pre-flight and on the pipeline’s `_run_command` for media stages; tests replace `shutil.which` and the stage functions directly.
 - Backend selection: `_get_slides_backend` and `get_summarize_backend` exist specifically as pure functions of config that can be swapped in tests.
 - Publishing: `TelegramPublisher` and `s3.sync` are the publish seams.
 - Cleanup: `cleanup.cleanup` is the deletion seam.
 
-<!-- openwiki: broken internal link [/transcriber/config.py] link "/transcriber/config.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-The configuration and secret model is covered through [`/transcriber/config.py`](/transcriber/config.py): secrets are referenced by env-var name only and resolved at use time via `resolve_env`, and the loader validates constrained fields and the now-mandatory `openrouter` section.
+<!-- openwiki: broken internal link [../transcriber/config.py] file "../transcriber/config.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+The configuration and secret model is covered through [`transcriber/config.py`](../transcriber/config.py): secrets are referenced by env-var name only and resolved at use time via `resolve_env`, and the loader validates constrained fields and the now-mandatory `openrouter` section.
 
 ## Test families
 
 ### Pre-flight failure isolation
 
-<!-- openwiki: broken internal link [/tests/test_main.py] link "/tests/test_main.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Pre-flight tests in [`/tests/test_main.py`](/tests/test_main.py) cover:
+<!-- openwiki: broken internal link [../tests/test_main.py] file "../tests/test_main.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+Pre-flight tests in [`tests/test_main.py`](../tests/test_main.py) cover:
 
 - missing binary → problem mentions the binary and “binary”
 - missing env var → problem mentions the variable name and “environment variable”
@@ -162,8 +164,8 @@ The underlying design intent is that secrets are referenced by env-var name only
 
 ## How to read the test file as documentation
 
-<!-- openwiki: broken internal link [/tests/test_main.py] link "/tests/test_main.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-If you want to know whether a behavior is tested, start from [`/tests/test_main.py`](/tests/test_main.py) and read the fixture and the family of tests around it. The `stage_calls` fixture defines the observable seam; the pre-flight section defines how binaries and env vars are validated; the dry-run section defines the plan contract; the happy-path and failure-isolation sections define batch semantics; the manifest and toggle sections define idempotency and gating; and the backend-selection and config sections define the validation surface.
+<!-- openwiki: broken internal link [../tests/test_main.py] file "../tests/test_main.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+If you want to know whether a behavior is tested, start from [`tests/test_main.py`](../tests/test_main.py) and read the fixture and the family of tests around it. The `stage_calls` fixture defines the observable seam; the pre-flight section defines how binaries and env vars are validated; the dry-run section defines the plan contract; the happy-path and failure-isolation sections define batch semantics; the manifest and toggle sections define idempotency and gating; and the backend-selection and config sections define the validation surface.
 
 For the production-side explanation of why these seams exist, see:
 

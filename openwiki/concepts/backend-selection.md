@@ -1,11 +1,11 @@
 ---
 type: concept
 title: Backend selection and interfaces
-description: How the transcriber selects describe_slides and summarize backends as pure functions of config, the concrete slides/openrouter and summarize/agy+agno backends, their shared OpenRouter block with per-stage models, and the Notion publish split.
-tags: [transcriber, backends, openrouter, notion, agy, agno, slides, summarize]
+description: How the transcriber selects describe_slides and summarize backends as pure functions of config, the concrete slides/openrouter and summarize/agno backends, their shared OpenRouter block with per-stage models, and the Notion publish split.
+tags: [transcriber, backends, openrouter, notion, agno, slides, summarize]
 verified:
   - by: openwiki/0.6.1
-    at: 2026-10-02T19:10:14.922Z
+    at: 2026-10-06T06:48:26.024Z
 sources:
   - id: openwiki-source-df4110b2c5338913ae9eedcf
     resource: repo://transcriber/__main__.py
@@ -23,12 +23,12 @@ sources:
     resource: repo://transcriber/backends/summarize.py
   - id: openwiki-source-c4777b8db8d4806695ac8b6a
     resource: repo://transcriber/config.py
-generated: { by: "openwiki/0.6.1", at: "2026-10-02T19:10:14.922Z" }
+generated: { by: "openwiki/0.6.1", at: "2026-10-06T06:48:26.024Z" }
 ---
 
 # Backend selection and interfaces
 
-The two post-transcript stages (`describe_slides` and `summarize`) each select a pluggable backend as a **pure function of config**. Selection happens at orchestrator runtime, not inside the media pipeline. The slides backend is now restricted to `openrouter`, while the summarize backend chooses between `agy` and `agno`, and the two backends differ in how they publish to Notion.
+The two post-transcript stages (`describe_slides` and `summarize`) each select a pluggable backend as a **pure function of config**. Selection happens at orchestrator runtime, not inside the media pipeline. The slides backend is now restricted to `openrouter`, while the summarize backend is now restricted to `agno`, and the two backends differ in how they publish to Notion.
 
 Selection is validated at config load and at the orchestrator call site; an unexpected backend value raises rather than silently falling back. There is **no silent cross-backend fallback** per stage.
 
@@ -37,9 +37,9 @@ Selection is validated at config load and at the orchestrator call site; an unex
 | Stage | Config selector | Valid backends | Default |
 |---|---|---|---|
 | `describe_slides` | `config.stages.slides.backend` | `"openrouter"` | `"openrouter"` |
-| `summarize` | `config.summary.backend` | `"agy"`, `"agno"` | `"agy"` |
+| `summarize` | `config.summary.backend` | `"agno"` | `"agno"` |
 
-The two selections are orthogonal: they do not change each other's behavior, artifacts, or contracts. For example, `slides=openrouter` + `summarize=agno` is a supported combination.
+The two selections are orthogonal: they do not change each other's behavior, artifacts, or contracts. For example, `slides=openrouter` + `summarize=agno` is the supported combination in the shipped code.
 
 The concrete configs used by each OpenRouter consumer are distinct even though they share one `openrouter` block:
 
@@ -50,21 +50,21 @@ So the shared `openrouter` block is **one block, two per-stage models**.
 
 ## Why `agy` is no longer a valid slides backend
 
-The spec originally allowed `slides.backend ∈ {"agy","openrouter"}`, with `agy` as the default to preserve today's behavior. The shipped engine made a deliberate scope decision: the slides `agy` backend was not implemented, the slides stage is now validated to accept only `"openrouter"`, and config now defaults `stages.slides.backend` to `"openrouter"`.
+The spec originally allowed `slides.backend ∈ {"openrouter"}` with `openrouter` as the default to preserve today's behavior. The shipped engine made a deliberate scope decision: the slides stage is now validated to accept only `"openrouter"`, and config now defaults `stages.slides.backend` to `"openrouter"`.
 
 That means:
 
 * `describe_slides` always runs on the `openrouter` vision backend.
-* `AgySlidesBackend` is a leftover project-planning artifact (task docs), not a real backend in the code.
+* The `agy` summarize backend was the original post-transcript backend and remains the canonical `agy` path; the shipped engine's selected summarize backend is `agno` via `get_summarize_backend`.
 * The old "both default to `agy`" expectation no longer holds; dropping `agy` from the slides stage is what made `slides=openrouter` the current default and the only valid slides selection.
 
-This is why the page says `agy` is no longer a valid slides backend: the project spec listed it, but the implementation selected `openrouter` as the only slides backend and removed `agy` from that stage entirely.
+This is why the page says `agy` is no longer a valid slides backend: the project spec originally listed `agy` as one of two possible slides backends, but the implementation selected `openrouter` as the only slides backend and removed `agy` from that stage entirely.
 
 ## Why Notion MCP is still required for summarize
 
-Summarize is not a bare OpenRouter call because the stage must publish to Notion, and the engine's summarize backends are the ones that can do that. In the final implementation that is true but the Notion path is backend-specific:
+Summarize is not a bare OpenRouter call because the stage must publish to Notion, and the engine's summarize backend is the one that can do that. In the final implementation that is true but the Notion path is backend-specific:
 
-* **`agy`** — publishes via `agy`'s own Notion MCP as part of its run.
+* **`agy`** — the original post-transcript backend publishes via `agy`'s own Notion MCP as part of its run; the engine does not own that path.
 * **`agno`** — the **engine** publishes the subpage directly via the Notion REST API (`transcriber.backends.notion_publish.publish_to_notion`); no MCP, no model tool-calling.
 
 The project doc's "Notion MCP is non-negotiable for summarize" intent still holds in spirit — every summarize run publishes to Notion or fails the stage — but the concrete implementation replaced the `agno` Notion-MCP plan with a direct REST publish because the official Notion MCP's `oneOf`/`anyOf`/`$ref` tool schemas break tool-calling on Gemini/Mistral over OpenRouter (empty `null` completions, zero tool calls). The `agy` backend was left unchanged and still publishes via MCP.

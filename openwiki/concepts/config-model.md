@@ -3,26 +3,28 @@ type: concept
 title: Configuration model
 description: The transcriber's validated Config dataclass loaded from JSON or YAML, nested stages.slides, the mandatory openrouter block, backend selectors, Notion/Telegram/S3 fields, per-stage timeouts, and the secrets-by-env-name rule resolved at use time.
 tags: [transcriber, config, dataclass, openrouter, yaml, json, secrets, validation, timeouts, notion, telegram, s3]
-verified:
-  - by: openwiki/0.6.1
-    at: 2026-10-02T19:10:14.922Z
 sources:
   - id: openwiki-source-6c4e8e364706f83ed08cc3c9
     resource: repo://examples/acme.config.yaml
   - id: openwiki-source-93673910bb15c021d9d7054e
     resource: repo://examples/example.config.yaml
+  - id: openwiki-source-81af13fa7982f0b3becf1286
+    resource: repo://tests/test_config.py
   - id: openwiki-source-c4777b8db8d4806695ac8b6a
     resource: repo://transcriber/config.py
-generated: { by: "openwiki/0.6.1", at: "2026-10-02T19:10:14.922Z" }
+generated: { by: "openwiki/0.6.1", at: "2026-10-06T06:48:26.024Z" }
+verified:
+  - by: openwiki/0.6.1
+    at: 2026-10-06T06:48:26.024Z
 ---
 
 # Configuration model
 
-<!-- openwiki: broken internal link [/transcriber/config.py] link "/transcriber/config.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Configuration is loaded in [`/transcriber/config.py`](/transcriber/config.py) into a single validated dataclass model. Both `.json` and `.yaml`/`.yml` map to the identical `Config` model, selected by file extension at load time.
+<!-- openwiki: broken internal link [../transcriber/config.py] file "../transcriber/config.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+Configuration is loaded in [transcriber/config.py](../transcriber/config.py) into a single validated dataclass model. Both `.json` and `.yaml`/`.yml` map to the identical `Config` model, selected by file extension at load time.
 
-<!-- openwiki: broken internal link [/transcriber/config.py#resolve_env] link "/transcriber/config.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Secrets are **never stored in the model**. The config references secrets by environment-variable **name only** (for example `telegram.bot_token_env` or `openrouter.api_key_env`); the actual value is resolved at *use* time via [`resolve_env`](/transcriber/config.py#resolve_env). That means config files contain no inline credentials, and S3 auth uses a named AWS profile rather than embedded keys.
+<!-- openwiki: broken internal link [../transcriber/config.py#resolve-env] file "../transcriber/config.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+Secrets are **never stored in the model**. The config references secrets by environment-variable **name only** (for example `telegram.bot_token_env` or `openrouter.api_key_env`); the actual value is resolved at *use* time via [resolve_env](../transcriber/config.py#resolve-env). That means config files contain no inline credentials, and S3 auth uses a named AWS profile rather than embedded keys.
 
 ## Dataclass model
 
@@ -60,14 +62,13 @@ The shared `openrouter` block carries **one block, two per-stage models**:
 Two stage backends are selected as pure functions of config and validated at load:
 
 - `describe_slides` → `config.stages.slides.backend`, only `"openrouter"`.
-- `summarize` → `config.summary.backend`, `"agy"` (default) or `"agno"`.
+- `summarize` → `config.summary.backend`, `"agno"` (the only summarize backend, and the default).
 
 `summary.language` must be `"en"` or `"original"`; invalid values raise `ConfigError`.
 
 Notion token requirement is backend-specific:
 
 - `notion.token_env` is required when `summary.backend == "agno"` (engine publishes via Notion REST).
-- When `summary.backend == "agy"`, `notion.token_env` may be omitted because `agy` publishes via its own Notion MCP.
 
 ## Notion / Telegram / S3 fields
 
@@ -79,8 +80,8 @@ Notion token requirement is backend-specific:
 
 `Timeouts` provides per-stage timeouts; any omitted field falls back to `DEFAULT_TIMEOUT_SECONDS` (900s):
 
-- `ffmpeg`, `scenedetect`, `slides`, `transcribe`, `agy`, `s3`.
-- `summarize` is optional; `None` falls back to `agy` at use time.
+- `ffmpeg`, `scenedetect`, `slides`, `transcribe`, `agno`, `s3`.
+- `summarize` is optional; `None` falls back to `DEFAULT_TIMEOUT_SECONDS` at use time.
 
 The legacy `elevenlabs` timeout key is silently dropped during load so old host configs still load; its value is ignored because the transcribe stage timeout is now `transcribe`.
 
@@ -92,7 +93,7 @@ The legacy `elevenlabs` timeout key is silently dropped during load so old host 
 
 - `stages.slides` must be a mapping `{enabled, backend}`; legacy bare bool rejected.
 - `slides.backend` must be `"openrouter"`.
-- `summary.backend` must be `"agy"` or `"agno"`.
+- `summary.backend` must be `"agno"`.
 - `summary.language` must be `"en"` or `"original"`.
 - `openrouter` section is required (unconditionally).
 - `notion.token_env` required when `summary.backend == "agno"`.
@@ -131,9 +132,6 @@ summary:
   backend: agno
 
 agent:
-  cli: agy
-  extra_args:
-    - --dangerously-skip-permissions
   output_file: "{basename}.md"
 
 openrouter:
@@ -161,7 +159,7 @@ s3:
 
 This is the primary cost-saving combination: slides on `openrouter`, summarize on `agno` (OpenRouter model + direct Notion REST publish), with S3 sync and topic-routed Telegram.
 
-### example — simpler setup (openrouter slides + agy summarize)
+### example — simpler setup (openrouter slides + agno summarize)
 
 Annotated excerpts:
 
@@ -186,23 +184,21 @@ summary:
     - overview
     - key_points
     - action_items
-  backend: agy
+  backend: agno
 
 agent:
-  cli: agy
-  extra_args:
-    - --dangerously-skip-permissions
   output_file: "{basename}.md"
 
 openrouter:
   api_key_env: OPENROUTER_API_KEY
   slides_model: google/gemini-2.0-flash-001
+  summary_model: google/gemini-2.5-pro
 
 notion:
   server: notion-example
   parent_page_id: "REPLACE_WITH_PARENT_PAGE_ID"
   insert: subpage
-  # token_env omitted — summarize runs on agy
+  token_env: NOTION_API_KEY
 
 telegram:
   bot_token_env: TELEGRAM_BOT_TOKEN
@@ -210,7 +206,7 @@ telegram:
   routing: {}
 ```
 
-This illustrates the other common backend combination: slides on `openrouter`, summarize on the local `agy` backend, no S3 sync, single-chat Telegram, and no `notion.token_env`.
+This illustrates the other common backend combination: slides on `openrouter`, summarize on the `agno` backend, no S3 sync, single-chat Telegram, and `notion.token_env` present because summary runs on `agno`.
 
 ## Secrets-by-env-name rule
 

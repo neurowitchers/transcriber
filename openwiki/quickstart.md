@@ -4,7 +4,7 @@ title: "Quickstart"
 openwiki_generated: true
 verified:
   - by: openwiki/0.6.1
-    at: 2026-10-02T19:10:14.922Z
+    at: 2026-10-06T06:48:26.024Z
 sources:
   - id: openwiki-source-93673910bb15c021d9d7054e
     resource: repo://examples/example.config.yaml
@@ -28,7 +28,7 @@ sources:
     resource: repo://transcriber/pipeline.py
   - id: openwiki-source-0c6dbb86c6b6001bf65f1b4c
     resource: repo://transcriber/state.py
-generated: { by: "openwiki/0.6.1", at: "2026-10-02T19:10:14.922Z" }
+generated: { by: "openwiki/0.6.1", at: "2026-10-06T06:48:26.024Z" }
 ---
 
 
@@ -81,18 +81,18 @@ At a high level, the config separates concerns like this:
 - **Where recordings live** — `recordings_dir`.
 - **Which stages run** — `stages.slides` (a nested `{enabled, backend}` object; the legacy bare-bool form is rejected) and `stages.s3_sync`.
 - **How audio is transcribed** — `transcribe`, including the OpenRouter STT model slug, diarization toggle, and chunking/overlap parameters.
-- **How the summary is produced and published** — `summary` (language, sections, backend), `agent` (the local CLI settings used by the `agy` path), `notion`, and `telegram`.
+- **How the summary is produced and published** — `summary` (language, sections, backend), `agent` (the local CLI settings retained for config compatibility), `notion`, and `telegram`.
 - **How external services connect** — a shared `openrouter` block (now mandatory) and optional `s3`.
 - **Timeouts and debug behavior** — `timeouts` and the optional top-level `debug` flag.
 
-The example config is a useful starting point: `examples/example.config.yaml`. It is the simpler "example" host setup: slides on, no S3 sync, English summaries, a single Telegram chat, and a Notion subpage insertion mode.
+The example config is a useful starting point: `examples/example.config.yaml`. It is the simpler "example" host setup: slides on, no S3 sync, English summaries, a single Telegram chat, Notion subpage insertion mode, slides on the OpenRouter vision backend, and summarize on the `agno` backend.
 
 A few config rules matter early:
 
 - The `openrouter` block is **always required**. Transcription itself runs over the OpenRouter speech-to-text API, so audio egresses to OpenRouter on every run. There is no OpenRouter-free configuration.
 - Secrets are stored as **environment-variable names only**, never as literal values. For example, `telegram.bot_token_env` names the variable that holds the token; the value is read later via `resolve_env`.
 - `stages.slides` is a nested mapping with `{enabled, backend}`. The old bare-boolean shape is invalid and raises a `ConfigError`.
-- The slides backend is constrained to `"openrouter"`, and the summarize backend is constrained to `"agy"` or `"agno"`. Unknown values fail at load.
+- The slides backend is constrained to `"openrouter"`, and the summarize backend is constrained to `"agno"` (the only summarize backend). Unknown values fail at load.
 
 ## Prerequisites
 
@@ -101,7 +101,7 @@ The engine is a Python CLI. Before any real work happens, it runs a pre-flight c
 The always-required binary is `ffmpeg`. Other binaries are gated by config:
 
 - `scenedetect` when slides are enabled.
-- `agy` when the summarize backend is `agy`.
+- `agno` when the summarize backend is `agno`.
 - `aws` when S3 sync is enabled.
 
 On the environment-variable side, the pre-flight check treats secrets by name only. The Telegram bot token is always required for dissemination. The OpenRouter API-key variable is required on every run because transcription runs over OpenRouter. The Notion token variable is additionally required when `summary.backend == "agno"`.
@@ -122,7 +122,7 @@ Each new `*.mp4` in `recordings_dir` (one whose summary `.md` does not yet exist
    - **Audio extract** — pull an audio track from the video with `ffmpeg`.
    - **Scene extraction** *(optional, `stages.slides.enabled`)* — detect scene cuts and export slide frames with `scenedetect`. This stage is network-free.
    - **Transcribe** — diarize and chunk the audio into explicit time slices, send each slice to **OpenRouter** speech-to-text, then stitch the slices back into a single plain-text transcript.
-2. **Describe slides** *(optional, when `stages.slides.enabled`)* — turn the extracted slide images into a `<name>.slides.md` markdown block via the **OpenRouter vision backend**. One vision call per slide, image-only (no transcript).
+2. **Describe slides** *(optional, when `stages.slides.enabled`)* — turn the extracted slide images into a `<name>.slides.md` markdown block via the **`openrouter`** vision backend (the only slides backend); the pipeline itself stays ffmpeg + scenedetect + transcribe, and the STT HTTP seam lives inside `pipeline._transcribe`. One vision call per slide, image-only (no transcript).
 3. **Summarize** — turn the transcript (plus the `<name>.slides.md` block when present) into the final `<name>.md` summary and `<name>.telegram.md` digest, and publish a Notion subpage. This runs on the configured **summarize backend**.
 4. **Telegram** — disseminate a notification to Telegram, topic-routed where configured.
 5. **S3** *(optional, when `stages.s3_sync`)* — sync the recording to S3.
@@ -152,22 +152,21 @@ Two post-transcript stages matter most when you are setting up a host: **describ
 
 ### Describe slides
 
-The `describe_slides` stage always runs on the **`openrouter`** vision backend. It is the only slides backend. It performs one OpenRouter vision call per slide, image-only (no transcript). Enabling slides requires the `openrouter` block and its API key.
+The `describe_slides` stage always runs on the **`openrouter`** vision backend (the only slides backend). It performs one OpenRouter vision call per slide, image-only (no transcript). Enabling slides requires the `openrouter` block and its API key.
 
 The slide descriptor is image-only: it describes what is visually on each slide. Transcript cross-referencing — aligning speaker commentary, decisions, and Q&A to slides — happens later in the summarize stage, which receives the full transcript **and** the `<name>.slides.md` block.
 
-Slides are gated by `stages.slides.enabled`. If you must avoid all OpenRouter egress, keep slides disabled and summarize on `agy`.
+Slides are gated by `stages.slides.enabled`. If you must avoid all OpenRouter egress, keep slides disabled and summarize on `agno`.
 
 ### Summarize
 
 The `summarize` stage runs on a separately selected backend:
 
-- **`agy`** — the local CLI agent. This is the default when nothing is configured. Notion is published via `agy`'s own MCP as part of its run.
-- **`agno`** — an OpenRouter-driven summarize backend. The model produces the summary and digest, and then **the engine publishes the Notion subpage directly via the Notion REST API** (no MCP, no `npx`).
+- **`agno`** — an OpenRouter-driven summarize backend. The model produces the summary and digest, and then **the engine publishes the Notion subpage directly via the Notion REST API** (no MCP, no `npx`). This is the only summarize backend and the default when nothing is configured.
 
-Both backends produce the same artifacts, but the Notion publish path is backend-specific. For `agy`, Notion publishing is agent-driven. For `agno`, it is engine-driven through the Notion REST API.
+Both backends produce the same artifacts, but the Notion publish path is backend-specific. For `agno`, Notion publishing is engine-driven through the Notion REST API.
 
-Summarize defaults to `agy`. If you enable slides, you must also have the `openrouter` block and key, because the slide descriptor is an OpenRouter vision call. Operators who must avoid all OpenRouter egress should keep slides disabled and summarize on `agy`.
+Summarize defaults to `agno`. If you enable slides, you must also have the `openrouter` block and key, because the slide descriptor is an OpenRouter vision call. Operators who must avoid all OpenRouter egress should keep slides disabled and summarize on `agno`.
 
 ## A minimal first run
 
@@ -185,6 +184,7 @@ transcriber --config config.yaml --dry-run
 ```
 
 ## How this wiki is organized
+
 
 <!-- openwiki: broken internal link [../architecture/oss-companion-transcriber.md] file "../architecture/oss-companion-transcriber.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 <!-- openwiki: broken internal link [../operations/pre-flight-and-idempotency.md] file "../operations/pre-flight-and-idempotency.md" does not exist. Fix the href or restore the target, then delete this comment. -->

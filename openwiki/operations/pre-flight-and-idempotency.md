@@ -3,9 +3,6 @@ type: operation
 title: Pre-flight checks and idempotent retries
 description: How the transcriber CLI validates binaries and env vars before work, prints a dry-run plan with no side effects, and uses a per-recording state manifest to skip already-complete stages on re-run while isolating failures.
 tags: [transcriber, preflight, dry-run, idempotency, manifest, state, failure-isolation, orchestrator]
-verified:
-  - by: openwiki/0.6.1
-    at: 2026-10-02T19:10:14.922Z
 sources:
   - id: openwiki-source-8b176c94b018259ee14f35b7
     resource: repo://tests/test_main.py
@@ -13,7 +10,10 @@ sources:
     resource: repo://transcriber/__main__.py
   - id: openwiki-source-0c6dbb86c6b6001bf65f1b4c
     resource: repo://transcriber/state.py
-generated: { by: "openwiki/0.6.1", at: "2026-10-02T19:10:14.922Z" }
+generated: { by: "openwiki/0.6.1", at: "2026-10-06T06:48:26.024Z" }
+verified:
+  - by: openwiki/0.6.1
+    at: 2026-10-06T06:48:26.024Z
 ---
 
 # Pre-flight checks and idempotent retries
@@ -32,7 +32,7 @@ The always-required binary set is a single tuple:
 _ALWAYS_BINARIES = ("ffmpeg",)
 ```
 
-`ffmpeg` is the only binary required on every run. Transcription now runs over the OpenRouter HTTP seam rather than a legacy CLI, so `elevenlabs` is no longer in the always-set and `ffmpeg` is the sole unconditional binary. `scenedetect` is added when slides are enabled, `agy` when the summarize backend is `agy`, and `aws` when S3 sync is enabled.
+`ffmpeg` is the only binary required on every run. Transcription now runs over the OpenRouter HTTP seam rather than a legacy CLI, so `elevenlabs` is no longer in the always-set and `ffmpeg` is the sole unconditional binary. `scenedetect` is added when slides are enabled, and `aws` is added when S3 sync is enabled.
 
 The helper `_required_binaries(config)` builds the per-config list:
 
@@ -41,8 +41,6 @@ def _required_binaries(config: Config) -> list[str]:
     required = list(_ALWAYS_BINARIES)          # ffmpeg
     if config.stages.slides.enabled:
         required.append("scenedetect")
-    if _uses_agy(config):                       # summary.backend == "agy"
-        required.append("agy")
     if s3_mod.is_enabled(config):
         required.append("aws")
     return required
@@ -71,7 +69,7 @@ The rules are:
 
 - **Telegram bot token** — always required (the `bot_token_env` field).
 - **OpenRouter API key** — unconditionally required. Transcription itself runs over the OpenRouter HTTP seam, so the key is required regardless of slides/summary backend selection.
-- **Notion token** — required only when `summary.backend == "agno"` and `config.notion.token_env` is set. The `agy` backend publishes to Notion via its own MCP, so no engine-side token env is required for that path.
+- **Notion token** — required only when `summary.backend == "agno"` and `config.notion.token_env` is set. The `agno` summarize backend publishes to Notion via the engine's REST API call, so the engine-side Notion token env is required for that path. (There is no separate `agy` summarize backend in the current codebase.)
 
 A missing variable produces a problem like `missing required environment variable: 'TG_TOKEN'`.
 
@@ -131,7 +129,7 @@ Dry-run does **not** enforce the pre-flight check. It discovers new recordings (
 | `scene-extract` | `stages.slides.enabled` | pipeline slide/scene extraction — **not** `slides` |
 | `transcribe [openrouter:<model_id>]` | always | surfaces the OpenRouter backend + configured model |
 | `describe-slides [<backend>]` | `stages.slides.enabled` | paid slides backend call — only when slides on |
-| `summarize+notion [<backend>]` | always | surfaces the selected summarize backend |
+| `summarize+notion [<backend>]` | always | surfaces the selected summarize backend (always `agno`) |
 | `telegram` | always | dissemination |
 | `s3-sync` | S3 sync enabled | gated S3 stage |
 
@@ -149,7 +147,7 @@ Both appear in the plan only when `stages.slides.enabled` is true, and both are 
 #### Disambiguation: describe-slides vs summarize+notion
 
 - **`describe-slides [<backend>]`** is conditional on slides being enabled. When slides are disabled the token is absent entirely.
-- **`summarize+notion [<backend>]`** is always present in the plan, with the selected backend surfaced in the token (e.g. `summarize+notion [agy]` or `summarize+notion [agno]`).
+- **`summarize+notion [<backend>]`** is always present in the plan, with the selected backend surfaced in the token (always `summarize+notion [agno]` since `agno` is the only summarize backend).
 
 #### Transcribe token
 
@@ -266,7 +264,7 @@ else:
     state.mark_complete("notion")
 ```
 
-`summarize` and `notion` are tracked separately but marked complete together, because both backends publish to Notion as part of the same run. A Notion failure fails the whole `summarize`+`notion` stage.
+`summarize` and `notion` are tracked separately but marked complete together, because both the summarize backend's work and the Notion publish happen as part of the same run. A Notion failure fails the whole `summarize`+`notion` stage.
 
 When slides are disabled, a stale `<name>.slides.md` is never fed into the summary — the summarize backend receives `None`, exactly as if slides were off.
 

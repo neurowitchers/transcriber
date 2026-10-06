@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:41c3df5d083e9db32e0942e19e9c2fd252dacac2a90782345a18236eae58fb05",
+  "pageVersion": "sha256:59138efa0b714ae284e4cfa620a807f507eb48dcd2470d8a916cf88ce8cd7fad",
   "claims": [
     {
       "id": "claim_36a2aeffec7e4d41b45ea56ecf6afec4",
@@ -24,11 +24,19 @@
     },
     {
       "id": "claim_8a42bb29bb85489490daa8b129b5b752",
-      "statement": "transcriber.backends.notion_mcp is engine-owned and self-contained: it configures the Notion MCP integration purely from notion.token_env (+ parent_page_id/insert) and does not read or reuse agy's MCP configuration.",
+      "statement": "transcriber.backends.notion_mcp is engine-owned and self-contained: it configures the Notion MCP integration purely from notion.token_env (plus parent_page_id/insert) and does not read or reuse agy's MCP configuration. The 'agy' references here refer to the removed legacy CLI backend (kept only as ignored config fields), not a current summarize backend.",
       "evidence": [
         {
+          "resource": "repo://tests/test_notion_mcp.py#L242-L252",
+          "version": "repo-lines-v1:sha256:20a5896273c6bb9ba858d5d29848f7e90740df2b2bdd3573cc91a487e80a5a64:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE5YWI2N2QzMzc3ZGM4YzdiYmEyNTExZmY2Y2VmMGQ1MDJkZTg5MGZlNWU0YmNlZjczNTg2ODI3ZTYyYTRiZTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRmZjA1N2MwNWQ1ZDFiYTNlZGJiMDBkNTRjMjVmZGE4Nzg5ZWFlNjEzMjJkNmM0ZmRmOWRiYWRkMjVmZmY3NmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUzNjdjZTQzZTk3ZjBlYWEyYTNhMGE5NjUxMTgwMmY1YTlmM2FkYzNjNTA5ZDAzYjBiYmYwYzIyNzJhZGRlNjYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
           "resource": "repo://transcriber/backends/notion_mcp.py#L1-L7",
-          "version": "repo-lines-v1:sha256:e7dede2bb6e01897304df43d4afa2d13bade0ca9d693fd0a9007923b1c9346cf:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiY2M3YzBkNTk4YmQxMTAzY2UwN2QxNjRjYjhjMDRkY2VjNDE3YTkwMGY2YTc1ZDJiMjNjNmQxYjhjMTY0ZThmZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiODNhMWQ2NWY5NzY0YzExZGE3ZDgzMjM3OTRjY2MzNGVhOGE0ODJkMzdjMzIxMmI3Nzg0MWU5ODAwMzFkNzM3NiJ9"
+          "version": "repo-lines-v1:sha256:957e293f46451709f19219dccc7833d942cea8e195a769f239ac17060d3d1c7b:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiY2M3YzBkNTk4YmQxMTAzY2UwN2QxNjRjYjhjMDRkY2VjNDE3YTkwMGY2YTc1ZDJiMjNjNmQxYjhjMTY0ZThmZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzE1MmM3ZjZkOWFjMzdlYTExMzQ1Mzc3M2VkNzg2OTE1YzNhNDllZGJkYjI1NzU1ODg4MzljMjVkYjE2ZDc0ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiY2E1MmJjMDgwZWI0ZTJkZjUzYTRjZDVhYmVkZWJkY2I5ODU4ZTBlMjMyMGJiNDk5Y2M2NGFiMGUxZjBkZTU5YyJ9"
+        },
+        {
+          "resource": "repo://transcriber/config.py#L107-L115",
+          "version": "repo-lines-v1:sha256:1a3affa928e5403e5b83508205379b194418e0ec8462bad7953e73314e846b7e:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjZmYmFlMGI5MWQ0NGZjMGQ0OWY1ZGU2OTFkYTZmYzQzMWYyNjAxMzRiZjczMWUwZTIxZjc2NDgwOTQzMzRjYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiY2RiNjAyMTc3YTRlNGIwNGUwZWI0Nzk3ZWExNDEwY2I3YjZiYWQ1YzAyNjQ3YTU3Yzg2ZTFlZjIyZjhmMDE2ZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDM1ZWM0ZjE5NzcwNjZiNDIxYzA5MDMxNjk0NWMyMmEyZjU1YWU3YzMxOTNhOTNlNTg2NTEyZjE5MTRiZTg5YiJ9"
         }
       ]
     },
@@ -37,8 +45,16 @@
       "statement": "Notion config field notion.token_env is an env-var NAME only (Optional[str]); the actual secret value is never stored in the config model and is resolved at use time via resolve_env.",
       "evidence": [
         {
-          "resource": "repo://transcriber/config.py#L91-L97",
-          "version": "repo-lines-v1:sha256:e361e945479e8a3f03bec1849bae7cbc96fab6c8d1300aeaad226f8c847c17d2:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTNmYjY1ODEzMTc4ZGIyNmEyOGJlODE4MmExY2M5M2NlOTQ3ZTZlMDFmNWUyYTY5Yzg1MzliNWE5MWMxOGNlOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDJlZDU5YjNiODQ5NGI1YTRkMDI0Mzc4ODY2ODYwNjY5NzAyYWUxZmQ3ODA5ZWM3NmE0ZTAzNGZkMDk1YjMwZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNmMxZjAyZmQ3ZWMxZDQ2MmMwY2I4MThiOTQ4ZmZlNGY3MTViMmMyYzQzMjYzMGMyMzJkZmUzNGQ0Mjc0M2ZhOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNmMxZjAyZmQ3ZWMxZDQ2MmMwY2I4MThiOTQ4ZmZlNGY3MTViMmMyYzQzMjYzMGMyMzJkZmUzNGQ0Mjc0M2ZhOSJ9"
+          "resource": "repo://tests/test_notion_mcp.py#L153-L157",
+          "version": "repo-lines-v1:sha256:667a9ad989648c53a25c3a4d163136c85894858b9981cf48e737fde6e0cfe544:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjI3NWRkZjAxNGM5ODE1Y2U1MDA2MDc3ODRjOWUxZTA0YTFmZTE0YzM5NDg3NzQyODJkNDViZDg4ZjExMzkxNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNjEyN2EyZDM5NzAzZjkzMjEzODBmMTk4MGRlNjExMDQ5ZjIyMjcwMDFmOWUzYWJkYmIzZjViNDRmNTYxNzNlNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTlmYjFiZDk4ZDljMGUxNjA0MGFmYTZmODgyNzc2MWU3NmZkNDllYzUyNThiNDk2ZmZiZTRhODQyYWQ2OTVhOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDZlMmMwZDU0NWM4ZWVlMTFiYjNlMDczMzM1YmViMmUyMjI4ZjlhOGMwMThkYzVkYmZlMDk2NDhjMDRjMTY1MiJ9"
+        },
+        {
+          "resource": "repo://transcriber/config.py#L107-L115",
+          "version": "repo-lines-v1:sha256:1a3affa928e5403e5b83508205379b194418e0ec8462bad7953e73314e846b7e:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjZmYmFlMGI5MWQ0NGZjMGQ0OWY1ZGU2OTFkYTZmYzQzMWYyNjAxMzRiZjczMWUwZTIxZjc2NDgwOTQzMzRjYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiY2RiNjAyMTc3YTRlNGIwNGUwZWI0Nzk3ZWExNDEwY2I3YjZiYWQ1YzAyNjQ3YTU3Yzg2ZTFlZjIyZjhmMDE2ZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDM1ZWM0ZjE5NzcwNjZiNDIxYzA5MDMxNjk0NWMyMmEyZjU1YWU3YzMxOTNhOTNlNTg2NTEyZjE5MTRiZTg5YiJ9"
+        },
+        {
+          "resource": "repo://transcriber/config.py#L355-L374",
+          "version": "repo-lines-v1:sha256:f0c539307a14170dddbc44fef57b423dd1f168d7c090523a4366281f7e1c8441:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkwNzY4MjExZTRkZjVkNjE3MDQ4YjgzMDIwODQwZGQ4YjVjMzdiNWJmY2RlMTZkNDYyYWI4YTk0YzhhZDc5MmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5M2ExMzA2MmYxMGVlNGYxMjE4ZDkzZTM3YTZmODFkMzQ2ZmYxMWVjN2U1NWRkNTQyZTJkMmQyZWYwNzExZjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZhZjQxZTQyNzVjMzRlNDgzOTViYmUzZjg2YWRhNmZkYmQyNTcxN2NjZmE5Y2M3ZGRiNDM1ODFjMjNlM2Q4ODQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
     },
@@ -47,7 +63,7 @@
       "statement": "Config validation requires notion.token_env when summary.backend == 'agno' (raises ConfigError at load time).",
       "evidence": [
         {
-          "resource": "repo://transcriber/config.py#L287-L290",
+          "resource": "repo://transcriber/config.py#L309-L312",
           "version": "repo-lines-v1:sha256:2811266db15e221960275281dfb86d5fa26950607837a5cdeac3ee9d58f19c3a:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjI2MTEwZjkxNDE5YTU0NmYxYjgyZWFiZTAzNjA0NDhmZWU2M2JkYjE4MTEwMjZlZDEzMWM3YmI0YzI2NjJhZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTkwOWE1M2E2MThkMDI4ZTFkMzAwMGMwYTdhYmNlZWNiZTVmYjM3ZjRlNTExZWZlNDY2NDNmYWQ2ZTY2ODcyZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMWRkNmYyMmE3YTBkMTQyODA0YzVjYWQ2YjkzZDg1ZTg4M2UyZmNiZmFjZWY4NzNiMzU4N2U4NTBhYTgxNmQ3MiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzUzMTQ5ODhlNTA0YjI3YWJlNmVjMzg1Zjk5ZjRhZDBiMTBjMDhjYjZjMzU0MGI5MWZlNmRkOWZiYTNlNzg2MyJ9"
         }
       ]
@@ -127,7 +143,7 @@
       "statement": "The agno backend persists local artifacts before publishing and writes a sidecar <name>.notion_published.json after successful publish to avoid creating duplicate Notion pages on retry.",
       "evidence": [
         {
-          "resource": "repo://transcriber/backends/summarize_agno.py#L150-L158",
+          "resource": "repo://transcriber/backends/summarize_agno.py#L151-L159",
           "version": "repo-lines-v1:sha256:f0d73a67ba4e8d85542341b6d2d5071ec74046ed3f5e1218a822cb38cec56d1f:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjE5M2M2NjhlMzhmNzA3NmIyZTNlNDJlZjI0MWRiZDRiZGI5ZjAzYTc4MWRhN2VkODA5ZDNiN2Q5YTFjZmU0MiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYmFlNTM0YTE5OWRlODAwNzg0YWY1NDYxYWQxZWViODE1NzliM2RkMDk2NjNjY2Q2ODRlZTc4NmU0NTI5YjkwYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZWEzMTA0MWZiODRhOTA5YTM3ZWQyYmRjNzE5ZDc5MTc2YWE2NjUxZmVhMTY1MGIzZTlkOTBjYjA5ZTQ3ZWU5NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiM2UwZGIyOWVjNDEzYzIzZDI4Y2JiMmRhY2NlYTRmZjNjNzAxMTY1YjI0N2U1OTExYjQ2YWFjZTVkNmY5MDMzMCJ9"
         }
       ]
@@ -137,7 +153,7 @@
       "statement": "The agno backend caps per-request Notion timeout by the summarize-stage budget via _notion_request_timeout (min(summarize_timeout, DEFAULT_NOTION_TIMEOUT)).",
       "evidence": [
         {
-          "resource": "repo://transcriber/backends/summarize_agno.py#L90-L97",
+          "resource": "repo://transcriber/backends/summarize_agno.py#L91-L98",
           "version": "repo-lines-v1:sha256:bd4e96e5f1f0fcc75916eb2cfd9b68e96e88189c0b4da0f5eb128e4d8bccac9b:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTE3N2JlZjFhZjA3NjM1YzgxOGI3NGM2YmMyMWJhNWY0NzRhY2FmYjI3ZTM1OTM0ZjY3ZGIyZWEwYTU1YTEwNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzUwZjg0MzY3YmI0N2FmNTNkZjhkMmU4ZGUzYWM2YWFjNGQ1YWQ4MTViY2Y0M2NiMmY1MDc5Njc3NTM2YTViNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODliNDEzODg4OTFkMjVlNDAxMjg5NDU2MDNkYjgzOWM0ZGVlOTYzMzNhNjQwMWIzYTI1YWYyYjJkZWM2NDQ1MiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTg3NmE0NTcwNjVjOTM0NjFmYTRlMDQ5Y2UwMWE4NWVlN2FlMDczNzdiZWViNTFjMDdhMGUxMThjNTRmOWMyMiJ9"
         }
       ]
@@ -184,11 +200,15 @@
     },
     {
       "id": "claim_ed66330b24fd422eba975066faabe772",
-      "statement": "agno is imported lazily inside notion_mcp; a missing import raises AgnoImportError with an actionable install hint (uv sync --extra agno or pip install transcriber[agno]).",
+      "statement": "agno is imported lazily inside notion_mcp; a missing import raises AgnoImportError with an actionable install hint (uv sync or pip install transcriber[agno]).",
       "evidence": [
         {
+          "resource": "repo://tests/test_notion_mcp.py#L226-L237",
+          "version": "repo-lines-v1:sha256:b80ce2dbe31ab900e7ddbb59cb72992f8237ff831671e7e3094b8f0bc26c5738:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMxNjJiN2RiNGVkYjA3ZWIxYTI3ZWFlMDdiNzQzM2RmOTAzM2YxNjQyYzY5NjBiN2I3YWQxYTM4ZjFmZmY1NjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU1MjhlY2IzNzljZGIzYjRjOGM3YmVjZTlkMjI4MTQwM2RhYWIzYjU3NGM3MDUxMTZlZGFlZTEwNTkzZDMxYzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQyZjNlMGJkZjA4Zjc1M2QyZDM3MWYzNzJmMWVkMTQ3N2IxMDNiN2I4ZjAwNzZkYjE2YzhkNzZkYTdhZGY5MTYifQ"
+        },
+        {
           "resource": "repo://transcriber/backends/notion_mcp.py#L131-L141",
-          "version": "repo-lines-v1:sha256:90f71c1c6182b088e93003ab4e6466c98677547a1f88312ef04526dfc3b3d0ee:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhjNjRlMzNmMjVkOWFmNWMwNmFhN2UzMzM4NWQ0OTllZGJmN2QzNWViODk1NmI1ZWNmYWI0NDgzODg0ZTcwZmMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3Yzg3Mzk2NTU2NjNhMjI3Yjk2NGM1ZDA3NTk3YWM3YjIzZDE1MmU4ZjVjOWRhYTExNTE5ODhjYzA4NzZlYjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFlYzIzZTJjMTE3YTU5Y2M2NzEwNzBiZDcwY2E0NzY1OWJkNzE4YTA1NTJkNDJlNWQ1ODlmOWQwNTBiMmE5ZGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdjZWZjYzRmN2NmZWY0MTE4NDEyODU1MmI1OTA0MmY0NDFiMmFlZjQyZmFlYzBmNDQwYzk3MjQxZTI2MWY5MjYifQ"
+          "version": "repo-lines-v1:sha256:ad40784b7bb686a326a344dfbd25481ccfe532d6990eb91f9506a59677986395:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhjNjRlMzNmMjVkOWFmNWMwNmFhN2UzMzM4NWQ0OTllZGJmN2QzNWViODk1NmI1ZWNmYWI0NDgzODg0ZTcwZmMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3Yzg3Mzk2NTU2NjNhMjI3Yjk2NGM1ZDA3NTk3YWM3YjIzZDE1MmU4ZjVjOWRhYTExNTE5ODhjYzA4NzZlYjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFlYzIzZTJjMTE3YTU5Y2M2NzEwNzBiZDcwY2E0NzY1OWJkNzE4YTA1NTJkNDJlNWQ1ODlmOWQwNTBiMmE5ZGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdjZWZjYzRmN2NmZWY0MTE4NDEyODU1MmI1OTA0MmY0NDFiMmFlZjQyZmFlYzBmNDQwYzk3MjQxZTI2MWY5MjYifQ"
         }
       ]
     },
@@ -204,31 +224,59 @@
     },
     {
       "id": "claim_7d8ef9ff8a5d4955bb8f01325be7c822",
-      "statement": "get_summarize_backend returns AgySummarizeBackend() for 'agy' without importing agno, and lazily imports AgnoSummarizeBackend for 'agno'; unknown values raise; there is no silent cross-backend fallback.",
+      "statement": "get_summarize_backend returns AgnoSummarizeBackend() for 'agno' by lazily importing that class; unknown values raise; there is no silent cross-backend fallback. There is no agy summarize backend.",
       "evidence": [
         {
-          "resource": "repo://transcriber/backends/summarize.py#L63-L82",
-          "version": "repo-lines-v1:sha256:0db345e7abff72a869b1462661ae0e09208511089a7dfc6876f448b5a41e1928:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjMjFmZGE2NmJiZTY4MDgxODI2ODJiYWUyNmFlZWM0NjQ2NDIwNTYyMzFlZWVhN2ZmNTdkNzY2YTYyNzdlOTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwYzFmMTg4ZjE0MmVkN2E4MjQ2ODBiMjA3MTcyYzU1MTliYzYxNGE0OGZkYTdjZjE2N2VkYjhkZGY3OTk1NmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY3YTEzYTU2ZDg3NDU5MzE4NWVjMjQ5MDg2OTE5NDVlZWU3MzdiNjI0ZTA0YWI1Yjg2YTY4MWZjMDE5MDgyNWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+          "resource": "repo://transcriber/backends/summarize.py#L27-L43",
+          "version": "repo-lines-v1:sha256:ca1add2558b43347d9d11a6061765990d25e25fdb72c865f4a99198d4a5e1ed9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjMjFmZGE2NmJiZTY4MDgxODI2ODJiYWUyNmFlZWM0NjQ2NDIwNTYyMzFlZWVhN2ZmNTdkNzY2YTYyNzdlOTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwYzFmMTg4ZjE0MmVkN2E4MjQ2ODBiMjA3MTcyYzU1MTliYzYxNGE0OGZkYTdjZjE2N2VkYjhkZGY3OTk1NmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYyMDA5N2U0YWE1MDA2OGJhMTU3ZjlhMjczOWZhZDg2OTk1ZTFlMGNkY2NkYWRjNTg5N2MyMDM0Yzc0ZDNlZmEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://transcriber/config.py#L30-L31",
+          "version": "repo-lines-v1:sha256:29b2f47eda535db86abb022e73bdfcbc240e1699a57c44832e33dc8a0144a55e:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNThlMjgwMGE5Mzk2N2NkOWZiZThkZGNkZjFjY2E1ZGQwNmExMTc0ZDEyOWQ1N2I5NjBmYzU1NTgwZTQ3ZjlmMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTI0YTdjMDdlOGVkMjcwMTAxYmI1MmVkMGQ0NWRmNTI4NjAyYjA5ZDUwYmYwZDgxZDAyMzljM2QxZjAyYTQ2OSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZmQxNGMzMDQ5ZjQ2MzllOWJlMDFiZmIzOGQ5YmM2M2EwNWViNWY5ODRkZmQxNTY2NDEwYzhhMGVlNmE0ODRlYyJ9"
         }
       ]
     },
     {
       "id": "claim_341a9ded8cac47d7a252639fd7c620df",
-      "statement": "Pre-flight check (preflight_check) requires the env var referenced by notion.token_env to be set when summary.backend == 'agno' (checked by name only, not by value).",
+      "statement": "Pre-flight check (preflight_check) requires the env var referenced by notion.token_env to be set when summary.backend == 'agno' (checked by name only); it resolves the named var via resolve_env and reports a MissingEnvVarError when absent or empty.",
       "evidence": [
         {
-          "resource": "repo://transcriber/__main__.py#L122-L124",
-          "version": "repo-lines-v1:sha256:548500b65c604621dc8d5e66342cde3b5c1f7ca3662181ab59367012de704179:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMjA5OTk0MGVlZmE4ZDlkYmRlNWIyYzE2MDA4YTFhZGIxMTQwMGZmYjE3OTk5NDQ1MmFhNWRmODBiNjIyYzczZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDM0NTM4OTRjYWQ0NzhkNjJjNjRmMDEwMGE2M2M2NzI2MDI2ZGZjOGNmNzYwMGJmM2NjZTgzNzA4OWJlY2QxOSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGZkNTcyMTVlOGUwZTBlNTQ3MTMyODg4MDEwMDBlOWNmNjdiNWU4ZTMzNzA0NDI1YjY3YzdjMmM4YTY3ZDVhYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMWY4ZDZhMzBlOTRiOTgwZjVlNjJhZDgyODZiMjRmM2U3NzA1MGUzMzY5ZGUwODVkOWVmOTU0ZDFkNDBkYzhjMCJ9"
+          "resource": "repo://transcriber/__main__.py#L178-L197",
+          "version": "repo-lines-v1:sha256:01b5a49ff7cec5d36e33bc3c846f155001703c9fb2f145667e8c136dbd12dde8:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcxYTNkMTkxZmMzMWQ2MjI3OTZjYTE5NDQwNGIwNjQ3N2NjNzMxZDBlYjdkZGUxNzZhNjFmOTk4ZDIxYzliNDMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxZmQ0MWY1MTE4MGMyMzlhM2RlNDkxNWE5NDljMDdmNjYzZDA4Y2NlODQ3NzQ1ZGQwNWUxM2Q5ZjViMjFmMmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1YzNjNjFlMjk2Y2IwMTZjZjYxZmI2M2I3ZWQ3ZmE3NjllOWVjMDFiMjM5NTNmMDZlMmJiNjcyZjBjYTFjZTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJhNDY2NjA3ZjI4ZjdmYzFiNGY3MDJjZjU0Y2E1ZTYzNjgwODk4NTZkOTZkNmU2MGMxNzBhZTgwNzIxODRhMzYifQ"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py#L200-L227",
+          "version": "repo-lines-v1:sha256:c132fe3a9793542aeff6817b6d454f42b0523926ac9d35495dd8fbc2f0986cca:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzZDc1YmEyNzcyMDYzN2ZjODllNTgwZmNhMGJlYWU5NWFhMzE2NGEyZTE4ZDJlOTdlOTdlMjcxYWMwYWQ5ZmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyMzRiMTc2NjE2MmIxYzk4YTYyNjkxNWVhODZiZTU4ZWQ5MmRmOWM5NmY1ZDU4OTA5NWQ5NjIwYjc1MTk2NmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1YzNjNjFlMjk2Y2IwMTZjZjYxZmI2M2I3ZWQ3ZmE3NjllOWVjMDFiMjM5NTNmMDZlMmJiNjcyZjBjYTFjZTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRhOWJiNGIyM2UxY2ZlN2MyZWYwZjAyZjE1NWM4NzI2ODY0ZDNlMDUxNTQyZmQzNTdjNzhkZjZhMTBhNGMzYWYifQ"
+        },
+        {
+          "resource": "repo://transcriber/config.py#L355-L374",
+          "version": "repo-lines-v1:sha256:f0c539307a14170dddbc44fef57b423dd1f168d7c090523a4366281f7e1c8441:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkwNzY4MjExZTRkZjVkNjE3MDQ4YjgzMDIwODQwZGQ4YjVjMzdiNWJmY2RlMTZkNDYyYWI4YTk0YzhhZDc5MmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5M2ExMzA2MmYxMGVlNGYxMjE4ZDkzZTM3YTZmODFkMzQ2ZmYxMWVjN2U1NWRkNTQyZTJkMmQyZWYwNzExZjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZhZjQxZTQyNzVjMzRlNDgzOTViYmUzZjg2YWRhNmZkYmQyNTcxN2NjZmE5Y2M3ZGRiNDM1ODFjMjNlM2Q4ODQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
     },
     {
       "id": "claim_fc0f3cadba754436b3ae4228097698ec",
-      "statement": "The engine does not hand-roll a bespoke Notion REST client for the summarize stage in the agy path: agy's Notion work is part of the agy run itself, and the engine only owns a direct REST publish for the agno path.",
+      "statement": "The engine's summarize backend set is summary.backend == 'agno' only; the engine does not hand-roll a bespoke Notion REST client for any agy summarize path because there is no agy summarize backend. The engine owns a direct REST publish for the agno path and a Notion MCP module used only for agno.",
       "evidence": [
         {
-          "resource": "repo://transcriber/backends/notion_mcp.py#L3-L7",
-          "version": "repo-lines-v1:sha256:3236c1a126458339dded005204825bfc1e5b2d43fbf728f3fb3f9c8b9e4c6c7a:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjgwYTJjZWI5NDQ4MTQzNzBlMWVhNTA4YzU4YzQ1YmNkZGFhMTliYjNlNmE4MGIyYjU0OTk5ZDlhYWFlYmRjZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjIsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTUwMTZhNGFkODQ4OGEzNzMwZjE4NmEyYTAzMTg3N2UxOTY5YjdlMGY2ODU3NDQxNDQ4ZmI2OTM3YzA1NzhjOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiODNhMWQ2NWY5NzY0YzExZGE3ZDgzMjM3OTRjY2MzNGVhOGE0ODJkMzdjMzIxMmI3Nzg0MWU5ODAwMzFkNzM3NiJ9"
+          "resource": "repo://transcriber/backends/notion_mcp.py#L1-L7",
+          "version": "repo-lines-v1:sha256:957e293f46451709f19219dccc7833d942cea8e195a769f239ac17060d3d1c7b:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiY2M3YzBkNTk4YmQxMTAzY2UwN2QxNjRjYjhjMDRkY2VjNDE3YTkwMGY2YTc1ZDJiMjNjNmQxYjhjMTY0ZThmZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzE1MmM3ZjZkOWFjMzdlYTExMzQ1Mzc3M2VkNzg2OTE1YzNhNDllZGJkYjI1NzU1ODg4MzljMjVkYjE2ZDc0ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiY2E1MmJjMDgwZWI0ZTJkZjUzYTRjZDVhYmVkZWJkY2I5ODU4ZTBlMjMyMGJiNDk5Y2M2NGFiMGUxZjBkZTU5YyJ9"
+        },
+        {
+          "resource": "repo://transcriber/backends/notion_publish.py#L1-L27",
+          "version": "repo-lines-v1:sha256:8648e0730bf59ba250c9c0c140a4870188b7e67bfce24e3ce5d581a04fe0e3dd:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYyZGQzNzkyODEzZTIyNmJjMjYzYzc1MGQ1NDFhOTc5ZWNiZjE0YjI1ODRjZDkzMzMzYzMyOTZjZDczMmMxYzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU1YjZlODcwNmI0MzA0N2YyYTZkYjY3ZjEzMjYzODU5NTYwNGU2N2YzNjk2Njg3NmNlMDE1OGYwMDUzZTZiZDEifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize.py#L1-L15",
+          "version": "repo-lines-v1:sha256:4b75de24df6c19d9290bb109445df546b18ed1836447f75de6ab501d3b3936c9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIzZjMzZGRlYWJiYmM0YmE2NzY3NzM3MTEzNGNlMDZlYjI3ZDRmMjZkNTk2ODk2NjczMGU4ZDM4YTcxMWY3MWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU1YjZlODcwNmI0MzA0N2YyYTZkYjY3ZjEzMjYzODU5NTYwNGU2N2YzNjk2Njg3NmNlMDE1OGYwMDUzZTZiZDEifQ"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py#L1-L31",
+          "version": "repo-lines-v1:sha256:3b14f4baa622737077dc6f1d4c51285438c421cf0902658c95881bd0e2aa5b38:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA5Yjc5ZGU5Zjc2NDZmNjg0M2UwNGMxNmFkY2VhMDBjZGJiMjBiYTJkNTUyM2JmY2FkMmU1MDJiMDgzYTg2NjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzMDNlY2RkNGE0ZDEwZjE5YzczZmQ0MmZkMTI0MzdmZDMzNTRhODI2ODE2MDVkYTUyNTVhOTdhMzkwNjhkYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU1YjZlODcwNmI0MzA0N2YyYTZkYjY3ZjEzMjYzODU5NTYwNGU2N2YzNjk2Njg3NmNlMDE1OGYwMDUzZTZiZDEifQ"
+        },
+        {
+          "resource": "repo://transcriber/config.py#L30-L31",
+          "version": "repo-lines-v1:sha256:29b2f47eda535db86abb022e73bdfcbc240e1699a57c44832e33dc8a0144a55e:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNThlMjgwMGE5Mzk2N2NkOWZiZThkZGNkZjFjY2E1ZGQwNmExMTc0ZDEyOWQ1N2I5NjBmYzU1NTgwZTQ3ZjlmMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTI0YTdjMDdlOGVkMjcwMTAxYmI1MmVkMGQ0NWRmNTI4NjAyYjA5ZDUwYmYwZDgxZDAyMzljM2QxZjAyYTQ2OSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZmQxNGMzMDQ5ZjQ2MzllOWJlMDFiZmIzOGQ5YmM2M2EwNWViNWY5ODRkZmQxNTY2NDEwYzhhMGVlNmE0ODRlYyJ9"
         }
       ]
     },
@@ -255,6 +303,6 @@
   ],
   "verification": {
     "by": "openwiki/0.6.1",
-    "at": "2026-10-02T19:10:14.922Z"
+    "at": "2026-10-06T06:48:26.024Z"
   }
 }

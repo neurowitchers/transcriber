@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:4706054abe15ff198fbea69b4625f2392a66ea32daf5660fe975d2aa7a35cf9a",
+  "pageVersion": "sha256:8b439942ce159bbf3ed7b8e61f7272071a45a40f4b8cbcab28e5945103422198",
   "claims": [
     {
       "id": "claim_b9c19de56efa435f850a512d7c6605e4",
@@ -8,11 +8,11 @@
       "evidence": [
         {
           "resource": "repo://transcriber/__main__.py",
-          "version": "repo-file-v1:sha256:a2f37f12be19c971da7b21520f5ee8c08c14b1a7c6f608298808d38e698ae238"
+          "version": "repo-file-v1:sha256:27f3c8db0d9f26298b7cb725d2eabea554c2e5ea5c74f4115290fb44bbffb237"
         },
         {
           "resource": "repo://transcriber/backends/interfaces.py",
-          "version": "repo-file-v1:sha256:ce3b7307308c41e3071c45cfe4afcba6c7380587cf04f31279b0c68b4ad44a62"
+          "version": "repo-file-v1:sha256:b8899c3af530144c4f1a09978b9f9aa6e80703db45630cf5233660dcfe4c7429"
         },
         {
           "resource": "repo://transcriber/backends/notion_publish.py",
@@ -24,15 +24,15 @@
         },
         {
           "resource": "repo://transcriber/backends/summarize.py",
-          "version": "repo-file-v1:sha256:3d60e50bc94f5d013e16d11069051582f4777ac6355b030ec854aeaf42eac77f"
+          "version": "repo-file-v1:sha256:ca16e60e1ac71a12a5d1321f859f313caee4cc22d1da954a519facedd04ff593"
         },
         {
           "resource": "repo://transcriber/backends/summarize_agno.py",
-          "version": "repo-file-v1:sha256:4d0c7eefdf47e03096686793f8cdd23cdb0fbdd724e8d860a87142bdeafc89e4"
+          "version": "repo-file-v1:sha256:72cbc9ff6123234f2234dcdf7a9d8d2dfc6d832afe2131767306d586723ae794"
         },
         {
           "resource": "repo://transcriber/config.py",
-          "version": "repo-file-v1:sha256:176fa26c8f5d84cc86ba15cdb5a19e9e39df61285de32d0da853335f50c9306c"
+          "version": "repo-file-v1:sha256:fc1a3f37c4464443e19993d706d07a8606a33331c7576a5b53aa9aef9dc2a4cb"
         }
       ]
     },
@@ -42,21 +42,47 @@
       "evidence": [
         {
           "resource": "repo://transcriber/__main__.py",
-          "version": "repo-file-v1:sha256:a2f37f12be19c971da7b21520f5ee8c08c14b1a7c6f608298808d38e698ae238"
+          "version": "repo-file-v1:sha256:27f3c8db0d9f26298b7cb725d2eabea554c2e5ea5c74f4115290fb44bbffb237"
         },
         {
           "resource": "repo://transcriber/backends/__init__.py",
-          "version": "repo-file-v1:sha256:ef7e0d17482d7e8ed1101f32bcf4748dd629f90fa9771c3782463f0bb0c1ad44"
+          "version": "repo-file-v1:sha256:af45a941ad0aba4cb3e826a5ff399e86f9d5ea9756ee377ff6ae75b1ebfcb8c7"
         },
         {
           "resource": "repo://transcriber/config.py",
-          "version": "repo-file-v1:sha256:176fa26c8f5d84cc86ba15cdb5a19e9e39df61285de32d0da853335f50c9306c"
+          "version": "repo-file-v1:sha256:fc1a3f37c4464443e19993d706d07a8606a33331c7576a5b53aa9aef9dc2a4cb"
+        }
+      ]
+    },
+    {
+      "id": "claim_3052039aa46c4410a1d759e0b1670ef9",
+      "statement": "describe_slides and summarize each select a backend as a pure function of config, and the selected backend is validated at config load and at the orchestrator call site with no silent cross-backend fallback.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py",
+          "version": "repo-file-v1:sha256:27f3c8db0d9f26298b7cb725d2eabea554c2e5ea5c74f4115290fb44bbffb237"
+        },
+        {
+          "resource": "repo://transcriber/backends/interfaces.py",
+          "version": "repo-file-v1:sha256:b8899c3af530144c4f1a09978b9f9aa6e80703db45630cf5233660dcfe4c7429"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize.py",
+          "version": "repo-file-v1:sha256:ca16e60e1ac71a12a5d1321f859f313caee4cc22d1da954a519facedd04ff593"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py",
+          "version": "repo-file-v1:sha256:72cbc9ff6123234f2234dcdf7a9d8d2dfc6d832afe2131767306d586723ae794"
+        },
+        {
+          "resource": "repo://transcriber/config.py",
+          "version": "repo-file-v1:sha256:fc1a3f37c4464443e19993d706d07a8606a33331c7576a5b53aa9aef9dc2a4cb"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.6.1",
-    "at": "2026-10-02T19:10:14.922Z"
+    "at": "2026-10-06T06:48:26.024Z"
   }
 }

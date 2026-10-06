@@ -3,17 +3,23 @@ type: workflow
 title: Slide Description Workflow
 description: How describe_slides builds slide inputs from extracted JPEGs and a scenes CSV, runs the openrouter vision backend one call per slide, writes <name>.slides.md, and is gated by the state manifest with ceiling and idempotency guards.
 tags: [transcriber, slides, describe_slides, openrouter, vision, manifest, idempotency, ceiling, scenedetect]
-verified:
-  - by: openwiki/0.6.1
-    at: 2026-10-02T19:10:14.922Z
 sources:
   - id: openwiki-source-df4110b2c5338913ae9eedcf
     resource: repo://transcriber/__main__.py
+  - id: openwiki-source-dbc6c72d3aa9191bc8540121
+    resource: repo://transcriber/backends/errors.py
+  - id: openwiki-source-8a3a341e370fcf0ec5b903de
+    resource: repo://transcriber/backends/interfaces.py
   - id: openwiki-source-209e1f0671f9315f4a7eb9c7
     resource: repo://transcriber/backends/openrouter.py
   - id: openwiki-source-d03ac1f85a9e3bd2b413eec1
     resource: repo://transcriber/backends/slides.py
-generated: { by: "openwiki/0.6.1", at: "2026-10-02T19:10:14.922Z" }
+  - id: openwiki-source-c09b28db65820f5184d0fc9f
+    resource: repo://transcriber/pipeline.py
+generated: { by: "openwiki/0.6.1", at: "2026-10-06T06:48:26.024Z" }
+verified:
+  - by: openwiki/0.6.1
+    at: 2026-10-06T06:48:26.024Z
 ---
 
 # Slide Description Workflow
@@ -45,8 +51,8 @@ The stage consumes three things, assembled before any OpenRouter call:
 
 ## The decision flow in the orchestrator
 
-<!-- openwiki: broken internal link [/transcriber/__main__.py] link "/transcriber/__main__.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-The orchestrator (`_process_one` in [`/transcriber/__main__.py`](/transcriber/__main__.py)) decides whether to run the slides backend at all. The decision has three skip paths before any paid call:
+<!-- openwiki: broken internal link [../transcriber/__main__.py] file "../transcriber/__main__.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+The orchestrator (`_process_one` in [../transcriber/__main__.py](../transcriber/__main__.py)) decides whether to run the slides backend at all. The decision has three skip paths before any paid call:
 
 <!-- openwiki: mermaid parse failed and this diagram was converted to a text fence so it does not break rendering. Fix the diagram source and restore the mermaid fence. Parser error: Heuristic: an unescaped angle bracket inside a label breaks rendering; rephrase the label. -->
 ```text
@@ -70,8 +76,8 @@ The artifact-present idempotent skip is important: if a prior run wrote `<name>.
 
 ## Building slide inputs: `build_slide_inputs`
 
-<!-- openwiki: broken internal link [/transcriber/backends/slides.py] link "/transcriber/backends/slides.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-`build_slide_inputs(recording_dir, name)` lives in [`/transcriber/backends/slides.py`](/transcriber/backends/slides.py) and is the helper that turns extracted files into an ordered list of `SlideInput` objects.
+<!-- openwiki: broken internal link [../transcriber/backends/slides.py] file "../transcriber/backends/slides.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+`build_slide_inputs(recording_dir, name)` lives in [../transcriber/backends/slides.py](../transcriber/backends/slides.py) and is the helper that turns extracted files into an ordered list of `SlideInput` objects.
 
 ### What it does
 
@@ -87,8 +93,8 @@ The scenes CSV is co-located with the extracted images inside `extracted_slides.
 
 ### `SlideInput` shape
 
-<!-- openwiki: broken internal link [/transcriber/backends/interfaces.py] link "/transcriber/backends/interfaces.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-`SlideInput` is a small dataclass defined in [`/transcriber/backends/interfaces.py`](/transcriber/backends/interfaces.py):
+<!-- openwiki: broken internal link [../transcriber/backends/interfaces.py] file "../transcriber/backends/interfaces.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+`SlideInput` is a small dataclass defined in [../transcriber/backends/interfaces.py](../transcriber/backends/interfaces.py):
 
 - `image_path: Path` — path to the slide JPEG.
 - `timestamp: str` — `MM:SS - MM:SS` scene range, or the literal `"unknown"`. Timing is **never omitted** (R8).
@@ -223,8 +229,8 @@ The describe_slides stage is time-bounded by `config.timeouts.slides`, read in t
 - **Transport/format failure** (non-2xx after retries, malformed JSON, missing content, missing openrouter config) → `SlideDescribeError`.
 - **Over-ceiling deck** (slide count or total encoded bytes) → `SlideDescribeError` raised **before** any HTTP call; hard-fail, no chunking.
 
-<!-- openwiki: broken internal link [/transcriber/backends/errors.py] link "/transcriber/backends/errors.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-`SlideDescribeError` is defined in [`/transcriber/backends/errors.py`](/transcriber/backends/errors.py) and follows the log-hygiene contract: error messages carry only a short, non-sensitive context (HTTP status + truncated body snippet), never the API key, request headers, or base64 image bytes.
+<!-- openwiki: broken internal link [../transcriber/backends/errors.py] file "../transcriber/backends/errors.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+`SlideDescribeError` is defined in [../transcriber/backends/errors.py](../transcriber/backends/errors.py) and follows the log-hygiene contract: error messages carry only a short, non-sensitive context (HTTP status + truncated body snippet), never the API key, request headers, or base64 image bytes.
 
 ## Deterministic ordering
 

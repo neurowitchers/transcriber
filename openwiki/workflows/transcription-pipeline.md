@@ -1,10 +1,11 @@
 ---
 type: "Reference"
 title: "Transcription Pipeline"
-openwiki_generated: true
+description: "Deterministic media stage that converts a source .mp4 into a plain-text transcript using ffmpeg audio extract, optional scenedetect slide extraction, and OpenRouter STT chunking/diarization/stitching."
+tags: [transcription, pipeline, openrouter, ffmpeg, diarization, idempotency]
 verified:
   - by: openwiki/0.6.1
-    at: 2026-10-02T19:10:14.922Z
+    at: 2026-10-06T06:48:26.024Z
 sources:
   - id: openwiki-source-dbc6c72d3aa9191bc8540121
     resource: repo://transcriber/backends/errors.py
@@ -14,17 +15,16 @@ sources:
     resource: repo://transcriber/config.py
   - id: openwiki-source-c09b28db65820f5184d0fc9f
     resource: repo://transcriber/pipeline.py
-generated: { by: "openwiki/0.6.1", at: "2026-10-02T19:10:14.922Z" }
+generated: { by: "openwiki/0.6.1", at: "2026-10-06T06:48:26.024Z" }
 ---
-
 
 # Transcription Pipeline
 
 The transcription pipeline is the deterministic media stage that turns a source `.mp4` into a plain-text transcript. It is owned by the media pipeline module and is intentionally **ffmpeg + scenedetect + OpenRouter STT only**: the pipeline does not call slides or summarize backends; those live in the manifest-gated orchestrator that runs after the media stage completes.
 
-<!-- openwiki: broken internal link [../transcriber/pipeline.py] file "../transcriber/pipeline.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../transcriber/backends/transcribe_openrouter.py] file "../transcriber/backends/transcribe_openrouter.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-The pipeline lives in [`/transcriber/pipeline.py`](../transcriber/pipeline.py) and delegates the OpenRouter STT stage — including chunking, stitching, speaker reconciliation, and the per-segment manifest — to [`/transcriber/backends/transcribe_openrouter.py`](../transcriber/backends/transcribe_openrouter.py). The driver is `process_recording(mp4, config)` in `pipeline.py`, which returns a `RecordingResult(name, mp4, new_artifacts, skipped_artifacts)`. The batch entry point is `process_all(config)`, which runs `process_recording` over every `.mp4` under `config.recordings_dir` in sorted order.
+<!-- openwiki: broken internal link [transcriber/pipeline.py] file "transcriber/pipeline.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+<!-- openwiki: broken internal link [transcriber/backends/transcribe_openrouter.py] file "transcriber/backends/transcribe_openrouter.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+The pipeline lives in [`/transcriber/pipeline.py`](transcriber/pipeline.py) and delegates the OpenRouter STT stage — including chunking, stitching, speaker reconciliation, and the per-segment manifest — to [`/transcriber/backends/transcribe_openrouter.py`](transcriber/backends/transcribe_openrouter.py). The driver is `process_recording(mp4, config)` in `pipeline.py`, which returns a `RecordingResult(name, mp4, new_artifacts, skipped_artifacts)`. The batch entry point is `process_all(config)`, which runs `process_recording` over every `.mp4` under `config.recordings_dir` in sorted order.
 
 > Related pages: [OSS Companion Transcriber](../architecture/oss-companion-transcriber.md), [OpenRouter Integration](../integrations/openrouter.md), [Pre-flight and Idempotency](../operations/pre-flight-and-idempotency.md).
 
@@ -125,7 +125,7 @@ Diarization semantics:
 - An unknown model sends `verbose_json` without a provider toggle and relies on native diarization, failing cleanly on a 400 if unsupported.
 - When `diarize` is false, the toggle is omitted and the result is emitted as flat text.
 
-Language is sent when recognized; otherwise it is omitted for auto-detection. Response parsing prefers `segments`, falls back to `words` for per-speaker turns, and degrades to flat `raw_text` with a warning when diarization yields no parseable shape.
+Language is sent only when it is the recognized English hint; otherwise it is omitted for auto-detection. Response parsing prefers `segments`, falls back to `words` for per-speaker turns, and degrades to flat `raw_text` with a warning when diarization yields no parseable shape.
 
 Retry behavior is bounded: `429`, `500`, `502`, `503`, and `504` are retried with exponential backoff up to `MAX_ATTEMPTS = 4` total tries. A `400` is not retryable: it fails immediately with no silent fallback. Transport errors (`httpx.HTTPError`) are also retried within the cap. Any other non-2xx after retries raises `TranscribeError`. The API key, request headers, and base64 audio payload are never logged or embedded in exceptions; errors carry only the HTTP status and a short truncated body snippet.
 

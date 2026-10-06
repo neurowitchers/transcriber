@@ -5,39 +5,25 @@ description: Orchestrator, deterministic media pipeline, pluggable post-transcri
 tags: [transcriber, pipeline, backends, notion, telegram, s3, idempotency, orchestrator]
 verified:
   - by: openwiki/0.6.1
-    at: 2026-10-02T19:10:14.922Z
+    at: 2026-10-06T06:48:26.024Z
 sources:
   - id: openwiki-source-df4110b2c5338913ae9eedcf
     resource: repo://transcriber/__main__.py
-  - id: openwiki-source-7eaaa16b2c5b3baf4675d042
-    resource: repo://transcriber/backends/__init__.py
   - id: openwiki-source-8a3a341e370fcf0ec5b903de
     resource: repo://transcriber/backends/interfaces.py
-  - id: openwiki-source-185e808417b44f0a004d75da
-    resource: repo://transcriber/backends/notion_mcp.py
-  - id: openwiki-source-a3b622f6f01eeb4e4042c7e0
-    resource: repo://transcriber/backends/notion_publish.py
   - id: openwiki-source-209e1f0671f9315f4a7eb9c7
     resource: repo://transcriber/backends/openrouter.py
   - id: openwiki-source-d03ac1f85a9e3bd2b413eec1
     resource: repo://transcriber/backends/slides.py
-  - id: openwiki-source-8ae57789b707a6fc3e3769d7
-    resource: repo://transcriber/backends/summarize_agno.py
-  - id: openwiki-source-5670223669d02f5c4fdf5d64
-    resource: repo://transcriber/backends/summarize.py
   - id: openwiki-source-9358a8011a5f64a66c35ac0b
     resource: repo://transcriber/cleanup.py
-  - id: openwiki-source-c4777b8db8d4806695ac8b6a
-    resource: repo://transcriber/config.py
   - id: openwiki-source-c09b28db65820f5184d0fc9f
     resource: repo://transcriber/pipeline.py
   - id: openwiki-source-885867c6094490b39c8c40d0
     resource: repo://transcriber/publish/s3.py
-  - id: openwiki-source-00e3ed9e027733aaa6655e18
-    resource: repo://transcriber/publish/telegram.py
   - id: openwiki-source-0c6dbb86c6b6001bf65f1b4c
     resource: repo://transcriber/state.py
-generated: { by: "openwiki/0.6.1", at: "2026-10-02T19:10:14.922Z" }
+generated: { by: "openwiki/0.6.1", at: "2026-10-06T06:48:26.024Z" }
 ---
 
 # OSS Companion Transcriber Engine
@@ -54,8 +40,6 @@ The two post-transcript stages (`describe_slides` and `summarize`) each select a
 
 ## Entry points
 
-<!-- openwiki: broken internal link [/transcriber/__main__.py] link "/transcriber/__main__.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-The CLI lives in [`/transcriber/__main__.py`](/transcriber/__main__.py) and exposes:
 
 - `transcriber [--config PATH] [--keep-intermediates] [--dry-run]` — load config, pre-flight check, discover new recordings, run the batch, print a batch summary, exit non-zero if any recording failed.
 - `transcriber check [--config PATH]` — run the pre-flight check standalone; exit 0 when all required binaries/env vars are present, non-zero otherwise.
@@ -64,8 +48,8 @@ Dry-run prints the execution plan (including Notion server/parent page, Telegram
 
 ### Pre-flight check (E2)
 
-<!-- openwiki: broken internal link [/transcriber/__main__.py] link "/transcriber/__main__.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[`/transcriber/__main__.py`](/transcriber/__main__.py) implements the pre-flight check as `preflight_check`, which verifies required binaries on `PATH` (via `shutil.which`) and required environment variables (by resolving the env-var *name* through `resolve_env`). OpenRouter is now **mandatory**: a missing `openrouter` config section fails fast because transcription runs over its HTTP seam.
+<!-- openwiki: broken internal link [../transcriber/__main__.py] file "../transcriber/__main__.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+[`__main__.py`](../transcriber/__main__.py) implements the pre-flight check as `preflight_check`, which verifies required binaries on `PATH` (via `shutil.which`) and required environment variables (by resolving the env-var *name* through `resolve_env`). OpenRouter is now **mandatory**: a missing `openrouter` config section fails fast because transcription runs over its HTTP seam.
 
 Required binaries depend on enabled stages:
 
@@ -82,31 +66,31 @@ Required env vars depend on config:
 
 ## Configuration model
 
-<!-- openwiki: broken internal link [/transcriber/config.py] link "/transcriber/config.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Configuration is loaded in [`/transcriber/config.py`](/transcriber/config.py) into a single validated dataclass. Both `.json` and `.yaml` map to the same model. Secrets are never stored in the model; the config references them by env-var name only and `resolve_env` resolves them at use time.
+<!-- openwiki: broken internal link [../transcriber/config.py] file "../transcriber/config.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+Configuration is loaded in [`config.py`](../transcriber/config.py) into a single validated dataclass. Both `.json` and `.yaml` map to the same model. Secrets are never stored in the model; the config references them by env-var name only and `resolve_env` resolves them at use time.
 
 Notable model pieces:
 
 - `SlidesStage` — `enabled` + `backend` (only `"openrouter"` is allowed; validated at load and `--dry-run`).
 - `Stages` — `slides: SlidesStage` and `s3_sync: bool`.
 - `Transcribe` — `model_id`, `diarize`, `segment_seconds`, `overlap_seconds`.
-- `Summary` — `language`, `sections`, `backend` (`"agy"` or `"agno"`).
+- `Summary` — `language`, `sections`, `backend` (`"agno"`).
 - `Agent` — `cli`, `extra_args`, `output_file` (templated with `{basename}`).
 - `OpenRouter` — `api_key_env`, `base_url`, `slides_model`, `summary_model`, `max_slides`.
 - `Notion` — `server`, `parent_page_id`, `insert`, `token_env`.
 - `Telegram` — `bot_token_env`, `default_chat_id`, `routing`, etc.
 - `S3` — `bucket`, `profile`.
-- `Timeouts` — per-stage timeouts including `ffmpeg`, `scenedetect`, `slides`, `summarize`, `agy`, `s3`, and a top-level `transcribe` timeout.
+- `Timeouts` — per-stage timeouts including `ffmpeg`, `scenedetect`, `slides`, `summarize`, `agno`, `s3`, and a top-level `transcribe` timeout.
 
 Config validation enforces:
 
 - `slides.backend` must be `"openrouter"` (selected in `_get_slides_backend` and validated at load).
-- `summary.backend` must be `"agy"` or `"agno"` (enforced in `get_summarize_backend` with no silent cross-backend fallback).
+- `summary.backend` must be `"agno"` (enforced in `get_summarize_backend` with no silent cross-backend fallback).
 
 ## Deterministic media pipeline
 
-<!-- openwiki: broken internal link [/transcriber/pipeline.py] link "/transcriber/pipeline.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[`/transcriber/pipeline.py`](/transcriber/pipeline.py) ports the deterministic media stages using the `duct` library. Each child process is wrapped with a configurable timeout drawn from `config.timeouts`. Each stage is idempotent: a step whose output already exists is skipped. The pipeline returns a structured `RecordingResult` listing which artifacts are new.
+<!-- openwiki: broken internal link [../transcriber/pipeline.py] file "../transcriber/pipeline.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+[`pipeline.py`](../transcriber/pipeline.py) ports the deterministic media stages using the `duct` library. Each child process is wrapped with a configurable timeout drawn from `config.timeouts`. Each stage is idempotent: a step whose output already exists is skipped. The pipeline returns a structured `RecordingResult` listing which artifacts are new.
 
 Stages, in order:
 
@@ -135,8 +119,8 @@ The only network seam inside the pipeline is the OpenRouter STT call via `transc
 
 ## Per-recording state manifest (idempotency)
 
-<!-- openwiki: broken internal link [/transcriber/state.py] link "/transcriber/state.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-Idempotency is driven by [`/transcriber/state.py`](/transcriber/state.py), which gives each recording a sidecar JSON manifest `<name>.transcriber_state.json` living next to the `.mp4`. The manifest — not artifact existence alone — is the source of truth for stage completion (requirement E1).
+<!-- openwiki: broken internal link [../transcriber/state.py] file "../transcriber/state.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+Idempotency is driven by [`state.py`](../transcriber/state.py), which gives each recording a sidecar JSON manifest `<name>.transcriber_state.json` living next to the `.mp4`. The manifest — not artifact existence alone — is the source of truth for stage completion (requirement E1).
 
 Canonical ordered stages tracked by the manifest:
 
@@ -158,8 +142,8 @@ Pre-existing manifests written before `describe_slides` existed simply lack that
 
 ## Orchestrator and manifest-gated stages
 
-<!-- openwiki: broken internal link [/transcriber/__main__.py] link "/transcriber/__main__.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-The orchestrator is `_process_one` in [`/transcriber/__main__.py`](/transcriber/__main__.py). It runs each stage in order, honoring the state manifest, and catches exceptions per-recording so the batch continues. Cleanup runs only on a recording's full success (unless intermediates are kept).
+<!-- openwiki: broken internal link [../transcriber/__main__.py] file "../transcriber/__main__.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+The orchestrator is `_process_one` in [`__main__.py`](../transcriber/__main__.py). It runs each stage in order, honoring the state manifest, and catches exceptions per-recording so the batch continues. Cleanup runs only on a recording's full success (unless intermediates are kept).
 
 ```mermaid
 sequenceDiagram
@@ -238,7 +222,7 @@ When `config.stages.slides.enabled` and the manifest is not complete, the orches
 2. Builds slide inputs via `backends_mod.build_slide_inputs(mp4.parent, name)`.
 3. Reads the transcript text from `<name>.txt`.
 4. Calls `backend.describe(slides, transcript_text, config, timeout=slides_timeout)`.
-5. Writes the result to `<name>.lides.md` and marks `describe_slides` complete.
+5. Writes the result to `<name>.slides.md` and marks `describe_slides` complete.
 
 If `<name>.slides.md` already exists (e.g. from a prior crash after write but before mark), the orchestrator skips the paid call and marks complete. If slides are disabled, it logs and skips.
 
@@ -261,9 +245,9 @@ When the manifest is not complete for both `summarize` and `notion`, the orchest
 
 Both backends produce the same artifacts (`<name>.md` + `<name>.telegram.md`) and publish to Notion, but the publish path is backend-specific.
 
-#### summarize: agy
+#### summarize: agno
 
-`AgySummarizeBackend` wraps `transcriber.agent.run_agent`, which writes `<name>.md` + `<name>.telegram.md` and publishes to Notion via `agy`'s own MCP, applying the non-empty `<name>.md` post-condition. Behavior is unchanged from the pre-split engine.
+`AgnoSummarizeBackend` wraps `transcriber.agent.run_agent`, which writes `<name>.md` + `<name>.telegram.md` and publishes to Notion via `agno`'s own MCP, applying the non-empty `<name>.md` post-condition. Behavior is unchanged from the pre-split engine.
 
 #### summarize: agno
 
@@ -273,13 +257,13 @@ Rationale: the official Notion MCP's tool schemas (`oneOf`/`anyOf`/`$ref`) break
 
 `AgnoSummarizeBackend` hard time-bounds the async run under `asyncio.run` with a timeout equal to the summarize-stage timeout (`timeouts.summarize` when set, else `timeouts.agy`). The blocking Notion publish runs in a worker thread so the timeout can still cancel the run.
 
-After the run, the engine re-uses the same non-empty `<name>.md` success check as the `agy` path: an empty or absent summary file fails the stage (retryable).
+After the run, the engine re-uses the same non-empty `<name>.md` success check as the `agno` path: an empty or absent summary file fails the stage (retryable).
 
-Summarize + Notion publish happen in a single run, so a Notion failure fails the whole `summarize`+`notion` stage, like `agy`.
+Summarize + Notion publish happen in a single run, so a Notion failure fails the whole `summarize`+`notion` stage, like `agno`.
 
 #### Notion publishing: agy vs agno
 
-- `agy` publishes via `agy`'s own Notion MCP as part of its run.
+- `agno` publishes via `agno`'s own Notion MCP as part of its run.
 - `agno` publishes directly via the Notion REST API (`transcriber.backends.notion_publish.publish_to_notion`); no MCP, no model tool-calling.
 
 The direct REST path:
@@ -297,7 +281,7 @@ When the manifest is not complete, the orchestrator sends the digest or full sum
 
 It prefers the concise digest agy wrote for chat; falls back to the full summary only if the digest is missing/empty.
 
-Telegram dissemination via the Bot HTTP API:
+Notion publishing via the Bot HTTP API:
 
 - Resolves the bot token from the environment variable **named** in `config.telegram.bot_token_env` (never a literal secret).
 - Routes a message to a chat id based on its topic: matched topics use `config.telegram.routing[topic]`; unmatched or unidentified topics fall back to `config.telegram.default_chat_id`.
@@ -306,7 +290,7 @@ Telegram dissemination via the Bot HTTP API:
 Message language is decided upstream (per `config.summary.language`); the caller supplies the final text and this module only routes and sends it.
 
 <!-- openwiki: broken internal link [url] file "url" does not exist. Fix the href or restore the target, then delete this comment. -->
-Telegram messages are sent with no `parse_mode`, so Markdown syntax would otherwise render literally. The module strips Markdown to clean plain text before sending: `**bold**`/`__bold__`/`*italic*`/`_italic_` -> inner text; `` `code` `` -> inner text; leading `#` heading markers removed; `-`/`*`/`+` list bullets -> `•` glyph; `> quote` -> quoted text; `[text](url)` -> `text (url)`; `![alt](url)` -> `alt (url)`; fenced-code fences removed.
+- Telegrams are sent with no `parse_mode`, so Markdown syntax would otherwise render literally. The module strips Markdown to clean plain text before sending: `**bold**`/`__bold__`/`*italic*`/`_italic_` -> inner text; `` `code` `` -> inner text; leading `#` heading markers removed; `-`/`*`/`+` list bullets -> `•` glyph; `> quote` -> quoted text; `[text](url)` -> `text (url)`; `![alt](url)` -> `alt (url)`; fenced-code fences removed.
 
 ### Stage: s3
 
@@ -331,7 +315,7 @@ What's deleted:
 
 - `<name>.mp3`
 - `<name>.telegram.md`
-- `<name>.slides.md` (the markers-kept slide-description **debug** intermediate; its cleaned counterpart `<name>.lides-clean.md` is kept)
+- `<name>.slides.md` (the markers-kept slide-description **debug** intermediate; its cleaned counterpart `<name>.slides-clean.md` is kept)
 - `<name>.notion_published.json` (the `agno` publish record)
 - `extracted_slides.<name>/` directory (which also holds `<name>.scenes.csv`)
 - `transcribe_work.<name>/` directory (which holds the OpenRouter STT chunk parts `part_*.mp3` and the `segments.json` resume manifest)
@@ -340,18 +324,18 @@ The `keep_intermediates` flag (surfaced by the CLI as `--keep-intermediates`) di
 
 ## Backends
 
-<!-- openwiki: broken internal link [/transcriber/backends/__init__.py] link "/transcriber/backends/__init__.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[`/transcriber/backends/__init__.py`](/transcriber/backends/__init__.py) surfaces the public backend API:
+<!-- openwiki: broken internal link [../transcriber/backends/__init__.py] file "../transcriber/backends/__init__.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+[`__init__.py`](../transcriber/backends/__init__.py) surfaces the public backend API:
 
 - Interfaces: `SlidesBackend`, `SummarizeBackend`, and the `SlideInput` / `SummaryResult` data types.
 - Errors: `SlideDescribeError`, `SummarizeError`, `TranscribeError`.
 - The shared OpenRouter vision helper `_openrouter_vision` (used by the slides `openrouter` backend).
-- Concrete backends: `OpenRouterSlidesBackend`, `build_slide_inputs`, `AgySummarizeBackend`, `get_summarize_backend`.
+- Concrete backends: `OpenRouterSlidesBackend`, `build_slide_inputs`, `get_summarize_backend`.
 
-<!-- openwiki: broken internal link [/transcriber/backends/interfaces.py] link "/transcriber/backends/interfaces.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[`/transcriber/backends/interfaces.py`](/transcriber/backends/interfaces.py) defines two small, pure `Protocol` interfaces selected per-stage by config:
+<!-- openwiki: broken internal link [../transcriber/backends/interfaces.py] file "../transcriber/backends/interfaces.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+[`interfaces.py`](../transcriber/backends/interfaces.py) defines two small, pure `Protocol` interfaces selected per-stage by config:
 
-- `SlidesBackend` — turns extracted slide images (+ transcript context) into a `<name>.lides.md` markdown block.
+- `SlidesBackend` — turns extracted slide images (+ transcript context) into a `<name>.slides.md` markdown block.
 - `SummarizeBackend` — turns the transcript (+ the slide markdown) into `<name>.md` + `<name>.telegram.md` and publishes to Notion.
 
 ### SlideInput
@@ -384,8 +368,8 @@ An empty slide set or a valid empty backend response both resolve to `""`; a tra
 
 ## Slides backend (openrouter only)
 
-<!-- openwiki: broken internal link [/transcriber/backends/slides.py] link "/transcriber/backends/slides.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[`/transcriber/backends/slides.py`](/transcriber/backends/slides.py) implements the `describe_slides` backend. `openrouter` is the only slides backend.
+<!-- openwiki: broken internal link [../transcriber/backends/slides.py] file "../transcriber/backends/slides.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+[`slides.py`](../transcriber/backends/slides.py) implements the `describe_slides` backend. `openrouter` is the only slides backend.
 
 `OpenRouterSlidesBackend` issues **one OpenRouter vision call per slide** (via the `_openrouter_vision` helper), turning each extracted slide JPEG into part of the `<name>.lides.md` markdown block. The descriptor is **image-only**: it never receives the transcript.
 
@@ -403,22 +387,22 @@ Design invariants:
 
 The slides backend no longer *drops* empty slides — it keeps the model's output (markers included) in `<name>.lides.md` so empty scenes stay identifiable. Stripping markers + stray placeholders happens later, in `transcriber.agent.append_slide_descriptions`, only for the summary / Notion output.
 
-## Summarize backends (agy / agno)
+## Summarize backends (agnolo / agno)
 
-<!-- openwiki: broken internal link [/transcriber/backends/summarize.py] link "/transcriber/backends/summarize.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[`/transcriber/backends/summarize.py`](/transcriber/backends/summarize.py) implements two backends:
+<!-- openwiki: broken internal link [../transcriber/backends/summarize.py] file "../transcriber/backends/summarize.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+[`summarize.py`](../transcriber/backends/summarize.py) implements two backends:
 
-- `AgySummarizeBackend` — drives the local `agy` CLI agent exactly as today (`transcriber.agent.run_agent`): writes `<name>.md` + `<name>.telegram.md` and publishes to Notion via `agy`'s own MCP. Behavior is unchanged from the pre-split engine.
+- `AgnoSummarizeBackend` — drives the local `agno` CLI agent exactly as today (`transcriber.agent.run_agent`): writes `<name>.md` + `<name>.telegram.md` and publishes to Notion via `agno`'s own MCP. Behavior is unchanged from the pre-split engine.
 - `AgnoSummarizeBackend` — lives in `transcriber.backends.summarize_agno` and is imported **only when selected** (so the optional `agno` extra is not a base dependency). It produces the summary + digest with an Agno/OpenRouter model, then the **engine** publishes the Notion subpage directly via the Notion REST API (`transcriber.backends.notion_publish.publish_to_notion`) — no MCP, no model tool-calling. Use `get_summarize_backend` to obtain the configured backend without importing `agno` on the default path.
 
-Both backends produce the same artifacts, but the Notion publish path is **backend-specific**: `agy` publishes via its own MCP, while `agno` publishes engine-side via the Notion REST API. Selection is a pure function of `config.summary.backend`; there is **no silent cross-backend fallback**.
+Both backends produce the same artifacts, but the Notion publish path is **backend-specific**: `agno` publishes via its own MCP, while `agno` publishes engine-side via the Notion REST API. Selection is a pure function of `config.summary.backend`; there is **no silent cross-backend fallback**.
 
-`get_summarize_backend` returns `AgySummarizeBackend()` for `"agy"` (without importing `agno`), and lazily imports `AgnoSummarizeBackend` for `"agno"`. An unknown value raises.
+`get_summarize_backend` returns `AgnoSummarizeBackend()` for `"agno"` (without importing `agno`), and lazily imports `AgnoSummarizeBackend` for `"agno"`. An unknown value raises.
 
-## Notion MCP (agy path)
+## Notion MCP (agno path)
 
-<!-- openwiki: broken internal link [/transcriber/backends/notion_mcp.py] link "/transcriber/backends/notion_mcp.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[`/transcriber/backends/notion_mcp.py`](/transcriber/backends/notion_mcp.py) launches the **official** Notion MCP server for the Agno summarize backend. This module is engine-owned and self-contained: it configures the Notion MCP integration purely from `notion.token_env` (+ the existing `notion.parent_page_id` / `notion.insert`). It does **not** read or reuse `agy`'s MCP configuration — the `agno` summarize path is independent.
+<!-- openwiki: broken internal link [../transcriber/backends/notion_mcp.py] file "../transcriber/backends/notion_mcp.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+[`notion_mcp.py`](../transcriber/backends/notion_mcp.py) launches the **official** Notion MCP server for the Agno summarize backend. This module is engine-owned and self-contained: it configures the Notion MCP integration purely from `notion.token_env` (+ the existing `notion.parent_page_id` / `notion.insert`). It does **not** read or reuse `agno`'s MCP configuration — the `agno` summarize path is independent.
 
 Design notes:
 
@@ -440,8 +424,8 @@ The engine only hands the model the publish toolset (not all ~25 tools) to avoid
 
 ## OpenRouter STT (transcribe stage)
 
-<!-- openwiki: broken internal link [/transcriber/backends/transcribe_openrouter.py] link "/transcriber/backends/transcribe_openrouter.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[`/transcriber/backends/transcribe_openrouter.py`](/transcriber/backends/transcribe_openrouter.py) implements the OpenRouter STT backend used by the pipeline's transcribe stage. Audio is diarized and chunked into explicit time slices, each slice sent to the OpenRouter speech-to-text API, and the slices are stitched back into `<name>.txt` (plain readable transcript, no timestamp markers).
+<!-- openwiki: broken internal link [../transcriber/backends/transcribe_openrouter.py] file "../transcriber/backends/transcribe_openrouter.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+[`transcribe_openrouter.py`](../transcriber/backends/transcribe_openrouter.py) implements the OpenRouter STT backend used by the pipeline's transcribe stage. Audio is diarized and chunked into explicit time slices, each slice sent to the OpenRouter speech-to-text API, and the slices are stitched back into `<name>.txt` (plain readable transcript, no timestamp markers).
 
 `transcribe_recording(mp3, txt, config)` chunks the audio, transcribes each part via the OpenRouter `/audio/transcriptions` seam (diarized when `config.transcribe.diarize`), stitches + reconciles speakers, and writes a speaker-attributed `<name>.txt` (`Speaker <ID>: <text>` lines with no timestamp markers; flat text when there are no labels).
 
@@ -458,8 +442,8 @@ Per-segment idempotency and a parameter guard live in that stage's `segments.jso
 
 ## Backend error types
 
-<!-- openwiki: broken internal link [/transcriber/backends/errors.py] link "/transcriber/backends/errors.py" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
-[`/transcriber/backends/errors.py`](/transcriber/backends/errors.py) defines the shared error types:
+<!-- openwiki: broken internal link [../transcriber/backends/errors.py] file "../transcriber/backends/errors.py" does not exist. Fix the href or restore the target, then delete this comment. -->
+[`errors.py`](../transcriber/backends/errors.py) defines the shared error types:
 
 - `SlideDescribeError` — raised when the `describe_slides` stage's backend fails (transport failures, non-2xx responses after retries, malformed JSON, and missing `choices[0].message.content`). A deliberately empty backend result is *not* an error.
 - `SummarizeError` — raised when the `summarize` stage's backend fails.

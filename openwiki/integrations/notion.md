@@ -3,9 +3,6 @@ type: integration
 title: Notion integration
 description: Two Notion publish paths in the transcriber — MCP-based publishing for the agy summarize backend and direct REST publishing for the agno backend — plus config fields, token_env handling, and insertion mode.
 tags: [transcriber, notion, agy, agno, mcp, rest-api, publish]
-verified:
-  - by: openwiki/0.6.1
-    at: 2026-10-02T19:10:14.922Z
 sources:
   - id: openwiki-source-63ccc8cb6fa875fca5499670
     resource: repo://tests/test_notion_mcp.py
@@ -23,7 +20,10 @@ sources:
     resource: repo://transcriber/backends/summarize.py
   - id: openwiki-source-c4777b8db8d4806695ac8b6a
     resource: repo://transcriber/config.py
-generated: { by: "openwiki/0.6.1", at: "2026-10-02T19:10:14.922Z" }
+generated: { by: "openwiki/0.6.1", at: "2026-10-06T06:48:26.024Z" }
+verified:
+  - by: openwiki/0.6.1
+    at: 2026-10-06T06:48:26.024Z
 ---
 
 # Notion integration
@@ -31,15 +31,15 @@ generated: { by: "openwiki/0.6.1", at: "2026-10-02T19:10:14.922Z" }
 The transcriber publishes every meeting summary to a Notion subpage. There are **two independent publish paths**, selected by `config.summary.backend`:
 
 - **`agy`** — the `agy` CLI agent publishes to Notion through its own Notion MCP as part of the agent run. The engine does **not** own or implement this publish path.
-- **`agno`** — the engine publishes the subpage directly via the Notion REST API (`transcriber.backends.notion_publish.publish_to_notion`), with no MCP server and no model tool-calling.
+- **`agno`** — the only current summarize backend. The engine publishes the subpage directly via the Notion REST API (`transcriber.backends.notion_publish.publish_to_notion`), with no MCP server and no model tool-calling; it also launches the official Notion MCP server for the agno path's model-driven interactions via `transcriber.backends.notion_mcp`.
 
-Both paths are required for summarize: a summarize run must publish to Notion or fail the stage. The concrete mechanism is backend-specific.
+Both paths are required for summarize: a summarize run must publish to Notion or fail the stage. The concrete mechanism is backend-specific. Since the summarize backend set is `("agno",)` only, both the direct REST publish and the official Notion MCP server are used for the single summarize backend — the REST publish deterministically creates the page, while the MCP server supports model-driven Notion interactions in the agno agent run.
 
 ## Why two paths
 
 The project intent is that summarize always publishes to Notion. In the shipped implementation the `agno` path diverged from the original Notion-MCP plan because the official Notion MCP server's tool schemas (`oneOf`/`anyOf`/`$ref`) break tool-calling on Gemini/Mistral over OpenRouter — the model returns an empty `null` completion with zero tool calls. The engine therefore replaced the model-driven MCP path for `agno` with a deterministic engine-side REST publish.
 
-The `agy` path was left unchanged: `agy`'s Notion work is part of the `agy` run itself, and the engine does **not** hand-roll a bespoke Notion REST client for the `agy` summarize path.
+The `agy` path was left unchanged: `agy`'s Notion work is part of the `agy` run itself, and the engine does **not** hand-roll a bespoke Notion REST client for the `agy` summarize path. That historical description no longer matches the shipped backend model: the engine's summarize backend set is `("agno",)` only (see `transcriber.config.SUMMARY_BACKENDS`), so there is no current `agy` summarize backend and therefore no engine-owned or engine-avoided `agy` summarize + Notion path. The `agy` references that remain are the removed legacy CLI backend — preserved only as ignored config fields such as `agent.cli` and `agent.extra_args` so existing host configs still load.
 
 ## Config fields
 
@@ -60,7 +60,7 @@ Config validation enforces the dependency: `summary.backend == "agno"` without `
 
 For the `agy` summarize backend, Notion is published by `agy` itself through its MCP inside the agent run. The engine does not own that publish path, and the `transcriber.backends.notion_mcp` module is **not** used by the `agy` path.
 
-Module `transcriber.backends.notion_mcp` exists for the **agno** path only and is deliberately self-contained: it configures the Notion MCP integration purely from `notion.token_env` (plus the existing `notion.parent_page_id`/`notion.insert`), and it does **not** read or reuse `agy`'s MCP configuration.
+Module `transcriber.backends.notion_mcp` exists for the **agno** path only and is deliberately self-contained: it configures the Notion MCP integration purely from `notion.token_env` (plus the existing `notion.parent_page_id`/`notion.insert`), and it does **not** read or reuse `agy`'s MCP configuration. The “agy” references here mean the removed legacy CLI backend code paths (kept as ignored config fields such as `agent.cli`/`agent.extra_args`), not a current summarize backend the engine could reuse.
 
 ## The agno path — direct REST publish
 
@@ -139,15 +139,15 @@ The official Notion MCP server exposes ~25 tools with large OpenAPI-derived JSON
 
 ## Orchestration and pre-flight
 
-The orchestrator in `transcriber.__main__` treats backend selection as a pure function of config. For summarize, `get_summarize_backend(config)` returns `AgySummarizeBackend()` for `"agy"` (without importing `agno`), and lazily imports `AgnoSummarizeBackend` for `"agno"`. There is no silent cross-backend fallback; an unknown value raises.
+The orchestrator in `transcriber.__main__` treats backend selection as a pure function of config. For summarize, `get_summarize_backend(config)` returns `AgnoSummarizeBackend()` for `"agno"` by lazily importing that class; there is no `agy` summarize branch, no import-free `AgySummarizeBackend()` path, and no silent cross-backend fallback — an unknown value raises.
 
-Pre-flight (`transcriber check` / `preflight_check`) verifies the env vars referenced by name are actually set — including `notion.token_env` when `summary.backend == "agno"`. Secret values are never read by the pre-flight check itself; it only checks presence by name.
+Pre-flight (`transcriber check` / `preflight_check`) verifies the env vars referenced by name are actually set — including `notion.token_env` when `summary.backend == "agno"`. It does not gate the check on the env var being *truthy*; it resolves it by name via `resolve_env`, and a missing/empty referenced env var is reported as a pre-flight problem. Secret values are never read by the pre-flight check itself; it only checks presence by name.
 
 The dry-run plan surfaces the selected backend per stage, including the per-stage OpenRouter model where relevant (e.g. `summarize+notion [<backend>]`).
 
 ## Artifact contract and idempotency
 
-Regardless of backend, summarize + Notion publish happen in a single run. For `agno`, the engine writes the local artifacts first, then publishes. For `agy`, the agent run itself handles both. A Notion failure fails the whole `summarize`+`notion` stage in both cases. Already-completed stages are skipped on retry via the per-recording state manifest (no duplicate Notion pages / Telegram sends / re-sync).
+Regardless of backend, summarize + Notion publish happen in a single run. Today that backend is `agno`: the engine writes the local artifacts first, then publishes directly via the Notion REST API. A Notion failure fails the whole `summarize`+`notion` stage. Already-completed stages are skipped on retry via the per-recording state manifest (no duplicate Notion pages / Telegram sends / re-sync).
 
 ## Focused tests
 
@@ -156,8 +156,7 @@ Regardless of backend, summarize + Notion publish happen in a single run. For `a
 
 ## Related
 
-- [Backend selection and interfaces](../concepts/backend-selection.md) — how `agy` vs `agno` is selected and why Notion MCP is still required for summarize in spirit.
-<!-- openwiki: broken internal link [../../operations/pre-flight-and-idempotency.md] file "../../operations/pre-flight-and-idempotency.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-- [Pre-flight and idempotency](../../operations/pre-flight-and-idempotency.md) — env-var and binary checks before any work starts.
-<!-- openwiki: broken internal link [../../workflows/summarize-publish.md] file "../../workflows/summarize-publish.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-- [Summarize + publish workflow](../../workflows/summarize-publish.md) — the end-to-end summarize stage including Notion publish.
+- [Backend selection and interfaces](../concepts/backend-selection.md) — how `agno` is selected and why Notion MCP is still required for summarize in spirit.
+- [Config model](../concepts/config-model.md) — config fields, secret-by-name resolution, and validation.
+- [Pre-flight and idempotency](../operations/pre-flight-and-idempotency.md) — env-var and binary checks before any work starts.
+- [Summarize + publish workflow](../workflows/summarize-publish.md) — the end-to-end summarize stage including Notion publish.

@@ -3,9 +3,6 @@ type: integration
 title: OpenRouter Integration
 description: Shared OpenRouter HTTP seam, OpenAI-format transcription and vision calls, per-stage model selection, env-var-based API key handling, and retry/timeout behavior across the transcriber's paid stages.
 tags: [openrouter, api, backend, auth, http, transcriber, slides, transcription]
-verified:
-  - by: openwiki/0.6.1
-    at: 2026-10-02T19:10:14.922Z
 sources:
   - id: openwiki-source-df4110b2c5338913ae9eedcf
     resource: repo://transcriber/__main__.py
@@ -25,7 +22,10 @@ sources:
     resource: repo://transcriber/backends/transcribe_openrouter.py
   - id: openwiki-source-c4777b8db8d4806695ac8b6a
     resource: repo://transcriber/config.py
-generated: { by: "openwiki/0.6.1", at: "2026-10-02T19:10:14.922Z" }
+generated: { by: "openwiki/0.6.1", at: "2026-10-06T06:48:26.024Z" }
+verified:
+  - by: openwiki/0.6.1
+    at: 2026-10-06T06:48:26.024Z
 ---
 
 # OpenRouter Integration
@@ -46,7 +46,7 @@ The `agno` summarize backend also touches OpenRouter indirectly: it uses an Agno
 
 ## Why OpenRouter is unconditionally required
 
-The config model treats `openrouter` as a top-level, required section. It is not optional "when slides are enabled" or "when summarizing with agno" — those were earlier triggers. At load time, `transcriber.config._from_dict` hard-fails with a `ConfigError` when the `openrouter` mapping is absent, because it is the transcription backend (OpenRouter STT) in addition to the existing slides/agno triggers.
+The loader treats `openrouter` as a top-level, required section: although the `Config.openrouter` dataclass field is typed `Optional[OpenRouter]`, `_from_dict` unconditionally requires the mapping to be present and hard-fails with a `ConfigError` when it is absent. The requirement is not gated on "when slides are enabled" or "when summarizing with agno" — those were earlier triggers. It is required because `openrouter` is the transcription backend (OpenRouter STT), in addition to the existing slides/agno triggers.
 
 The relevant validation lives in `transcriber/config.py`:
 
@@ -133,14 +133,14 @@ The vision seam is intentionally smaller than the transcription seam because it 
 
 Model selection is a pure function of config, and each stage picks from a different field:
 
-- **`describe_slides`** always uses the `openrouter` vision backend (Spec R19). The orchestrator's `_get_slides_backend` validates at config load that `stages.slides.backend == "openrouter"` and returns `OpenRouterSlidesBackend()`. The model sent per slide is `config.openrouter.slides_model`.
+- **`describe_slides`** always uses the `openrouter` vision backend (Spec R19). Config load validates that `stages.slides.backend == "openrouter"` (the only allowed value, Spec R19); the orchestrator's `_get_slides_backend` returns `OpenRouterSlidesBackend()` and defensively raises on any other value rather than silently falling back. The model sent per slide is `config.openrouter.slides_model`.
 - **`transcribe`** always uses the OpenRouter STT seam. The model sent per audio part is `config.transcribe.model_id`.
-- **`summarize`** selects `agy` (default) or `agno`. When `agno`, the summary runs through an Agno `OpenRouter` model using `config.openrouter.summary_model`. That import is lazy and the HTTP seam is owned by Agno, not by the shared helpers.
+- **`summarize`** uses the `agno` backend (the only summarize backend). When `agno`, the summary runs through an Agno `OpenRouter` model using `config.openrouter.summary_model`. That import is lazy and the HTTP seam is owned by Agno, not by the shared helpers.
 
 The allowed backend selectors are constrained at config load:
 
 - `SLIDES_BACKENDS = ("openrouter",)`
-- `SUMMARY_BACKENDS = ("agy", "agno")`
+- `SUMMARY_BACKENDS = ("agno")`
 
 An unknown value raises `ConfigError` at load time rather than falling back silently.
 
@@ -164,10 +164,7 @@ Log hygiene for the slides path is also strict: logs carry stage/model/slide-cou
 
 The `agno` summarize backend produces the Markdown summary with an OpenRouter model, but the actual Notion publish is **engine-side**, not model-side. The engine publishes the subpage directly via the Notion REST API (`transcriber.backends.notion_publish.publish_to_notion`), with no MCP and no model tool-calling.
 
-This split exists because the official Notion MCP's tool schemas break tool-calling on Gemini/Mistral over OpenRouter (empty `null` completions, zero tool calls). So:
-
-- `agy` publishes via its own MCP as part of its run.
-- `agno` publishes engine-side via the Notion REST API.
+This split exists because the official Notion MCP's tool schemas break tool-calling on Gemini/Mistral over OpenRouter (empty `null` completions, zero tool calls). So `agno` publishes engine-side via the Notion REST API rather than via model tool-calling.
 
 The Notion token is resolved at use time from `config.notion.token_env` and is never logged, mirroring the OpenRouter key handling.
 
@@ -175,8 +172,8 @@ The Notion token is resolved at use time from `config.notion.token_env` and is n
 
 Timeouts are configured per-stage in `transcriber.config.Timeouts`, defaulting to `DEFAULT_TIMEOUT_SECONDS = 900`:
 
-- `ffmpeg`, `scenedetect`, `slides`, `transcribe`, `agy`, `s3` each have their own field.
-- `summarize` is optional; `None` falls back to `agy` at use time (used by the `agno` backend).
+- `ffmpeg`, `scenedetect`, `slides`, `transcribe`, `s3` each have their own field.
+- `summarize` is optional; `None` falls back to `DEFAULT_TIMEOUT_SECONDS` at use time (used by the `agno` backend).
 
 The two OpenRouter seams share the same retry/backoff constants:
 
@@ -209,6 +206,7 @@ The integration is mostly concentrated in a small set of backend and config modu
 - `transcriber/backends/errors.py` — `TranscribeError`, `SlideDescribeError`, `SummarizeError`.
 - `transcriber/backends/interfaces.py` — `SlidesBackend`, `SummarizeBackend`, `SlideInput`, `SummaryResult`.
 - `transcriber/backends/summarize.py` and `transcriber/backends/summarize_agno.py` — summarize backend selection and the `agno` path.
-- `transcriber/backends/notion_publish.py` and `transcriber/backends/notion_mcp.py` — Notion publishing (REST for `agno`, MCP for `agy`), which is related but not part of the OpenRouter HTTP seam.
+- `transcriber/backends/notion_publish.py` — engine-side Notion REST publish for the `agno` backend (no MCP, no model tool-calling); related but not part of the OpenRouter HTTP seam.
+- `transcriber/backends/notion_mcp.py` — official Notion MCP server launch helpers; the `agno` backend does not use MCP for publishing (the official Notion MCP tool schemas break tool-calling over OpenRouter for some models).
 
-The orchestrator entry point that wires these together is `transcriber/__main__.py`, including `_get_slides_backend` and `_uses_agy`.
+The orchestrator entry point that wires these together is `transcriber/__main__.py`, including `_get_slides_backend`.

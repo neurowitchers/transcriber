@@ -3,9 +3,6 @@ type: workflow
 title: Summarize and Publish Workflow
 description: How the summarize stage runs on the agy or agno backend, how slide markdown is fed to the summary prompt with fenced prompt-injection defense, the backend-specific Notion publish paths (agy MCP vs agno direct REST), the digest and .telegram.md artifacts, and the manifest gating that couples summarize+notion as one stage pair.
 tags: [transcriber, summarize, notion, agy, agno, openrouter, mcp, rest, digest, telegram, manifest, prompt-encapsulation]
-verified:
-  - by: openwiki/0.6.1
-    at: 2026-10-02T19:10:14.922Z
 sources:
   - id: openwiki-source-df4110b2c5338913ae9eedcf
     resource: repo://transcriber/__main__.py
