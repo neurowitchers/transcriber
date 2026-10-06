@@ -8,13 +8,21 @@ description: "Lightweight Kiro-first specification driven development kit"
 - `Save Spec` - save persistent specification (prompt: `sc.save.spec.md`)
 - `Split Tasks` - create standalone tasks (prompt: `sc.split.tasks.md`)
 - `Implement` - run implementation (prompt: `sc.implement.tasks.md`)
-- `Finalize` - post-implementation actions (prompt: `sc.finalize.md`)
+- `Finalize` - post-implementation actions: update docs, capture deferred items to `docs/feedback/`, and post product-manager guidance to the PR if available (prompt: `sc.finalize.md`)
 - `Critique` - critique specification (prompt: `sc.critique.spec.md`, to file to critique as a parameter)
 - `Code Review` - review implementation (prompt: `sc.code.review.md`)
 - `Archive` - archive older project documentation (prompt: `sc.archive.md`)
 - `Brainstorm` - Extended brainstorming (prompt: `sc.brainstorm.md`, the problem to consider is a parameter)
 - `Seed` - convert final brainstorming results to a seed (prompt: `sc.brainstorm.to.seed.md`) 
 - `Gate Input` - sanitize raw input, extract clean seed specs, and generate a PM feedback report (prompt: `sc.gate.input.md`, input document path as parameter)
+
+## Advanced Commands (Orca-dependent)
+
+These commands require the `orca-cli` orchestration skill and an available adversarial agent.
+
+- `Handoff Critique` - hand off the critique to an adversarial agent (Antigravity) running in a new Orca terminal, then apply the resulting critique (prompt: `sc.handoff.critique.md`, allowed argument: `--auto`)
+- `Handoff Code Review` - hand off the code review to an adversarial agent (Antigravity) running in a new Orca terminal, then act on the resulting review (prompt: `sc.handoff.code.review.md`, allowed argument: `--auto`)
+- `Autoflow` - polymorphically drive the full pipeline end-to-end and autonomously: plan a full spec from seed(s) if needed, then handoff-critique (`--auto`), split tasks, implement, handoff-code-review (`--auto`), and finalize, committing at each stage (prompt: `sc.autoflow.md`, arguments: free-form user refining notes)
 
 All prompts reside in `<skill-dir>/prompts/`.
 

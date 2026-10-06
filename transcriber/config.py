@@ -13,7 +13,8 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field, fields
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Optional, Union
 
 try:
     import yaml
@@ -31,6 +32,17 @@ SUMMARY_BACKENDS = ("agno",)
 
 class ConfigError(ValueError):
     """Raised when a config file is invalid (missing/invalid required fields)."""
+
+
+class ConfigNotFoundError(ConfigError, FileNotFoundError):
+    """Raised when no config path can be resolved, or an authoritative config
+    source (``--config`` / ``TRANSCRIBER_CONFIG``) points at a path that is not
+    an existing regular file.
+
+    Subclasses :class:`ConfigError` so the CLI's existing config-error handling
+    (exit code 2) catches it, and :class:`FileNotFoundError` so programmatic
+    callers can treat it as a missing-file condition.
+    """
 
 
 class MissingEnvVarError(RuntimeError):
@@ -194,7 +206,7 @@ def _has_default(f: Any) -> bool:
 # --------------------------------------------------------------------------- #
 # Loader
 # --------------------------------------------------------------------------- #
-def _parse_file(path: str) -> dict[str, Any]:
+def _parse_file(path: Union[str, Path]) -> dict[str, Any]:
     ext = os.path.splitext(path)[1].lower()
     with open(path, "r", encoding="utf-8") as fh:
         text = fh.read()
@@ -322,7 +334,7 @@ def _from_dict(data: dict[str, Any]) -> Config:
     )
 
 
-def load(path: str) -> Config:
+def load(path: Union[str, Path]) -> Config:
     """Load and validate a config file into a :class:`Config` model.
 
     The format is selected by file extension:
