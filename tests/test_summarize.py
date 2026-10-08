@@ -1,22 +1,22 @@
 """Tests for the summarize backend selection + the ``agno`` backend.
 
-* ``AgnoSummarizeBackend`` drives an Agno agent + engine-side Notion REST
-  publish, all mocked. ``agno`` is an optional extra and is not installed here,
-  so fake ``agno.agent`` / ``agno.models.openrouter`` modules are injected into
-  ``sys.modules`` before the lazy imports run. No MCP subprocess or network.
+The ``agno`` backend no longer drives an Agno agent: it makes **direct
+OpenRouter chat-completions calls** (reading ``choices[0].message.content``
+straight from the response, which — unlike Agno's ``get_content_as_string()`` —
+does not truncate reasoning-model output) and publishes the Notion subpage via
+the REST API. These tests stub the direct OpenRouter seam
+(:func:`transcriber.backends.summarize_agno._summarize_openrouter`) and the
+engine-side Notion publish. No Agno import, no MCP subprocess, no network.
 
-Verifies: model built with ``summary_model`` + resolved key/base_url; the
-engine publishes via the Notion REST API with the token resolved by env-var
-name; non-empty ``<name>.md`` post-condition; log-hygiene (key/token/image bytes
-absent from logs).
+Verifies: the summarize_model + resolved key/base_url reach the OpenRouter call;
+two calls are made (summary + digest); the engine publishes via the Notion REST
+API; the non-empty ``<name>.md`` post-condition; and log-hygiene (key/token/
+image bytes absent from logs).
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import sys
-import types
 
 import pytest
 
@@ -84,83 +84,37 @@ def write_transcript(tmp_path, text="[00:00] hello world"):
 
 
 # --------------------------------------------------------------------------- #
-# Fakes for Agno + MCPTools
+# Fake for the direct OpenRouter chat seam
 # --------------------------------------------------------------------------- #
-class FakeOpenRouterModel:
-    instances: list["FakeOpenRouterModel"] = []
+class FakeOpenRouter:
+    """Records each ``_summarize_openrouter(config, prompt, timeout)`` call and
+    returns a scripted reply.
 
-    def __init__(self, *, id, api_key, base_url) -> None:  # noqa: A002
-        self.id = id
-        self.api_key = api_key
-        self.base_url = base_url
-        FakeOpenRouterModel.instances.append(self)
-
-
-class FakeRunOutput:
-    def __init__(self, content) -> None:
-        self.content = content
-
-    def get_content_as_string(self) -> str:
-        return self.content if isinstance(self.content, str) else ""
-
-
-class FakeAgent:
-    """Stand-in for agno's ``Agent`` — the agno path now makes two plain calls.
-
-    First ``arun`` returns the Markdown summary, second returns the digest.
+    The backend makes two calls in order: summary, then digest. A third call
+    (routing) is possible via :func:`build_routed_digests`. ``replies`` is a
+    list consumed left-to-right; when exhausted, the last reply repeats.
     """
 
-    instances: list["FakeAgent"] = []
+    def __init__(self, replies):
+        self.replies = list(replies)
+        self.calls: list[tuple] = []
 
-    summary_text = "# Summary\n\nBody."
-    digest_text = "Title\n- Decision"
-    _plain_calls = 0
-
-    def __init__(self, *, model, tools=None, output_schema=None) -> None:
-        self.model = model
-        self.tools = tools or []
-        self.output_schema = output_schema
-        self.arun_called_with = None
-        FakeAgent.instances.append(self)
-
-    async def arun(self, prompt: str):
-        self.arun_called_with = prompt
-        FakeAgent._plain_calls += 1
-        text = (
-            FakeAgent.summary_text
-            if FakeAgent._plain_calls == 1
-            else FakeAgent.digest_text
-        )
-        return FakeRunOutput(text)
+    def __call__(self, config, prompt, timeout):
+        self.calls.append((config, prompt, timeout))
+        idx = min(len(self.calls) - 1, len(self.replies) - 1)
+        reply = self.replies[idx]
+        if isinstance(reply, BaseException):
+            raise reply
+        return reply
 
 
+def _patch_openrouter(monkeypatch, replies):
+    """Patch the direct OpenRouter seam; return the recording fake."""
+    import transcriber.backends.summarize_agno as sa
 
-@pytest.fixture(autouse=True)
-def _reset_fakes():
-    FakeOpenRouterModel.instances = []
-    FakeAgent.instances = []
-    FakeAgent.summary_text = "# Summary\n\nBody."
-    FakeAgent.digest_text = "Title\n- Decision"
-    FakeAgent._plain_calls = 0
-    yield
-    FakeAgent._plain_calls = 0
-
-
-def _install_fake_agno(monkeypatch) -> None:
-    agno_mod = types.ModuleType("agno")
-    agent_mod = types.ModuleType("agno.agent")
-    agent_mod.Agent = FakeAgent  # type: ignore[attr-defined]
-    models_mod = types.ModuleType("agno.models")
-    openrouter_mod = types.ModuleType("agno.models.openrouter")
-    openrouter_mod.OpenRouter = FakeOpenRouterModel  # type: ignore[attr-defined]
-
-    for name, mod in {
-        "agno": agno_mod,
-        "agno.agent": agent_mod,
-        "agno.models": models_mod,
-        "agno.models.openrouter": openrouter_mod,
-    }.items():
-        monkeypatch.setitem(sys.modules, name, mod)
+    fake = FakeOpenRouter(replies)
+    monkeypatch.setattr(sa, "_summarize_openrouter", fake)
+    return fake
 
 
 class _RecordingPublish:
@@ -186,14 +140,23 @@ def _patch_publish(monkeypatch) -> "_RecordingPublish":
     return rec
 
 
+# Default scripted replies: a full Markdown summary, then a short digest.
+DEFAULT_SUMMARY = "# Summary\n\nBody."
+DEFAULT_DIGEST = "Title\n- Decision"
+
+
+def _backend():
+    from transcriber.backends.summarize_agno import AgnoSummarizeBackend
+
+    return AgnoSummarizeBackend()
+
+
 # --------------------------------------------------------------------------- #
 # Backend selection (pure function of config; no silent fallback)
 # --------------------------------------------------------------------------- #
-def test_get_summarize_backend_agno(monkeypatch):
-    _install_fake_agno(monkeypatch)
+def test_get_summarize_backend_agno():
     cfg = make_config(backend="agno")
     backend = get_summarize_backend(cfg)
-    # Imported lazily; class name is AgnoSummarizeBackend.
     assert type(backend).__name__ == "AgnoSummarizeBackend"
 
 
@@ -205,29 +168,13 @@ def test_get_summarize_backend_unknown_raises():
 
 
 # --------------------------------------------------------------------------- #
-# AgnoSummarizeBackend — Agno model mocked, engine-side Notion publish mocked
+# AgnoSummarizeBackend — direct OpenRouter mocked, Notion publish mocked
 # --------------------------------------------------------------------------- #
-def _agno_backend(monkeypatch):
-    _install_fake_agno(monkeypatch)
-    from transcriber.backends.summarize_agno import AgnoSummarizeBackend
-
-    return AgnoSummarizeBackend()
-
-
-def _force_missing_agno(monkeypatch) -> None:
-    for name in (
-        "agno",
-        "agno.agent",
-        "agno.models",
-        "agno.models.openrouter",
-    ):
-        monkeypatch.setitem(sys.modules, name, None)
-
-
-def test_agno_builds_model_and_publishes_to_notion(tmp_path, monkeypatch):
+def test_agno_calls_openrouter_and_publishes_to_notion(tmp_path, monkeypatch):
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
-    backend = _agno_backend(monkeypatch)
+    backend = _backend()
+    fake = _patch_openrouter(monkeypatch, [DEFAULT_SUMMARY, DEFAULT_DIGEST])
     publish = _patch_publish(monkeypatch)
 
     cfg = make_config(backend="agno", summary_model="mistralai/mistral-medium-3.1")
@@ -237,16 +184,13 @@ def test_agno_builds_model_and_publishes_to_notion(tmp_path, monkeypatch):
 
     result = backend.summarize(tp, None, rec_dir, cfg)
 
-    # Two model instances built (summary + digest), both with the configured
-    # summary_model + resolved key/base_url.
-    assert len(FakeOpenRouterModel.instances) == 2
-    for model in FakeOpenRouterModel.instances:
-        assert model.id == "mistralai/mistral-medium-3.1"
-        assert model.api_key == OPENROUTER_KEY_VALUE
-        assert model.base_url == "https://openrouter.ai/api/v1"
-
-    # Two agents: summary + digest (no publish agent — engine publishes).
-    assert len(FakeAgent.instances) == 2
+    # Two OpenRouter calls (summary + digest), each with the SAME config object
+    # that carries summary_model + key/base_url (resolved inside the helper).
+    assert len(fake.calls) == 2
+    for call_cfg, _prompt, _timeout in fake.calls:
+        assert call_cfg.openrouter.summary_model == "mistralai/mistral-medium-3.1"
+        assert call_cfg.openrouter.api_key_env == OPENROUTER_KEY_ENV
+        assert call_cfg.openrouter.base_url == "https://openrouter.ai/api/v1"
 
     # Engine published once via the Notion REST helper, with the summary text
     # and the recording basename as the page title. No slides here -> no subpage.
@@ -267,7 +211,8 @@ def test_agno_builds_model_and_publishes_to_notion(tmp_path, monkeypatch):
 def test_agno_summarize_prompt_carries_slide_markdown(tmp_path, monkeypatch):
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
-    backend = _agno_backend(monkeypatch)
+    backend = _backend()
+    fake = _patch_openrouter(monkeypatch, [DEFAULT_SUMMARY, DEFAULT_DIGEST])
     _patch_publish(monkeypatch)
 
     cfg = make_config(backend="agno")
@@ -278,8 +223,9 @@ def test_agno_summarize_prompt_carries_slide_markdown(tmp_path, monkeypatch):
 
     backend.summarize(tp, slides_md, rec_dir, cfg)
 
-    # First (summary) call inlines transcript + slide markdown.
-    assert slides_md in FakeAgent.instances[0].arun_called_with
+    # First (summary) call's prompt inlines transcript + slide markdown.
+    first_prompt = fake.calls[0][1]
+    assert slides_md in first_prompt
 
 
 def test_agno_splits_slides_into_clean_file_and_notion_subpage(tmp_path, monkeypatch):
@@ -288,7 +234,8 @@ def test_agno_splits_slides_into_clean_file_and_notion_subpage(tmp_path, monkeyp
     publish as slides_markdown (which creates a 'Slide Descriptions' subpage)."""
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
-    backend = _agno_backend(monkeypatch)
+    backend = _backend()
+    _patch_openrouter(monkeypatch, [DEFAULT_SUMMARY, DEFAULT_DIGEST])
     publish = _patch_publish(monkeypatch)
 
     cfg = make_config(backend="agno")
@@ -333,7 +280,8 @@ def test_agno_splits_slides_into_clean_file_and_notion_subpage(tmp_path, monkeyp
 def test_agno_no_slide_section_when_slides_absent(tmp_path, monkeypatch):
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
-    backend = _agno_backend(monkeypatch)
+    backend = _backend()
+    _patch_openrouter(monkeypatch, [DEFAULT_SUMMARY, DEFAULT_DIGEST])
     publish = _patch_publish(monkeypatch)
 
     cfg = make_config(backend="agno")
@@ -355,7 +303,9 @@ def test_agno_no_slide_section_when_slides_absent(tmp_path, monkeypatch):
 def test_agno_empty_summary_fails_stage(tmp_path, monkeypatch):
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
-    backend = _agno_backend(monkeypatch)
+    backend = _backend()
+    # Summary comes back whitespace-only -> fail before publishing.
+    _patch_openrouter(monkeypatch, ["   ", DEFAULT_DIGEST])
     publish = _patch_publish(monkeypatch)
 
     cfg = make_config(backend="agno")
@@ -363,18 +313,38 @@ def test_agno_empty_summary_fails_stage(tmp_path, monkeypatch):
     rec_dir.mkdir()
     tp = write_transcript(rec_dir)
 
-    # Summary comes back whitespace-only -> fail before publishing.
-    FakeAgent.summary_text = "   "
     with pytest.raises(SummarizeError, match="no usable summary"):
         backend.summarize(tp, None, rec_dir, cfg)
     # Never published (bailed before publish).
     assert publish.calls == []
 
 
+def test_agno_openrouter_failure_fails_stage(tmp_path, monkeypatch):
+    """A SummarizeError from the OpenRouter call surfaces as a stage failure."""
+    monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
+    monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
+    backend = _backend()
+    _patch_openrouter(
+        monkeypatch,
+        [SummarizeError("openrouter call failed: status 400: bad model")],
+    )
+    publish = _patch_publish(monkeypatch)
+
+    cfg = make_config(backend="agno")
+    rec_dir = tmp_path / "rec"
+    rec_dir.mkdir()
+    tp = write_transcript(rec_dir)
+
+    with pytest.raises(SummarizeError, match="openrouter call failed"):
+        backend.summarize(tp, None, rec_dir, cfg)
+    assert publish.calls == []
+
+
 def test_agno_notion_publish_failure_fails_stage(tmp_path, monkeypatch):
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
-    backend = _agno_backend(monkeypatch)
+    backend = _backend()
+    _patch_openrouter(monkeypatch, [DEFAULT_SUMMARY, DEFAULT_DIGEST])
     publish = _patch_publish(monkeypatch)
     publish.exc = SummarizeError("Notion API create page failed: HTTP 400 boom")
 
@@ -388,7 +358,7 @@ def test_agno_notion_publish_failure_fails_stage(tmp_path, monkeypatch):
 
 
 def test_agno_persists_summary_before_publish(tmp_path, monkeypatch):
-    """Regression (Copilot #7): local artifacts are written BEFORE publishing.
+    """Local artifacts are written BEFORE publishing.
 
     A publish failure must still leave the summary file on disk, so a retry
     regenerates nothing (and — with the publish record — never duplicates the
@@ -396,7 +366,8 @@ def test_agno_persists_summary_before_publish(tmp_path, monkeypatch):
     """
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
-    backend = _agno_backend(monkeypatch)
+    backend = _backend()
+    _patch_openrouter(monkeypatch, [DEFAULT_SUMMARY, DEFAULT_DIGEST])
     publish = _patch_publish(monkeypatch)
     publish.exc = SummarizeError("Notion API create page failed: HTTP 500 boom")
 
@@ -417,7 +388,7 @@ def test_agno_persists_summary_before_publish(tmp_path, monkeypatch):
 
 
 def test_agno_publish_is_idempotent_via_record(tmp_path, monkeypatch):
-    """Regression (Copilot #7): a prior publish record prevents a duplicate page.
+    """A prior publish record prevents a duplicate page.
 
     Simulates a crash after a successful publish but before the manifest was
     marked: on retry the publish record already exists, so the engine skips the
@@ -425,7 +396,9 @@ def test_agno_publish_is_idempotent_via_record(tmp_path, monkeypatch):
     """
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
-    backend = _agno_backend(monkeypatch)
+    backend = _backend()
+    # Enough replies for two runs (summary+digest each); last repeats.
+    _patch_openrouter(monkeypatch, [DEFAULT_SUMMARY, DEFAULT_DIGEST])
     publish = _patch_publish(monkeypatch)
 
     cfg = make_config(backend="agno")
@@ -439,21 +412,18 @@ def test_agno_publish_is_idempotent_via_record(tmp_path, monkeypatch):
     record = rec_dir / "meeting.notion_published.json"
     assert record.exists()
 
-    # Reset the model fakes for a clean second run (retry).
-    FakeAgent.instances = []
-    FakeAgent._plain_calls = 0
-    FakeOpenRouterModel.instances = []
-
     # Second run (retry): publish is SKIPPED because the record exists.
     backend.summarize(tp, None, rec_dir, cfg)
     assert len(publish.calls) == 1  # still only the first publish
 
 
 def test_agno_empty_digest_clears_stale_telegram_file(tmp_path, monkeypatch):
-    """Regression (Copilot #8): an empty digest removes any stale digest file."""
+    """An empty digest removes any stale digest file."""
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
-    backend = _agno_backend(monkeypatch)
+    backend = _backend()
+    # Summary ok, digest empty.
+    _patch_openrouter(monkeypatch, [DEFAULT_SUMMARY, "   "])
     _patch_publish(monkeypatch)
 
     # A stale digest from an earlier run.
@@ -462,8 +432,6 @@ def test_agno_empty_digest_clears_stale_telegram_file(tmp_path, monkeypatch):
     stale = rec_dir / "meeting.telegram.md"
     stale.write_text("OLD STALE DIGEST\n", encoding="utf-8")
 
-    # This run's model returns an empty digest.
-    FakeAgent.digest_text = "   "
     tp = write_transcript(rec_dir)
     cfg = make_config(backend="agno")
 
@@ -477,35 +445,37 @@ def test_agno_empty_digest_clears_stale_telegram_file(tmp_path, monkeypatch):
 def test_agno_timeout_fails_stage(tmp_path, monkeypatch):
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
-    backend = _agno_backend(monkeypatch)
+    backend = _backend()
     _patch_publish(monkeypatch)
 
+    import time as _time
     import transcriber.backends.summarize_agno as sa
 
     monkeypatch.setattr(sa, "_summarize_timeout", lambda config: 0.05)
+
+    def slow_call(config, prompt, timeout):
+        _time.sleep(5)  # exceeds the 0.05s bound -> TimeoutError
+        return DEFAULT_SUMMARY
+
+    monkeypatch.setattr(sa, "_summarize_openrouter", slow_call)
 
     cfg = make_config(backend="agno")
     rec_dir = tmp_path / "rec"
     rec_dir.mkdir()
     tp = write_transcript(rec_dir)
 
-    async def slow_summary(self, prompt):
-        await asyncio.sleep(5)  # exceeds the 0.05s bound -> TimeoutError
-
-    # Patch the first (summary) call to hang.
-    monkeypatch.setattr(FakeAgent, "arun", slow_summary)
     with pytest.raises(SummarizeError, match="timed out"):
         backend.summarize(tp, None, rec_dir, cfg)
 
 
-def test_agno_uses_summarize_timeout_when_set(monkeypatch):
+def test_agno_uses_summarize_timeout_when_set():
     from transcriber.backends.summarize_agno import _summarize_timeout
 
     cfg = make_config(backend="agno", summarize_timeout=123)
     assert _summarize_timeout(cfg) == 123.0
 
 
-def test_agno_falls_back_to_default_timeout(monkeypatch):
+def test_agno_falls_back_to_default_timeout():
     from transcriber.backends.summarize_agno import _summarize_timeout
     from transcriber.config import DEFAULT_TIMEOUT_SECONDS
 
@@ -514,36 +484,14 @@ def test_agno_falls_back_to_default_timeout(monkeypatch):
     assert _summarize_timeout(cfg) == float(DEFAULT_TIMEOUT_SECONDS)
 
 
-def test_agno_missing_extra_raises_actionable_error(tmp_path, monkeypatch):
-    monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
-    monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
-    # Install fakes to import the backend class, then force the agno import to
-    # fail at run time.
-    _install_fake_agno(monkeypatch)
-    from transcriber.backends.summarize_agno import AgnoSummarizeBackend
-    from transcriber.backends.notion_mcp import AgnoImportError
-
-    backend = AgnoSummarizeBackend()
-    _force_missing_agno(monkeypatch)
-
-    cfg = make_config(backend="agno")
-    rec_dir = tmp_path / "rec"
-    rec_dir.mkdir()
-    tp = write_transcript(rec_dir)
-
-    with pytest.raises(AgnoImportError) as excinfo:
-        backend.summarize(tp, None, rec_dir, cfg)
-    msg = str(excinfo.value)
-    assert "agno" in msg and "extra" in msg
-
-
 # --------------------------------------------------------------------------- #
 # Log hygiene (E8): key / token / image bytes never logged
 # --------------------------------------------------------------------------- #
 def test_agno_log_hygiene_no_secrets(tmp_path, monkeypatch, caplog):
     monkeypatch.setenv(OPENROUTER_KEY_ENV, OPENROUTER_KEY_VALUE)
     monkeypatch.setenv(NOTION_TOKEN_ENV_NAME, NOTION_TOKEN_VALUE)
-    backend = _agno_backend(monkeypatch)
+    backend = _backend()
+    _patch_openrouter(monkeypatch, [DEFAULT_SUMMARY, DEFAULT_DIGEST])
     _patch_publish(monkeypatch)
 
     cfg = make_config(backend="agno")
