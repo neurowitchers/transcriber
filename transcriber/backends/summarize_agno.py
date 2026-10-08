@@ -1,26 +1,30 @@
-"""Agno summarize backend (imported only when ``summary.backend == "agno"``).
+"""OpenRouter summarize backend (``summary.backend == "agno"``).
 
-This module drives an `Agno <https://docs.agno.com>`_ agent with a configurable
-OpenRouter model to produce the meeting **summary** and a short **digest** as
-plain text. The **engine** then publishes a Notion subpage by calling the Notion
-REST API directly (see :mod:`transcriber.backends.notion_publish`) and writes
-``<name>.md`` + ``<name>.telegram.md`` from the model output.
+This module produces the meeting **summary** and a short **digest** as plain
+text via **direct OpenRouter chat-completions calls**, then the **engine**
+publishes a Notion subpage by calling the Notion REST API directly (see
+:mod:`transcriber.backends.notion_publish`) and writes ``<name>.md`` +
+``<name>.telegram.md`` from the model output.
+
+.. note::
+   The backend is still *named* ``agno`` for config/compat reasons, but it no
+   longer drives an Agno agent. Earlier versions used Agno's
+   ``get_content_as_string()``, which **truncates** the output of reasoning
+   models (those returning a separate ``reasoning`` channel alongside
+   ``content``, e.g. ``google/gemini-3.8-flash``) — a 3,500-character summary
+   came back as ~200 characters. We now call the OpenRouter REST API directly
+   via :func:`transcriber.backends.openrouter._openrouter_chat` and read
+   ``choices[0].message.content`` straight from the response, which is complete.
+   This also drops the Agno client's telemetry POST to ``os-api.agno.com``.
 
 Design constraints (Spec R10/R11/R19/R21/R22/R22b):
 
 * **Notion via the REST API** — the subpage is created by the engine through the
-  Notion REST API, not by a model tool-call. The official Notion MCP's tool
-  schemas (``oneOf``/``anyOf``/``$ref``) break tool-calling on Gemini/Mistral
-  over OpenRouter (empty ``null`` completions, zero tool calls), so a
-  deterministic engine-side publish is used instead.
-* **Optional import** — ``agno`` and its OpenRouter model provider are imported
-  lazily *inside* this module so the base engine never needs the ``agno`` extra
-  unless this backend is selected. A missing import raises the actionable
-  :class:`~transcriber.backends.notion_mcp.AgnoImportError`.
-* **Hard time bound (R22b/E2)** — the async run is wrapped in :func:`asyncio.run`
-  under a timeout equal to the summarize-stage timeout (``timeouts.summarize``
-  when set, else the default timeout — R13/E9). The blocking Notion publish runs
-  in a worker thread so the timeout can still cancel the run.
+  Notion REST API, not by a model tool-call.
+* **Hard time bound (R22b/E2)** — each model call runs under a timeout equal to
+  the summarize-stage timeout (``timeouts.summarize`` when set, else the default
+  timeout — R13/E9). The blocking OpenRouter call and the blocking Notion
+  publish run in worker threads so the timeout can still cancel the run.
 * **Non-empty post-condition (R22)** — after the run, the engine applies a
   non-empty ``<name>.md`` success check: an empty or absent summary file fails
   the stage (retryable).
@@ -49,33 +53,39 @@ from transcriber.agent import (
 from transcriber.agent import DEFAULT_ROUTE_KEY, build_agno_route_prompt
 from transcriber.backends.errors import SummarizeError
 from transcriber.backends.interfaces import SummaryResult
-from transcriber.backends.notion_mcp import AgnoImportError
+from transcriber.backends.openrouter import _openrouter_chat
 from transcriber.backends.notion_publish import (
     DEFAULT_NOTION_TIMEOUT,
     publish_to_notion,
 )
-from transcriber.config import Config, DEFAULT_TIMEOUT_SECONDS, resolve_env
+from transcriber.config import Config, DEFAULT_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
 
 
-def _import_agno() -> "tuple[Any, Any]":
-    """Import Agno's ``Agent`` + OpenRouter model lazily.
+def _summary_messages(prompt: str) -> "list[dict[str, Any]]":
+    """Wrap a prompt as a single-user-message OpenAI-compatible array."""
+    return [{"role": "user", "content": prompt}]
 
-    Returns ``(Agent, OpenRouter_model_cls)``. Raises :class:`AgnoImportError`
-    with an actionable install hint when the optional ``agno`` extra is not
-    installed.
+
+def _summarize_openrouter(config: Config, prompt: str, timeout: float) -> str:
+    """One OpenRouter chat-completions call for the summarize stage.
+
+    Reads ``choices[0].message.content`` directly (never an SDK accessor that
+    truncates reasoning-model output). Raises :class:`SummarizeError` on any
+    failure, with a message that carries no secrets or content.
     """
-    try:
-        from agno.agent import Agent  # noqa: WPS433 (intentional lazy import)
-        from agno.models.openrouter import OpenRouter as AgnoOpenRouter  # noqa: WPS433
-    except ImportError as exc:  # pragma: no cover - exercised via monkeypatch
-        raise AgnoImportError(
-            "The 'agno' extra is required for summary.backend == 'agno' "
-            "(Agno agent + OpenRouter). Install it with: "
-            "`uv sync --extra agno` (or `pip install 'transcriber[agno]'`)."
-        ) from exc
-    return Agent, AgnoOpenRouter
+    return _openrouter_chat(
+        config,
+        _summary_messages(prompt),
+        config.openrouter.summary_model,
+        timeout=timeout,
+        error_cls=SummarizeError,
+        missing_config_message=(
+            "openrouter config section is required for the summarize backend "
+            "but is not configured"
+        ),
+    )
 
 
 def _summarize_timeout(config: Config) -> float:
@@ -102,12 +112,15 @@ async def _run_agent(
     summarize_prompt: str,
     config: Config,
 ) -> "tuple[str, Optional[str]]":
-    """Produce the summary + digest with Agno (no Notion publish here).
+    """Produce the summary + digest via two direct OpenRouter calls.
 
-    Two plain-text model calls (captured via ``get_content_as_string()``):
+    * Phase 1: produce the full Markdown summary.
+    * Phase 1b: produce the short Telegram digest from that summary.
 
-    * Phase 1 (no tools): produce the full Markdown summary.
-    * Phase 1b (no tools): produce the short Telegram digest from that summary.
+    Each call reads ``choices[0].message.content`` directly from the OpenRouter
+    response (not via an SDK accessor that truncates reasoning-model output).
+    The blocking HTTP calls run in a worker thread so the outer
+    :func:`asyncio.wait_for` time bound can still cancel the run.
 
     Notion publishing is deliberately **not** done here. The caller writes the
     local artifacts (``<name>.md`` / ``<name>.telegram.md``) **first**, then
@@ -116,34 +129,31 @@ async def _run_agent(
     publish (but before the manifest is marked) leaves the local files intact,
     so a retry does not regenerate the summary and create a duplicate Notion
     page (see :func:`_publish_record_path`).
-
-    The engine writes ``<name>.md`` + ``<name>.telegram.md`` from the returned
-    ``(summary, digest)``.
     """
-    Agent, AgnoOpenRouter = _import_agno()
-
-    # Resolve secrets at use time (by env-var name); never logged.
-    api_key = resolve_env(config.openrouter.api_key_env)
-    base_url = config.openrouter.base_url
     model_id = config.openrouter.summary_model
-
-    def _model():
-        return AgnoOpenRouter(id=model_id, api_key=api_key, base_url=base_url)
+    timeout = _summarize_timeout(config)
 
     # --- Phase 1: plain-text summary ----------------------------------------- #
     logger.info("agno summarize: phase 1 (summary, model=%s)", model_id)
-    summarizer = Agent(model=_model())
-    out = await summarizer.arun(summarize_prompt)
-    summary = (out.get_content_as_string() or "").strip()
+    summary = (
+        await asyncio.to_thread(
+            _summarize_openrouter, config, summarize_prompt, timeout
+        )
+        or ""
+    ).strip()
     if not summary:
         # Nothing to publish or write — let the caller fail the stage (R22).
         return "", None
 
     # --- Phase 1b: plain-text digest ----------------------------------------- #
     logger.info("agno summarize: phase 1b (digest, model=%s)", model_id)
-    digester = Agent(model=_model())
-    dout = await digester.arun(build_agno_digest_prompt(config, summary))
-    digest = (dout.get_content_as_string() or "").strip() or None
+    digest_prompt = build_agno_digest_prompt(config, summary)
+    digest = (
+        await asyncio.to_thread(
+            _summarize_openrouter, config, digest_prompt, timeout
+        )
+        or ""
+    ).strip() or None
 
     return summary, digest
 
@@ -238,13 +248,9 @@ class AgnoSummarizeBackend:
             summary_text, digest_text = asyncio.run(
                 asyncio.wait_for(_run_agent(prompt, config), timeout)
             )
-        except AgnoImportError:
-            # Actionable "install the agno extra" error — surface as-is (R14/R19).
-            raise
         except asyncio.TimeoutError as exc:
             # Hard time bound hit (R22b). asyncio.wait_for cancels the task,
-            # which propagates CancelledError into the `async with mcp` body so
-            # MCPTools is closed on the timeout path too (E3).
+            # cancelling the in-flight OpenRouter worker-thread call.
             elapsed = time.monotonic() - started
             raise SummarizeError(
                 f"agno summarize timed out after {elapsed:.0f}s "
@@ -258,8 +264,7 @@ class AgnoSummarizeBackend:
                 f"agno summarize failed: {type(exc).__name__}"
             ) from exc
 
-        # The ENGINE writes the artifacts from the model output: the Agno agent
-        # has no filesystem tool, so it cannot write <name>.md / .telegram.md.
+        # The ENGINE writes the artifacts from the model output.
         if not summary_text or not summary_text.strip():
             # Truncated/failed run with no usable summary → fail the stage (R22).
             raise SummarizeError(
@@ -431,14 +436,13 @@ def _parse_route_json(raw: str, config: Config) -> "dict[str, str]":
 
 async def _run_route(route_prompt: str, config: Config) -> str:
     """Run the single partition model call; return its raw text output."""
-    Agent, AgnoOpenRouter = _import_agno()
-    api_key = resolve_env(config.openrouter.api_key_env)
-    base_url = config.openrouter.base_url
     model_id = config.openrouter.summary_model
+    timeout = _summarize_timeout(config)
     logger.info("agno routing: partition call (model=%s)", model_id)
-    router = Agent(model=AgnoOpenRouter(id=model_id, api_key=api_key, base_url=base_url))
-    out = await router.arun(route_prompt)
-    return (out.get_content_as_string() or "").strip()
+    raw = await asyncio.to_thread(
+        _summarize_openrouter, config, route_prompt, timeout
+    )
+    return (raw or "").strip()
 
 
 def build_routed_digests(config: Config, summary_markdown: str) -> "dict[str, str]":
