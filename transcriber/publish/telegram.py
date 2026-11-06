@@ -30,6 +30,7 @@ __all__ = [
     "TELEGRAM_MAX_MESSAGE_CHARS",
     "TelegramError",
     "TelegramPublisher",
+    "is_enabled",
     "resolve_chat_id",
     "chunk_message",
     "strip_markdown",
@@ -39,6 +40,17 @@ __all__ = [
 TELEGRAM_MAX_MESSAGE_CHARS = 4096
 
 _API_BASE = "https://api.telegram.org"
+
+
+def is_enabled(config: Config) -> bool:
+    """Return ``True`` when the Telegram dissemination stage should run.
+
+    Gated on ``config.telegram.enabled`` (default ``True``), mirroring the S3
+    stage's :func:`transcriber.publish.s3.is_enabled`. When ``False`` the
+    orchestrator skips the stage entirely and preflight does not require the
+    bot-token env var.
+    """
+    return bool(config.telegram.enabled)
 
 
 # --------------------------------------------------------------------------- #

@@ -54,6 +54,7 @@ def make_config(
     s3_target: bool = False,
     openrouter: bool = True,
     notion_token_env: str | None = "NOTION_TOKEN",
+    telegram_enabled: bool = True,
 ) -> Config:
     s3 = S3(bucket="s3://bucket", profile="prof") if s3_target else None
     or_block = OpenRouter(api_key_env="OPENROUTER_API_KEY") if openrouter else None
@@ -72,7 +73,12 @@ def make_config(
             insert="subpage",
             token_env=notion_token_env,
         ),
-        telegram=Telegram(bot_token_env="TG_TOKEN", default_chat_id="123", routing={}),
+        telegram=Telegram(
+            bot_token_env="TG_TOKEN",
+            default_chat_id="123",
+            routing={},
+            enabled=telegram_enabled,
+        ),
         timeouts=Timeouts(),
         s3=s3,
         openrouter=or_block,
@@ -250,12 +256,20 @@ def test_preflight_requires_aws_only_when_s3_enabled(monkeypatch, tmp_path):
 # YAML config writer (drives main() end-to-end with a real config file)
 # --------------------------------------------------------------------------- #
 def _write_yaml_config(
-    path: Path, recordings_dir: Path, *, s3_sync: bool, debug: bool = False
+    path: Path,
+    recordings_dir: Path,
+    *,
+    s3_sync: bool,
+    debug: bool = False,
+    telegram_enabled: bool | None = None,
 ) -> None:
     s3_block = ""
     if s3_sync:
         s3_block = "s3:\n  bucket: s3://bucket\n  profile: prof\n"
     debug_block = "debug: true\n" if debug else ""
+    telegram_enabled_line = ""
+    if telegram_enabled is not None:
+        telegram_enabled_line = f"  enabled: {str(telegram_enabled).lower()}\n"
     path.write_text(
         f"""recordings_dir: {recordings_dir.as_posix()}
 stages:
@@ -282,6 +296,7 @@ telegram:
   bot_token_env: TG_TOKEN
   default_chat_id: "123"
   routing: {{}}
+{telegram_enabled_line}
 {s3_block}{debug_block}""",
         encoding="utf-8",
     )
@@ -517,6 +532,74 @@ def test_disabled_s3_toggle_skips_s3(stage_calls, monkeypatch, tmp_path):
     main_mod.main(["--config", str(config_path)])
     calls = stage_calls["calls"]
     assert ("s3", "-") not in calls
+
+
+# --------------------------------------------------------------------------- #
+# Telegram disable toggle (telegram.enabled: false)
+# --------------------------------------------------------------------------- #
+def test_telegram_enabled_defaults_true_and_stage_listed(tmp_path):
+    """Default config keeps Telegram on and lists it in the plan."""
+    config = make_config(tmp_path)
+    assert telegram_mod.is_enabled(config) is True
+    assert "telegram" in main_mod._enabled_stage_names(config)
+
+
+def test_telegram_disabled_excluded_from_stage_names(tmp_path):
+    config = make_config(tmp_path, telegram_enabled=False)
+    assert telegram_mod.is_enabled(config) is False
+    assert "telegram" not in main_mod._enabled_stage_names(config)
+
+
+def test_preflight_requires_bot_token_only_when_telegram_enabled(
+    monkeypatch, tmp_path
+):
+    # All binaries present; TG token intentionally unset.
+    monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
+    monkeypatch.delenv("TG_TOKEN", raising=False)
+
+    # Enabled (default): the missing bot token is a preflight problem.
+    enabled = make_config(tmp_path, slides=False)
+    assert any("TG_TOKEN" in p for p in main_mod.preflight_check(enabled))
+
+    # Disabled: the bot token is not required, so no problem is reported.
+    disabled = make_config(tmp_path, slides=False, telegram_enabled=False)
+    assert not any("TG_TOKEN" in p for p in main_mod.preflight_check(disabled))
+
+
+def test_disabled_telegram_toggle_skips_send(stage_calls, monkeypatch, tmp_path):
+    recordings_dir = tmp_path / "rec"
+    make_recording(recordings_dir, "a")
+    config_path = tmp_path / "c.yaml"
+    _write_yaml_config(
+        config_path, recordings_dir, s3_sync=False, telegram_enabled=False
+    )
+
+    monkeypatch.setattr(main_mod.shutil, "which", lambda name: f"/usr/bin/{name}")
+    # Deliberately do NOT set TG_TOKEN: a disabled stage must not require it.
+    monkeypatch.delenv("TG_TOKEN", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setenv("NOTION_TOKEN", "n-key")
+
+    rc = main_mod.main(["--config", str(config_path)])
+    calls = stage_calls["calls"]
+    assert rc == 0
+    assert ("telegram", "-") not in calls
+
+
+def test_dry_run_shows_telegram_disabled(stage_calls, tmp_path, capsys):
+    recordings_dir = tmp_path / "rec"
+    make_recording(recordings_dir, "meeting-a")
+    config_path = tmp_path / "c.yaml"
+    _write_yaml_config(
+        config_path, recordings_dir, s3_sync=False, telegram_enabled=False
+    )
+
+    main_mod.main(["--config", str(config_path), "--dry-run"])
+    out = capsys.readouterr().out
+    assert "Telegram: disabled" in out
+    assert "telegram" not in out.split("stages:", 1)[-1].split("\n", 1)[0]
 
 
 def test_disabled_slides_ignores_stale_slides_md(stage_calls, monkeypatch, tmp_path):

@@ -286,8 +286,21 @@ def test_openrouter_defaults(tmp_path):
     assert isinstance(cfg.openrouter, OpenRouter)
     assert cfg.openrouter.api_key_env == "OPENROUTER_API_KEY"
     assert cfg.openrouter.base_url == "https://openrouter.ai/api/v1"
-    assert cfg.openrouter.slides_model == "google/gemini-2.0-flash-001"
+    assert cfg.openrouter.slides_model == "google/gemini-2.5-flash"
     assert cfg.openrouter.summary_model == "google/gemini-2.5-pro"
+
+
+def test_telegram_enabled_defaults_true(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert cfg.telegram.enabled is True
+
+
+def test_telegram_enabled_false_parsed(tmp_path):
+    data = json.loads(json.dumps(BASE_CONFIG))
+    data["telegram"]["enabled"] = False
+    cfg = load(_write(tmp_path / "c.json", data, "json"))
+    assert cfg.telegram.enabled is False
 
 
 def test_openrouter_overrides(tmp_path):

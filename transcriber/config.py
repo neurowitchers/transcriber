@@ -96,7 +96,7 @@ class Agent:
 class OpenRouter:
     api_key_env: str  # env-var NAME for the OpenRouter API key.
     base_url: str = "https://openrouter.ai/api/v1"
-    slides_model: str = "google/gemini-2.0-flash-001"  # vision (slides call)
+    slides_model: str = "google/gemini-2.5-flash"  # vision (slides call)
     summary_model: str = "google/gemini-2.5-pro"  # agno summarize model
     # Deterministic slide-count ceiling for the `openrouter` slides backend.
     # An over-ceiling deck hard-fails before any image is sent (cost guard).
@@ -124,6 +124,11 @@ class Telegram:
     # keys; a topic without a description falls back to its bare label. Topics
     # present here but absent from ``routing`` are ignored for routing.
     topic_descriptions: dict[str, str] = field(default_factory=dict)
+    # When False, the Telegram dissemination stage is skipped entirely (no
+    # digest is sent, and the bot token env var is not required at preflight).
+    # Defaults to True so existing configs behave exactly as before. Mirrors
+    # the gating of the S3 stage (``stages.s3_sync`` + ``s3.is_enabled``).
+    enabled: bool = True
 
 
 @dataclass

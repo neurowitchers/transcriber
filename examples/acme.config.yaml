@@ -55,7 +55,7 @@ agent:
 openrouter:
   api_key_env: OPENROUTER_API_KEY
   # base_url defaults to https://openrouter.ai/api/v1 when omitted.
-  slides_model: google/gemini-2.0-flash-001   # cheap vision model
+  slides_model: google/gemini-2.5-flash   # cheap vision model
   summary_model: google/gemini-2.5-pro        # tool-capable (agno)
 
 notion:
