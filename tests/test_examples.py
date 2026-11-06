@@ -81,7 +81,7 @@ def test_simple_example_shape():
     # Slides are enabled, so the openrouter block is present (vision call).
     assert cfg.openrouter is not None
     assert cfg.openrouter.api_key_env == "OPENROUTER_API_KEY"
-    assert cfg.openrouter.slides_model == "google/gemini-2.0-flash-001"
+    assert cfg.openrouter.slides_model == "google/gemini-2.5-flash"
 
 
 def test_full_example_shape():
@@ -112,5 +112,5 @@ def test_full_example_shape():
     assert cfg.openrouter is not None
     assert cfg.openrouter.api_key_env == "OPENROUTER_API_KEY"
     assert cfg.openrouter.base_url == "https://openrouter.ai/api/v1"
-    assert cfg.openrouter.slides_model == "google/gemini-2.0-flash-001"
+    assert cfg.openrouter.slides_model == "google/gemini-2.5-flash"
     assert cfg.openrouter.summary_model == "google/gemini-2.5-pro"

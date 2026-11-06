@@ -56,6 +56,7 @@ from transcriber.config import (
     resolve_env,
 )
 from transcriber.publish import s3 as s3_mod
+from transcriber.publish import telegram as telegram_mod
 from transcriber.publish.telegram import TelegramPublisher
 
 logger = logging.getLogger("transcriber")
@@ -180,8 +181,10 @@ def _required_env_vars(config: Config) -> list[str]:
 
     Referenced by name only — secret values are never read here (Spec R16).
     """
-    # Telegram token is always needed to disseminate.
-    required = [config.telegram.bot_token_env]
+    # Telegram token is needed only when the dissemination stage will run.
+    required = []
+    if telegram_mod.is_enabled(config):
+        required.append(config.telegram.bot_token_env)
 
     # OpenRouter key is unconditionally required: transcription itself now runs
     # over the OpenRouter HTTP seam (Spec R13/R16), in addition to the existing
@@ -287,7 +290,8 @@ def _enabled_stage_names(config: Config) -> list[str]:
     if config.stages.slides.enabled:
         stages.append(f"describe-slides [{config.stages.slides.backend}]")
     stages.append(f"summarize+notion [{config.summary.backend}]")
-    stages.append("telegram")
+    if telegram_mod.is_enabled(config):
+        stages.append("telegram")
     if s3_mod.is_enabled(config):
         stages.append("s3-sync")
     return stages
@@ -322,9 +326,12 @@ def print_plan(
             f"  Notion: server='{config.notion.server}', "
             f"parent_page_id='{config.notion.parent_page_id}'"
         )
-        lines.append(
-            "  Telegram chats: " + ", ".join(_telegram_chats(config))
-        )
+        if telegram_mod.is_enabled(config):
+            lines.append(
+                "  Telegram chats: " + ", ".join(_telegram_chats(config))
+            )
+        else:
+            lines.append("  Telegram: disabled")
         if s3_mod.is_enabled(config) and config.s3 is not None:
             lines.append(f"  S3: bucket='{config.s3.bucket}', "
                          f"profile='{config.s3.profile}'")
@@ -553,9 +560,11 @@ def _process_one(
             state.mark_complete("summarize")
             state.mark_complete("notion")
 
-        # 4. Telegram dissemination.
+        # 4. Telegram dissemination (gated).
         current_stage = "telegram"
-        if state.is_complete("telegram"):
+        if not telegram_mod.is_enabled(config):
+            logger.info("[%s] telegram: disabled, skipping", name)
+        elif state.is_complete("telegram"):
             logger.info("[%s] telegram: already complete, skipping", name)
         else:
             logger.info("[%s] telegram: sending", name)

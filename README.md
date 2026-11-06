@@ -76,8 +76,11 @@ audio-extract, scene-extract, transcribe [openrouter:microsoft/mai-transcribe-2]
 
 ### Telegram topic routing
 
-The **Disseminate** stage sends a concise digest to Telegram. How it is routed
-depends on `telegram.routing`:
+The **Disseminate** stage sends a concise digest to Telegram. It can be turned
+off entirely with `telegram.enabled: false` (default `true`) — when disabled the
+stage is skipped and the bot-token env var is not required at preflight, mirroring
+the `stages.s3_sync` gate. When enabled, how it is routed depends on
+`telegram.routing`:
 
 - **No routing (default, `routing: {}`)** — one digest is sent to
   `telegram.default_chat_id`.
@@ -148,12 +151,13 @@ See ready-to-adopt examples in [`examples/`](./examples):
 | `summary.sections` | list[string] | Summary sections to generate. |
 | `summary.backend` | `"agno"` | Summarize backend. Default (and only value) `"agno"`: runs an Agno/OpenRouter model for the summary + digest, then the engine publishes the Notion subpage via the REST API; requires the `openrouter` section and `notion.token_env`. The former `"agy"` backend has been removed. |
 | `agent.output_file` | string | Output template, e.g. `{basename}.md`. (The legacy `agent.cli` / `agent.extra_args` fields drove the removed `agy` backend; they are now ignored if present.) |
-| `openrouter` | object | **Required (always).** Transcription runs over the OpenRouter speech-to-text API, so this block is mandatory on every run (it is additionally used by the slides vision backend and the `agno` summarize backend). Fields: `api_key_env` (**env-var name** of the API key), `base_url` (default `https://openrouter.ai/api/v1`), `slides_model` (vision, default `google/gemini-2.0-flash-001`), `summary_model` (tool-capable, default `google/gemini-2.5-pro`), `max_slides` (deterministic slide-count ceiling for the slides backend; an over-ceiling deck hard-fails before any image is sent; default `60`). Each slide is sent in its own vision call (one image per call). |
+| `openrouter` | object | **Required (always).** Transcription runs over the OpenRouter speech-to-text API, so this block is mandatory on every run (it is additionally used by the slides vision backend and the `agno` summarize backend). Fields: `api_key_env` (**env-var name** of the API key), `base_url` (default `https://openrouter.ai/api/v1`), `slides_model` (vision, default `google/gemini-2.5-flash`), `summary_model` (tool-capable, default `google/gemini-2.5-pro`), `max_slides` (deterministic slide-count ceiling for the slides backend; an over-ceiling deck hard-fails before any image is sent; default `60`). Each slide is sent in its own vision call (one image per call). |
 | `notion.server` | string | Notion MCP server name. *(Legacy field retained for config compatibility; the `agno` backend publishes via the Notion REST API and does not use it.)* |
 | `notion.parent_page_id` | string | Parent page for the new subpage. |
 | `notion.insert` | string | Insertion mode (e.g. `subpage`). |
 | `notion.token_env` | string | *(optional)* **Env-var name** of the Notion integration token. For the `agno` backend the engine uses it to publish the subpage via the Notion REST API. Required iff `summary.backend == "agno"`. |
-| `telegram.bot_token_env` | string | **Env-var name** of the bot token. |
+| `telegram.bot_token_env` | string | **Env-var name** of the bot token. Required only when `telegram.enabled` is true (the default). |
+| `telegram.enabled` | bool | *(optional, default `true`)* When `false`, the Telegram dissemination stage is skipped entirely — no digest is sent and `telegram.bot_token_env` is not required at preflight. Mirrors the `stages.s3_sync` gate. |
 | `telegram.default_chat_id` | string | Fallback chat id. Also receives the **remainder** bucket when `telegram.routing` is set (see *Telegram topic routing* below). |
 | `telegram.routing` | map[string,string] | Topic → chat id routes. When non-empty, the summary is partitioned into one digest **per topic** plus a remainder sent to `default_chat_id` (see *Telegram topic routing* below). Empty (the default) → a single digest to `default_chat_id`. |
 | `telegram.topic_descriptions` | map[string,string] | *(optional)* Per-topic human-readable description used **only** to steer the routing-partition model call (which content belongs to which topic). Keys SHOULD match `telegram.routing` keys; a topic without a description falls back to its bare label. Has no effect when `telegram.routing` is empty. |
@@ -183,7 +187,7 @@ agent:
   output_file: "{basename}.md"
 openrouter:               # always required (transcription runs over OpenRouter)
   api_key_env: OPENROUTER_API_KEY   # env-var NAME only
-  slides_model: google/gemini-2.0-flash-001
+  slides_model: google/gemini-2.5-flash
   summary_model: google/gemini-2.5-pro
 notion:
   server: notion-example
@@ -210,7 +214,7 @@ summary:
   backend: agno
 openrouter:
   api_key_env: OPENROUTER_API_KEY   # env-var NAME only
-  slides_model: google/gemini-2.0-flash-001
+  slides_model: google/gemini-2.5-flash
   summary_model: google/gemini-2.5-pro
 notion:
   token_env: NOTION_API_KEY         # env-var NAME only; required for agno
