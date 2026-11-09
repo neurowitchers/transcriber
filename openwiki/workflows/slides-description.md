@@ -1,8 +1,11 @@
 ---
 type: workflow
 title: Slide Description Workflow
-description: How describe_slides builds slide inputs from extracted JPEGs and a scenes CSV, runs the openrouter vision backend one call per slide, writes <name>.slides.md, and is gated by the state manifest with ceiling and idempotency guards.
+description: How describe_slides extracts slides via scenedetect, enforces the max_slides cost guard, and runs one image-only OpenRouter vision call per slide under manifest gating.
 tags: [transcriber, slides, describe_slides, openrouter, vision, manifest, idempotency, ceiling, scenedetect]
+verified:
+  - by: openwiki/0.9.0
+    at: 2026-11-07T16:24:10.535Z
 sources:
   - id: openwiki-source-df4110b2c5338913ae9eedcf
     resource: repo://transcriber/__main__.py
@@ -16,10 +19,7 @@ sources:
     resource: repo://transcriber/backends/slides.py
   - id: openwiki-source-c09b28db65820f5184d0fc9f
     resource: repo://transcriber/pipeline.py
-generated: { by: "openwiki/0.6.1", at: "2026-10-06T06:48:26.024Z" }
-verified:
-  - by: openwiki/0.6.1
-    at: 2026-10-06T06:48:26.024Z
+generated: { by: "openwiki/0.9.0", at: "2026-11-07T16:24:10.535Z" }
 ---
 
 # Slide Description Workflow
@@ -34,12 +34,12 @@ The transcriber runs stages in this order for each recording:
 
 1. **pipeline** — ffmpeg audio extract, optional scenedetect slide extraction, OpenRouter STT transcription. Media-only; no slides or summarize backend calls.
 2. **describe_slides** — (manifest-gated) the OpenRouter vision backend produces `<name>.slides.md` from the extracted JPEGs.
-3. **summarize + notion** — consumes the transcript and, if present, the slide markdown; publishes to Notion.
+3. **summarize + notion** — consumes the transcript and, if present, the slide markdown; publishes to Notion. The summarize backend is `agno`.
 4. **telegram** — sends the digest or full summary.
 5. **s3** — optional S3 sync of intermediates.
 6. **cleanup** — deletes intermediates on full success (unless kept).
 
-The `describe_slides` stage is the only stage whose backend is restricted to `openrouter`. The summarize stage separately selects `agy` (default) or `agno` — those two selections are orthogonal and do not affect each other.
+The `describe_slides` stage is the only stage whose backend is restricted to `openrouter`. The summarize stage runs on `agno` — the two selections are orthogonal and do not affect each other.
 
 ## Inputs: what the stage consumes
 
@@ -51,33 +51,39 @@ The stage consumes three things, assembled before any OpenRouter call:
 
 ## The decision flow in the orchestrator
 
-<!-- openwiki: broken internal link [../transcriber/__main__.py] file "../transcriber/__main__.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-The orchestrator (`_process_one` in [../transcriber/__main__.py](../transcriber/__main__.py)) decides whether to run the slides backend at all. The decision has three skip paths before any paid call:
+The orchestrator (`_process_one` in `transcriber/__main__.py`) decides whether to run the slides backend at all. The decision has three skip paths before any paid call:
 
-<!-- openwiki: mermaid parse failed and this diagram was converted to a text fence so it does not break rendering. Fix the diagram source and restore the mermaid fence. Parser error: Heuristic: an unescaped angle bracket inside a label breaks rendering; rephrase the label. -->
-```text
+```mermaid
 flowchart TD
-    StartEntry["Orchestrator: describe_slides stage"] --> CheckEnabled{"slides.enabled?"}
-    CheckEnabled -->|false| SkipDisabled["log: disabled, skip"]
-    CheckEnabled -->|true| CheckManifest{"manifest.is_complete(describe_slides)?"}
-    CheckManifest -->|true| SkipManifest["log: already complete, skip"]
-    CheckManifest -->|false| CheckArtifact{"<name>.slides.md exists?"}
-    CheckArtifact -->|true| IdempotentSkip["idempotent skip: artifact present, mark complete, no paid call"]
-    CheckArtifact -->|false| RunBackend["select backend, build_slide_inputs, call backend.describe, write <name>.slides.md, mark complete"]
-    SkipDisabled --> ExitStage["stage done"]
+    StartEntry["Orchestrator describe_slides stage"]
+    CheckEnabled{"slides enabled?"}
+    CheckManifest{"manifest marks describe_slides complete?"}
+    CheckArtifact{"slides markdown artifact exists?"}
+    SkipDisabled["log disabled, skip"]
+    SkipManifest["log already complete, skip"]
+    IdempotentSkip["idempotent skip, mark complete, no paid call"]
+    RunBackend["build slide inputs, call backend, write file, mark complete"]
+    ExitStage["stage done"]
+    StartEntry --> CheckEnabled
+    CheckEnabled -->|false| SkipDisabled
+    CheckEnabled -->|true| CheckManifest
+    CheckManifest -->|true| SkipManifest
+    CheckManifest -->|false| CheckArtifact
+    CheckArtifact -->|true| IdempotentSkip
+    CheckArtifact -->|false| RunBackend
+    SkipDisabled --> ExitStage
     SkipManifest --> ExitStage
     IdempotentSkip --> ExitStage
     RunBackend --> ExitStage
 ```
 
-**Caption:** The describe_slides decision flow in the orchestrator. Three skip paths (disabled, manifest-complete, artifact-present) protect against redundant paid calls; only the last path issues the OpenRouter vision calls.
+*The describe_slides decision flow in the orchestrator. Three skip paths (disabled, manifest-complete, artifact-present) protect against redundant paid calls; only the last path issues the OpenRouter vision calls.*
 
 The artifact-present idempotent skip is important: if a prior run wrote `<name>.slides.md` but crashed before marking `describe_slides` complete, the next run sees the file, skips the paid backend call, and marks the stage complete. This avoids re-paying for the same deck.
 
 ## Building slide inputs: `build_slide_inputs`
 
-<!-- openwiki: broken internal link [../transcriber/backends/slides.py] file "../transcriber/backends/slides.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-`build_slide_inputs(recording_dir, name)` lives in [../transcriber/backends/slides.py](../transcriber/backends/slides.py) and is the helper that turns extracted files into an ordered list of `SlideInput` objects.
+`build_slide_inputs(recording_dir, name)` in `transcriber/backends/slides.py` is the helper that turns extracted files into an ordered list of `SlideInput` objects.
 
 ### What it does
 
@@ -93,8 +99,7 @@ The scenes CSV is co-located with the extracted images inside `extracted_slides.
 
 ### `SlideInput` shape
 
-<!-- openwiki: broken internal link [../transcriber/backends/interfaces.py] file "../transcriber/backends/interfaces.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-`SlideInput` is a small dataclass defined in [../transcriber/backends/interfaces.py](../transcriber/backends/interfaces.py):
+`SlideInput` is a small dataclass defined in `transcriber/backends/interfaces.py`:
 
 - `image_path: Path` — path to the slide JPEG.
 - `timestamp: str` — `MM:SS - MM:SS` scene range, or the literal `"unknown"`. Timing is **never omitted** (R8).
@@ -115,10 +120,29 @@ The scenes CSV is co-located with the extracted images inside `extracted_slides.
    - The leading text (extractor rules + language instruction — image-only, no transcript).
    - A `Timestamp: MM:SS - MM:SS` text part placed **immediately before** the image part. Unknown timing is the literal `unknown`.
    - One `image_url` part carrying the downscaled base64 JPEG.
-   
+
    The message is sent via `_openrouter_vision`, which POSTs to `chat/completions` on the OpenRouter HTTP seam with retry/backoff for `429` and `5xx`, and raises `SlideDescribeError` on non-2xx after retries, malformed JSON, or missing `choices[0].message.content`.
 6. **Collect results.** Each non-empty response is appended (verbatim, including any `[[SLIDE_EMPTY ...]]` marker or stray placeholder). Empty/whitespace responses contribute nothing. Placeholder responses are logged but **kept** in the output for debugging (R9 semantics: empty slides are not dropped).
 7. **Return.** The per-slide markdown is joined with `\n\n`. If every slide returned empty/whitespace, the result is `""` — that is not an error.
+
+The per-slide vision sequence looks like this:
+
+```mermaid
+sequenceDiagram
+    participant O as Orchestrator
+    participant B as SlidesBackend
+    participant V as OpenRouterVision
+    O->>B: describe with slide inputs plus timeout
+    B->>B: check slide count ceiling
+    B->>B: preflight encode of deck plus byte ceiling
+    loop once per slide
+        B->>V: vision call with rules plus timestamp plus image
+        V-->>B: per-slide markdown
+    end
+    B-->>O: joined markdown block
+```
+
+*The per-slide vision sequence. Both ceilings are enforced before the loop starts, so an over-ceiling deck fails before any image is sent.*
 
 ### Image-only descriptor
 
@@ -132,7 +156,7 @@ Each slide's message is a single user message with three content parts in order:
 2. `{"type": "text", "text": f"Timestamp: {slide.timestamp}"}` — placed **immediately before** the image part. Unknown timing is `"unknown"`, never omitted.
 3. `{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}` — the downscaled base64 JPEG.
 
-The model used is `config.openrouter.slides_model` (default `google/gemini-2.0-flash-001`), **not** `config.openrouter.summary_model`. The shared `openrouter` block is one block with two per-stage models.
+The model used is `config.openrouter.slides_model` (default `google/gemini-2.5-flash`), **not** `config.openrouter.summary_model`. The shared `openrouter` block is one block with two per-stage models.
 
 ### Downscale (R25)
 
@@ -169,7 +193,7 @@ The written file is the raw concatenation of per-slide model output, joined by `
 - `[[SLIDE_EMPTY <timestamp>]]` marker lines for empty scenes — **kept verbatim**, not dropped, so empty scenes stay identifiable for debugging.
 - Stray placeholder phrases a disobedient model may emit (e.g. `== no information ==`, `<!-- no information -->`) — also kept in `.slides.md`.
 
-The slides backend no longer drops empty slides. Stripping of markers and stray placeholders happens **later**, in `transcriber.agent.append_slide_descriptions`, only for the summary/Notion output. The `<name>.slides.md` file is the markers-kept debug intermediate; its cleaned counterpart `<name>.lides-clean.md` is what survives cleanup.
+The slides backend no longer drops empty slides. Stripping of markers and stray placeholders happens **later**, in `transcriber.agent.append_slide_descriptions`, only for the summary/Notion output. The `<name>.slides.md` file is the markers-kept debug intermediate; its cleaned counterpart `<name>.slides-clean.md` is what survives cleanup.
 
 ## Placeholder recognition
 
@@ -212,7 +236,7 @@ The OpenRouter section supplies the shared HTTP seam and per-stage models:
 
 - `openrouter.api_key_env` — env-var name for the API key (resolved at use time, never stored).
 - `openrouter.base_url` — defaults to `https://openrouter.ai/api/v1`.
-- `openrouter.slides_model` — the vision model for describe_slides (default `google/gemini-2.0-flash-001`).
+- `openrouter.slides_model` — the vision model for describe_slides (default `google/gemini-2.5-flash`).
 - `openrouter.summary_model` — the tool-capable model for the agno summarize path (default `google/gemini-2.5-pro`); **not** used by describe_slides.
 - `openrouter.max_slides` — optional override for the slide-count ceiling (defaults to 60).
 
@@ -229,8 +253,7 @@ The describe_slides stage is time-bounded by `config.timeouts.slides`, read in t
 - **Transport/format failure** (non-2xx after retries, malformed JSON, missing content, missing openrouter config) → `SlideDescribeError`.
 - **Over-ceiling deck** (slide count or total encoded bytes) → `SlideDescribeError` raised **before** any HTTP call; hard-fail, no chunking.
 
-<!-- openwiki: broken internal link [../transcriber/backends/errors.py] file "../transcriber/backends/errors.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-`SlideDescribeError` is defined in [../transcriber/backends/errors.py](../transcriber/backends/errors.py) and follows the log-hygiene contract: error messages carry only a short, non-sensitive context (HTTP status + truncated body snippet), never the API key, request headers, or base64 image bytes.
+`SlideDescribeError` is defined in `transcriber/backends/errors.py` and follows the log-hygiene contract: error messages carry only a short, non-sensitive context (HTTP status + truncated body snippet), never the API key, request headers, or base64 image bytes.
 
 ## Deterministic ordering
 

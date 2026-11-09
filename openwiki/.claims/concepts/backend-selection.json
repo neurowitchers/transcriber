@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:8b439942ce159bbf3ed7b8e61f7272071a45a40f4b8cbcab28e5945103422198",
+  "pageVersion": "sha256:e3570dfbd78909a5360e9f32bb16f002ff63ea6d923de962bb56e6293481d13d",
   "claims": [
     {
       "id": "claim_b9c19de56efa435f850a512d7c6605e4",
@@ -8,7 +8,7 @@
       "evidence": [
         {
           "resource": "repo://transcriber/__main__.py",
-          "version": "repo-file-v1:sha256:27f3c8db0d9f26298b7cb725d2eabea554c2e5ea5c74f4115290fb44bbffb237"
+          "version": "repo-file-v1:sha256:5845ba39d11754fca98319fb7008e6a82746b57205dd6c2c173dd8cf07f687c5"
         },
         {
           "resource": "repo://transcriber/backends/interfaces.py",
@@ -28,11 +28,11 @@
         },
         {
           "resource": "repo://transcriber/backends/summarize_agno.py",
-          "version": "repo-file-v1:sha256:72cbc9ff6123234f2234dcdf7a9d8d2dfc6d832afe2131767306d586723ae794"
+          "version": "repo-file-v1:sha256:0146ba5304cfd45fc2db0991a228ea88e21a14f63c05fc3b7a35cc8e7fe7e139"
         },
         {
           "resource": "repo://transcriber/config.py",
-          "version": "repo-file-v1:sha256:fc1a3f37c4464443e19993d706d07a8606a33331c7576a5b53aa9aef9dc2a4cb"
+          "version": "repo-file-v1:sha256:95a90d127a580043b7947290dc26df6d084dd8541c3210c8c057ab00327d6593"
         }
       ]
     },
@@ -42,7 +42,7 @@
       "evidence": [
         {
           "resource": "repo://transcriber/__main__.py",
-          "version": "repo-file-v1:sha256:27f3c8db0d9f26298b7cb725d2eabea554c2e5ea5c74f4115290fb44bbffb237"
+          "version": "repo-file-v1:sha256:5845ba39d11754fca98319fb7008e6a82746b57205dd6c2c173dd8cf07f687c5"
         },
         {
           "resource": "repo://transcriber/backends/__init__.py",
@@ -50,39 +50,117 @@
         },
         {
           "resource": "repo://transcriber/config.py",
-          "version": "repo-file-v1:sha256:fc1a3f37c4464443e19993d706d07a8606a33331c7576a5b53aa9aef9dc2a4cb"
+          "version": "repo-file-v1:sha256:95a90d127a580043b7947290dc26df6d084dd8541c3210c8c057ab00327d6593"
         }
       ]
     },
     {
-      "id": "claim_3052039aa46c4410a1d759e0b1670ef9",
-      "statement": "describe_slides and summarize each select a backend as a pure function of config, and the selected backend is validated at config load and at the orchestrator call site with no silent cross-backend fallback.",
+      "id": "claim_e5e1281b0fa04bbe98019f412d30c459",
+      "statement": "Config defaults are stages.slides.backend=\"openrouter\" and summary.backend=\"agno\", validated at load against SLIDES_BACKENDS=(\"openrouter\",) and SUMMARY_BACKENDS=(\"agno\",) with ConfigError on any other value.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/config.py",
+          "version": "repo-file-v1:sha256:95a90d127a580043b7947290dc26df6d084dd8541c3210c8c057ab00327d6593"
+        }
+      ]
+    },
+    {
+      "id": "claim_3409db906de64d218827aaea57359a3e",
+      "statement": "Orchestrator selectors _get_slides_backend and get_summarize_backend are pure functions of config that return OpenRouterSlidesBackend/AgnoSummarizeBackend for the single valid value and raise ValueError otherwise, with the agno implementation imported lazily and no silent cross-backend fallback.",
       "evidence": [
         {
           "resource": "repo://transcriber/__main__.py",
-          "version": "repo-file-v1:sha256:27f3c8db0d9f26298b7cb725d2eabea554c2e5ea5c74f4115290fb44bbffb237"
+          "version": "repo-file-v1:sha256:5845ba39d11754fca98319fb7008e6a82746b57205dd6c2c173dd8cf07f687c5"
         },
+        {
+          "resource": "repo://transcriber/backends/__init__.py",
+          "version": "repo-file-v1:sha256:af45a941ad0aba4cb3e826a5ff399e86f9d5ea9756ee377ff6ae75b1ebfcb8c7"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize.py",
+          "version": "repo-file-v1:sha256:ca16e60e1ac71a12a5d1321f859f313caee4cc22d1da954a519facedd04ff593"
+        }
+      ]
+    },
+    {
+      "id": "claim_4f981c6556754d57b7a24a453a3c85e6",
+      "statement": "The backend still named agno no longer drives an Agno agent: it calls OpenRouter REST directly via _openrouter_chat and reads choices[0].message.content, avoiding truncation by Agno get_content_as_string on reasoning models with a separate reasoning channel.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/openrouter.py",
+          "version": "repo-file-v1:sha256:4aab40ddd17c176415c3b7c2b690ef22e47e8bd9bff86144190daf4085aee4be"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py",
+          "version": "repo-file-v1:sha256:0146ba5304cfd45fc2db0991a228ea88e21a14f63c05fc3b7a35cc8e7fe7e139"
+        }
+      ]
+    },
+    {
+      "id": "claim_e23d543d45774f81b29f685fc0c1d40c",
+      "statement": "--dry-run execution plan lists describe-slides [<backend>] and summarize+notion [<backend>] plus transcribe [openrouter:<model>], and transcriber check prints describe_slides/summarize backend values on both pass and fail paths.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py",
+          "version": "repo-file-v1:sha256:5845ba39d11754fca98319fb7008e6a82746b57205dd6c2c173dd8cf07f687c5"
+        }
+      ]
+    },
+    {
+      "id": "claim_859bc71b1a254589b85a60aa0a8852d8",
+      "statement": "The shared openrouter block carries two per-stage models defaulting to slides_model google/gemini-2.5-flash and summary_model google/gemini-2.5-pro; the openrouter section is unconditionally required and notion.token_env is required when summary.backend is agno.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/config.py",
+          "version": "repo-file-v1:sha256:95a90d127a580043b7947290dc26df6d084dd8541c3210c8c057ab00327d6593"
+        }
+      ]
+    },
+    {
+      "id": "claim_73c168488d9247268ed6fb3ed6eefd08",
+      "statement": "SlidesBackend.describe accepts transcript_text to satisfy the protocol but the openrouter implementation is image-only and ignores it, issuing one vision call per slide; SummarizeBackend.summarize treats None/empty/whitespace slides_markdown as no slides and returns SummaryResult paths the engine reads back.",
+      "evidence": [
         {
           "resource": "repo://transcriber/backends/interfaces.py",
           "version": "repo-file-v1:sha256:b8899c3af530144c4f1a09978b9f9aa6e80703db45630cf5233660dcfe4c7429"
         },
         {
-          "resource": "repo://transcriber/backends/summarize.py",
-          "version": "repo-file-v1:sha256:ca16e60e1ac71a12a5d1321f859f313caee4cc22d1da954a519facedd04ff593"
+          "resource": "repo://transcriber/backends/slides.py",
+          "version": "repo-file-v1:sha256:48a05be4e0e55ebe82b10b388a2e99c6fdb99097e16dbff2ff832e029d19dc84"
+        }
+      ]
+    },
+    {
+      "id": "claim_b3c13ed5f0d54158aa7f1499fad47764",
+      "statement": "The agno summarize path publishes to Notion engine-side via publish_to_notion REST (markdown-to-blocks, <=100-block chunks, optional Slide Descriptions child page) with no MCP or model tool-calling on the run path.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/notion_publish.py",
+          "version": "repo-file-v1:sha256:7651fcdebf7ef71cae6c167159ff400631559a74f9339fa96deee6d5ff93757f"
         },
         {
           "resource": "repo://transcriber/backends/summarize_agno.py",
-          "version": "repo-file-v1:sha256:72cbc9ff6123234f2234dcdf7a9d8d2dfc6d832afe2131767306d586723ae794"
+          "version": "repo-file-v1:sha256:0146ba5304cfd45fc2db0991a228ea88e21a14f63c05fc3b7a35cc8e7fe7e139"
+        }
+      ]
+    },
+    {
+      "id": "claim_0acfac96f3d0470c8f6073cc30197970",
+      "statement": "SlideDescribeError, SummarizeError, and TranscribeError share a log-hygiene contract carrying only stage/model/size/elapsed plus HTTP status with truncated body snippet, never API keys, headers, tokens, or base64 media bytes.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/errors.py",
+          "version": "repo-file-v1:sha256:ebf5efe8f03e158fdb15ab48e45386533795042930a16c49fd39fb6f2d00dfb5"
         },
         {
-          "resource": "repo://transcriber/config.py",
-          "version": "repo-file-v1:sha256:fc1a3f37c4464443e19993d706d07a8606a33331c7576a5b53aa9aef9dc2a4cb"
+          "resource": "repo://transcriber/backends/openrouter.py",
+          "version": "repo-file-v1:sha256:4aab40ddd17c176415c3b7c2b690ef22e47e8bd9bff86144190daf4085aee4be"
         }
       ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.6.1",
-    "at": "2026-10-06T06:48:26.024Z"
+    "by": "openwiki/0.9.0",
+    "at": "2026-11-07T16:24:10.535Z"
   }
 }

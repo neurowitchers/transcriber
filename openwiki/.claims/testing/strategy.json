@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:b800fca84c6053f4a5bd528abc7bdbcd67cc886f84b3f18d0b93ee1d180dc445",
+  "pageVersion": "sha256:11536e3d993b16a6cdb55a53fab53608743ad77ff100195db4fc753919355231",
   "claims": [
     {
       "id": "claim_a9bd030b0dab4ac0aedec9974bdeceec",
       "statement": "The transcriber test suite isolates all externals by monkeypatching stage functions and backend-selection seams in tests/test_main.py, so no real binaries, network calls, agents, or publishing destinations are exercised in tests.",
       "evidence": [
         {
-          "resource": "repo://tests/test_main.py#L170-L177",
+          "resource": "repo://tests/test_main.py#L176-L183",
           "version": "repo-lines-v1:sha256:e03f8b3c1f5cae975589eec474b4e34624e02d69fc499c2118d5d900fc569566:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTdjZDA4MTk5YzE2MTkyZDI2ZDQzYmY4MjU3YzI4NzI3Yzg4ZTcyYjQxZmU4NjRhZGU0YTdjYjBmMTg3YzEzMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjdhMmRmYWZjMWE1YTY4ZDcyM2E0OTdjYmNjMjVmMTJhZTZiOGQ0ZTc5OWJmMTg5ZWRiZDc1N2FmOGY0MWMxZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiM2ZhNDMxNjZmZWNmZjdiOTBlZmQ2NjYxMDY5ZjVjM2UyMzYyYmFkNzAyOWY3ZWExOThmODNkZWIzYTZjYzlmMCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiN2VjMDg4OTVhNmU0ZGJkZDZkM2E0MTNhYmM1N2M5ZGJkMmQ0ODk5ZjFkNDg0NjMwNWNjZjJhYWY3NGY2YjQ3NiJ9"
         },
         {
-          "resource": "repo://tests/test_main.py#L90-L184",
+          "resource": "repo://tests/test_main.py#L96-L190",
           "version": "repo-lines-v1:sha256:dcf15d6e7e33190c7d1269f221fd422331c7210596d7b48d3d73b917637c121d:eyJzZWxlY3RlZExpbmVDb3VudCI6OTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhjNWIwNTkxNWNkMmVlNWQ1Y2ZhYzI3OGQxNjUyYTllNzViYjYxZGExNTk0NTg0OTJjZjU4OTFkYmNkMDYxYTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0MTlhNmRjYzA0ZTIxM2EzYzdhNzdhNDU2YjAxZTc2ZDFlZjc4Y2QwMGJiZWMxZDhmODE0NThmZTkzZWRjNTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg3NGJiMzVlY2EzYTg2YzkzZDEzZTZiNjU3YmFkMDMzZGMzZWY2YzI2NDdhM2QxNjU3MmJlZjI3ZGI4N2ZlNzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI2ZWExYzJkOTNlZGE3ODgzZjA2MzI0YTg4ZGU0MGYzMWI3OTkyMjc3ZTczNjg3YjU2YWFiMTdhMTk0MTRlNjkifQ"
         },
         {
-          "resource": "repo://transcriber/__main__.py#L188-L204",
+          "resource": "repo://transcriber/__main__.py#L191-L207",
           "version": "repo-lines-v1:sha256:4a5f61d2e5e10c34cd461d7424a3999ad4c44bf4f01f8496440491bc13173a94:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkxMDA2YWY2MDI0ZTM3ZmRmZjdlNWIwNmM0YTgzMTU4ZDI0ZjNhNDJhNDk4MWFlMGFiZWVkYmI0YjU5ZTEwOTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM0NjA0ZWFiNjI2MzEwNzEwZTY1NGE3N2Q3YTQxNGI5MWJiOGQ5ZTVmYWRhMTRjNmFiOWYyNzU5MTQzMjBjZDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQzMzljMDYyMmI3YzY3MjZlYzUyNTMwYzlhMjI1MTdlMTIxMDk4YmQ3NjBiZWFmZjE3OTMzNmEwNTg3MDE3NzciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ1NTVhYzExMTg4OTA4NmMxOWZjY2U4Nzk5YzAxOTg2M2E4NzE4NzczODVmODQ2ZTgyYzg4YTQxY2IxZjhhMmYifQ"
         },
         {
@@ -23,7 +23,7 @@
           "version": "repo-lines-v1:sha256:b9b081ed7f9031547c046aa839366bb52431f1160de451edfcb5ffe78c945746:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZWMzOWZkMzQ0MjUwMmMyNzc0ODkzNzg4MjIyYjIyYzQwNmU3OTQwM2I1YjljOGExYWI3Nzg3NjhlNWFhNzc2ZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMWFhZDEyZGViOTM4NGFjMjk3OWNiODI2MTkyZDFkNjEyN2ZlNTgyZTYzMzNmMWZmNWIzOWJmOGY2NWNmMGMyNCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTU1NzFlYTAyNTIxODQxNTQ3NzYwYTFiNTljMDIyMjUyNzRhMzMwM2Q5YTFlZjRkNzQyZWU0MmY3ZTJmNDhlZSJ9"
         },
         {
-          "resource": "repo://transcriber/config.py#L333-L351",
+          "resource": "repo://transcriber/config.py#L338-L356",
           "version": "repo-lines-v1:sha256:fd7fa90898328ca37dba6a2d850618bea435c81d7d5cf353b2bdbef1a14cd0e5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhkYzA1YjMwZTZmMzVjZmYzYTQ3N2NmN2IzZjczYTVlYmQ3YmY1MDRiYzgxNmNjYmY0NjRkM2ZjYjNjMDNjODkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZjNjIyYzk0MzM2YjAzOWU5ODc3MTUzYzM3N2MxNzY3NGE0N2IyZTNkZGViYmMxZTEzNmYyMGY2MTY3NDc5MmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZhZjQxZTQyNzVjMzRlNDgzOTViYmUzZjg2YWRhNmZkYmQyNTcxN2NjZmE5Y2M3ZGRiNDM1ODFjMjNlM2Q4ODQifQ"
         },
         {
@@ -37,15 +37,15 @@
       "statement": "The stage_calls fixture is the authoritative observable seam for orchestrated behavior: it records calls in order for process_recording, describe_slides backend selection, summarize backend selection, TelegramPublisher, s3.sync, and cleanup.",
       "evidence": [
         {
-          "resource": "repo://tests/test_main.py#L107-L169",
+          "resource": "repo://tests/test_main.py#L113-L175",
           "version": "repo-lines-v1:sha256:4737f0d9cc6039dda917f97eed9f1a68759413400cb624d2fc3fdefb7757c772:eyJzZWxlY3RlZExpbmVDb3VudCI6NjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVlNmNlMDFiM2I4OGM0ZmZjN2U5ZGM2YTM0MmQ5MDQ1OWYwYjcwMDdlNWUzYTk5ZGJkNThlNjk4NjkyOGVlNTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlYjcwMjU3NTkzZGEwNmY2ODJhM2RkZGE1NGE5ZDI2MGQ0ZmM1MTRmNjQ1MjM3ZjVjYTc0YjA4ZjhkYTYxYTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk4ZWViZGMxOWJkYjI2Nzg5YjY1NGU1ZjIzZjFjYTdjMmJlODdmYWYyMjdhOTUyYzE3ZWM4MDU2OWNlZWUyMzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA2ZmUyMWEyZDgwYjA2MzEzYjNiMGQwMWU4ZjAzNzYwNjM1ODVhODZkNTgyNjY2NzBmZWU2NjBkOTg5N2VkMDIifQ"
         },
         {
-          "resource": "repo://tests/test_main.py#L346-L359",
+          "resource": "repo://tests/test_main.py#L361-L374",
           "version": "repo-lines-v1:sha256:e63472da7e01052dc3db2fa57ba2a24ddc254e2fd70327fc793ed3a26ba77449:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVjNDM1ZDg4OGEwNTkzOTdjMTgwNmU1ZDliODcwNmM4YmNkYTRiZGMyMjgzZTJkNjczODc5MzdmYmRlZTdmODUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyOWQ0NTI5OThhZWE2YTYyY2MxMTA4ODgyNzk3Y2VmNmE1YTFiN2NlYTAzNjZlZWVmNTkxN2EzZDA3YTJjOWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzMzAyMTlhN2Q0NDU0MThjYmQwMTk0Njc5YmQxNjE4NDA2YjBhNzYyNDU3OGFjMGE1OTdmZmU1MWIyOGYyYTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNjMjhmNTI0YWNmMzgxNDMxZjE3MTkyODk3MjI1YzRkYTBhNTQxNWZhMjAyYjU0Yzg1YzI4Y2FjZmQ1NmNlZDMifQ"
         },
         {
-          "resource": "repo://tests/test_main.py#L90-L100",
+          "resource": "repo://tests/test_main.py#L96-L106",
           "version": "repo-lines-v1:sha256:88752a0e5de2b5a6e0b969144327f12f9ffc83a3854da49f20c3c74cbc1ff893:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhjNWIwNTkxNWNkMmVlNWQ1Y2ZhYzI3OGQxNjUyYTllNzViYjYxZGExNTk0NTg0OTJjZjU4OTFkYmNkMDYxYTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmODczZThlZDA1N2RiZmM5ZGJkZTA3NWI1ZTQ3MmU5NWE3MjMzZmJjODBiYzY4NDI3OTJhMmQyMWJiZmNmZmEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg3NGJiMzVlY2EzYTg2YzkzZDEzZTZiNjU3YmFkMDMzZGMzZWY2YzI2NDdhM2QxNjU3MmJlZjI3ZGI4N2ZlNzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkwNWQyOTVkYzBmMTJjZTVhZTc5YzNjOTE3OWYxMTcwNmZiYWI0MGRlZjRiMThiMjllZjZmYjIwNTZmNTBlODUifQ"
         }
       ]
@@ -55,24 +55,16 @@
       "statement": "Config and secrets are referenced by environment-variable name only and resolved at use time via resolve_env, so the test suite asserts on env-var names and problem text rather than secret values, and a missing openrouter section fails fast.",
       "evidence": [
         {
-          "resource": "repo://tests/test_main.py#L795-L825",
-          "version": "repo-lines-v1:sha256:e2fcec16ad0df0b02ab93a21b4d113eb8c56db37d9b2f148da09692970bec5e7:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlZGFhZTllNWI3NDc1ODY3ZmQ4ZjhiMWRmNjA0YThkMjEwMzA0ZmM5ZjIyNzA1ODM5ZTkzZDAwN2UxMjA1YzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk1Yjk0MDM3YmZjYmU0NzgyYmI1NmI0NjkxM2FhY2VhZDVlNDRlNGY5ZTA3OGUwMTE3MDEwZDRjMTI4NjI3YzEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFlODNlNTYyYTFkN2FiNTI3M2U2NjAwMTUyODE0YzViYTU2NGY0MDVkOGM0ZDVhZDU1YTU0ZTg2MzlhNzIwNjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVhNGMzZDkzMjNlZWQ2YWNmYjM3OTkxM2IwNzNjZjUxM2Q0ZWM5YTA4MmU4ZmJmZTk5OWIyY2Q5NGIxNjZlOGYifQ"
+          "resource": "repo://tests/test_main.py",
+          "version": "repo-file-v1:sha256:3b8c089c52ea5dbe8a37eb296bd513234cf8fc28447e0213974c917629569448"
         },
         {
-          "resource": "repo://transcriber/__main__.py#L178-L204",
-          "version": "repo-lines-v1:sha256:a8a6c4ef3c65046a85f0cc7686418976c3865e3bcabae937fc362c4b63fc09d1:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcxYTNkMTkxZmMzMWQ2MjI3OTZjYTE5NDQwNGIwNjQ3N2NjNzMxZDBlYjdkZGUxNzZhNjFmOTk4ZDIxYzliNDMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM0NjA0ZWFiNjI2MzEwNzEwZTY1NGE3N2Q3YTQxNGI5MWJiOGQ5ZTVmYWRhMTRjNmFiOWYyNzU5MTQzMjBjZDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1YzNjNjFlMjk2Y2IwMTZjZjYxZmI2M2I3ZWQ3ZmE3NjllOWVjMDFiMjM5NTNmMDZlMmJiNjcyZjBjYTFjZTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ1NTVhYzExMTg4OTA4NmMxOWZjY2U4Nzk5YzAxOTg2M2E4NzE4NzczODVmODQ2ZTgyYzg4YTQxY2IxZjhhMmYifQ"
+          "resource": "repo://transcriber/__main__.py",
+          "version": "repo-file-v1:sha256:5845ba39d11754fca98319fb7008e6a82746b57205dd6c2c173dd8cf07f687c5"
         },
         {
-          "resource": "repo://transcriber/config.py#L333-L351",
-          "version": "repo-lines-v1:sha256:fd7fa90898328ca37dba6a2d850618bea435c81d7d5cf353b2bdbef1a14cd0e5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhkYzA1YjMwZTZmMzVjZmYzYTQ3N2NmN2IzZjczYTVlYmQ3YmY1MDRiYzgxNmNjYmY0NjRkM2ZjYjNjMDNjODkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZjNjIyYzk0MzM2YjAzOWU5ODc3MTUzYzM3N2MxNzY3NGE0N2IyZTNkZGViYmMxZTEzNmYyMGY2MTY3NDc5MmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZhZjQxZTQyNzVjMzRlNDgzOTViYmUzZjg2YWRhNmZkYmQyNTcxN2NjZmE5Y2M3ZGRiNDM1ODFjMjNlM2Q4ODQifQ"
-        },
-        {
-          "resource": "repo://transcriber/config.py#L355-L374",
-          "version": "repo-lines-v1:sha256:f0c539307a14170dddbc44fef57b423dd1f168d7c090523a4366281f7e1c8441:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkwNzY4MjExZTRkZjVkNjE3MDQ4YjgzMDIwODQwZGQ4YjVjMzdiNWJmY2RlMTZkNDYyYWI4YTk0YzhhZDc5MmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5M2ExMzA2MmYxMGVlNGYxMjE4ZDkzZTM3YTZmODFkMzQ2ZmYxMWVjN2U1NWRkNTQyZTJkMmQyZWYwNzExZjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZhZjQxZTQyNzVjMzRlNDgzOTViYmUzZjg2YWRhNmZkYmQyNTcxN2NjZmE5Y2M3ZGRiNDM1ODFjMjNlM2Q4ODQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
-        },
-        {
-          "resource": "repo://transcriber/config.py#L6-L9",
-          "version": "repo-lines-v1:sha256:2d8b7b3b359ddd45a6805d4347946ead2f46841e32eba5fae7d8b08018e1503d:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOWZlZGJkMmRjY2RhMDZkOGU5Y2FkYjY0OGMxZGJmNWJiM2Y0MmI3NjkyZWJmMDY1NWI2ODQxMmVmZTFiZmMxYyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTMwM2VjZGQ0YTRkMTBmMTljNzNmZDQyZmQxMjQzN2ZkMzM1NGE4MjY4MTYwNWRhNTI1NWE5N2EzOTA2OGRiYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTBhMWYzYWYxNThlNGVlOTQxNWNiYmQxNDNhOTM5ZjczNzZlNjRmYzJkZjRhODFmMWI3NTQ3YWQyZjEzZmM0NyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTViNmU4NzA2YjQzMDQ3ZjJhNmRiNjdmMTMyNjM4NTk1NjA0ZTY3ZjM2OTY2ODc2Y2UwMTU4ZjAwNTNlNmJkMSJ9"
+          "resource": "repo://transcriber/config.py",
+          "version": "repo-file-v1:sha256:95a90d127a580043b7947290dc26df6d084dd8541c3210c8c057ab00327d6593"
         }
       ]
     },
@@ -81,38 +73,234 @@
       "statement": "The test families cover pre-flight failure on missing binary/env var, dry-run with no side effects, happy-path ordering over multiple recordings, failure isolation with per-recording cleanup gating, manifest-based idempotency, disabled-toggle stage skipping, and config/schema validation guards.",
       "evidence": [
         {
-          "resource": "repo://tests/test_main.py#L1-L14",
-          "version": "repo-lines-v1:sha256:ee41057bec6309254fb7c1692bfb7d1039c9fab04160648986393a372d2a5e06:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZiMDcwMGNmZWVmMjAwMGY5YmQ1OTMyOTAzM2NkYjkxNmQ3MmE1YmUxNTgxZjA5MzNlNGVmY2RjYzk3NDM0NTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ3NWQ0NTg5ZTkxY2M4Y2I5NzQ4ODlkYWIwMWRlMTVkYjE1NzRjYTEwZWVjNzI5MGExMDliZjU4OGM5NGUwMWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM0MzBhMDhmOTllNzNjOTUwNjE0MWUyY2IwZGY2Y2RkOTM2NWVkZGE5ZjQwY2IwZWUwY2IzYTdjZGRhYTFhMjIifQ"
+          "resource": "repo://tests/test_cleanup.py",
+          "version": "repo-file-v1:sha256:079b869e8421c9e0931aec184bb72797f3bcbd2c5e946b8854ed9fad396099e6"
         },
         {
-          "resource": "repo://tests/test_main.py#L190-L244",
-          "version": "repo-lines-v1:sha256:bdcb2823fd7112c91c7b53ba92751dde6efb0e3610743303faff58525a97fccd:eyJzZWxlY3RlZExpbmVDb3VudCI6NTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE4OGUwMjAyOWIzOWYyMDk4NjA2Mzk3ZmU4NzgzYTBkNmVkZmZiYzI4ODU2M2I0YzhhNTk4NTIzZTM0NzcwZWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ3Y2U1NDc4YzRlYTY2NTA1ZDRkMzZlZGIyNWYyYjQ1MTA5YzgxMzZiZTU2MWE4YWE2YmNiMzM0MDg2NWM0NzMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE5N2U3YTExNGFkNTM5NTBiOTJlYmMxYjMxNDc0MDI4OTBkMzliMzVhYzgxYTI2YWIyNjVhMDZhOTQ5MTRiYjEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIwNzIzNzlkMjE4NjI0NDJiZTQ3NWM2ZmRiY2RhMzdhMzQzN2E4ZjA5OWExMDM0Yzg2ODJkNTAxOWVkNmYzNzAifQ"
+          "resource": "repo://tests/test_config.py",
+          "version": "repo-file-v1:sha256:7c2edd781b72afffb83544707074b2cd416d8dd4c755c717fd9e465a02bc5037"
         },
         {
-          "resource": "repo://tests/test_main.py#L290-L323",
-          "version": "repo-lines-v1:sha256:a887a00f4038a59d29f68ff40bd3b3ff7dd5e9f042e629b470f0d76b9f5bcd5b:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1OGNjMDMwMjg1MzY2Y2JlMDZhYzU4ZmIxN2JlNjRlZDNkNTcwMWFjN2IyZmRiODQzNTAwY2E1ZDExMzVmYzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjExNzY1MmQ5Yzc1NTJlMzQ5ODMyMThiNWQ3ODk5OTg1YzBhMDk3OWM2YzJkN2Y1M2MwYzQ1NGM1YjZiNmFjNjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhiOTc0ZGE0MDg2MzJhNGFhN2UyYWU4MGI4NjAzOTFhM2RjZDgyMTFjNzllY2FkN2NhOGU5NTEyOGIwMDE4MzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRkM2RhOTdhNWVkNTU0Y2U1MDJkOGE1MzRiYWIwZTc2ZjVkMTQ3OTA3NWExYTk4NTA1NjRkMmY3MTA5ZDEwMjEifQ"
+          "resource": "repo://tests/test_main.py",
+          "version": "repo-file-v1:sha256:3b8c089c52ea5dbe8a37eb296bd513234cf8fc28447e0213974c917629569448"
+        }
+      ]
+    },
+    {
+      "id": "claim_827c6382b75049818628ae12a5b41b8a",
+      "statement": "Orchestrator tests isolate externals by monkeypatching stage functions behind an ordered stage_calls recorder and stubbing backend selection at _get_slides_backend/get_summarize_backend plus shutil.which and env vars, so no real binaries or network run.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py",
+          "version": "repo-file-v1:sha256:3b8c089c52ea5dbe8a37eb296bd513234cf8fc28447e0213974c917629569448"
         },
         {
-          "resource": "repo://tests/test_main.py#L328-L400",
-          "version": "repo-lines-v1:sha256:5b2597b90d2f4505da8a0959def1a9967ee2d01f3dbcf521d527e71523d10de5:eyJzZWxlY3RlZExpbmVDb3VudCI6NzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1OGNjMDMwMjg1MzY2Y2JlMDZhYzU4ZmIxN2JlNjRlZDNkNTcwMWFjN2IyZmRiODQzNTAwY2E1ZDExMzVmYzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJhMDRmOGY1ZThmMGU0YTJkY2E4ZmY4ZmI0MTkyOWZmNDEyNGQ1ZmYzNTFhMDA5OTBhMzJhMGQ3YmI0NDljNmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE0Y2U0ZTFjM2ZiOWRmNjc5OTA3MWM4YTlmNDlmNjM4ZWRjN2UyOTQ4MTQ1ZjRmZTg1ZWYwNDJmY2EwY2QzNmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZhYTdjNGFkY2IzMmY1ODFiYzEwMjA3MTNlMDc4NDE5ZmRhM2Q3YmVhZDc5ZmFmNmViNzY4MDJjZjgxMDE1M2QifQ"
+          "resource": "repo://transcriber/__main__.py",
+          "version": "repo-file-v1:sha256:5845ba39d11754fca98319fb7008e6a82746b57205dd6c2c173dd8cf07f687c5"
+        }
+      ]
+    },
+    {
+      "id": "claim_e535374ba0b5445da83b6f3e01ae53eb",
+      "statement": "The media pipeline invokes all child processes through _run_command, and tests assert exact ffmpeg/scenedetect argv, per-binary timeout threading, and stdout_path forwarding while mocking duct.cmd to verify the duct expression and timeout-kill path.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_pipeline.py",
+          "version": "repo-file-v1:sha256:103e124712a1914a7ad09a22927819a5b7943b237a5f69e07ed9ab0cb3b231f6"
         },
         {
-          "resource": "repo://tests/test_main.py#L405-L461",
-          "version": "repo-lines-v1:sha256:267b9dc3ada730a91db454aa2893022e9df73a646faa5d5f66662f545177b241:eyJzZWxlY3RlZExpbmVDb3VudCI6NTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyOWQ0NTI5OThhZWE2YTYyY2MxMTA4ODgyNzk3Y2VmNmE1YTFiN2NlYTAzNjZlZWVmNTkxN2EzZDA3YTJjOWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU5YmU3ZjQyMzg5ZGVjZmY3N2M0MzZlN2IwYzY3ZWZlMmRiMmM0MTZlZmM0ZTJhYzYzYWFhNDI4OWM0MDlhMDUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIzNjc5Y2NiOWFkYjUyMDZjOGUwNzk2OGU0ODBlN2YzNmZiNTM5ZmVkYTIyMDM4NTYxOWQ1MTgzYjdlYjMyYjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFlMzJjN2JkNDg2MDkwNGNhYTY0ZDg4MWJmMjc1YzkxNjc5NWI5YjM1ZjU5ZGFhY2E0MjI1N2NmMjc1MWUzNzcifQ"
+          "resource": "repo://transcriber/pipeline.py",
+          "version": "repo-file-v1:sha256:df93725f71d25a5712d95eda5fbf842d1d3d060352d2f1d375141d3c163272a2"
+        }
+      ]
+    },
+    {
+      "id": "claim_49f93e999626476a89e50db32f0d25a6",
+      "statement": "Transcribe, slides/vision, and summarize tests stub network at httpx.post and helper seams (_openrouter_transcribe, _openrouter_vision, _summarize_openrouter, publish_to_notion) and assert the per-stage model plus resolved key/base_url reach the call.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_backends.py",
+          "version": "repo-file-v1:sha256:f056b857207435128888e901c598f35a948d947542bb90737e66e0de17175fe2"
         },
         {
-          "resource": "repo://tests/test_main.py#L470-L500",
-          "version": "repo-lines-v1:sha256:0d25167d76fd19e7ac127272d6564a397f0894f5474546f028b8dde30acd66c1:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1OGNjMDMwMjg1MzY2Y2JlMDZhYzU4ZmIxN2JlNjRlZDNkNTcwMWFjN2IyZmRiODQzNTAwY2E1ZDExMzVmYzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjczNTY5M2EzNmMzZjQ0OWExNzIxZWJiZjgyMWJiNjVkYWRlY2ExN2I5NzU0M2U1YTNmMjg1OTUyZmNiYzZlODMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI0Njc2YTIwNmRkYzA1NzBjMTYzNmZjOTFiNTU0MzE3ZjU2Y2YwMDRmNDg3ZDMwYjAwY2FmYWZkZDQ1ZmFiZDciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI2ZWExYzJkOTNlZGE3ODgzZjA2MzI0YTg4ZGU0MGYzMWI3OTkyMjc3ZTczNjg3YjU2YWFiMTdhMTk0MTRlNjkifQ"
+          "resource": "repo://tests/test_slides.py",
+          "version": "repo-file-v1:sha256:10d01399a2dc0e32abfb62360b93312a8f1cab3f1d919fa1b005750edc7cfe39"
         },
         {
-          "resource": "repo://tests/test_main.py#L513-L571",
-          "version": "repo-lines-v1:sha256:4851cbdbf96ee833f9550ac8bd105392e551c35172d917175f4574e32e405965:eyJzZWxlY3RlZExpbmVDb3VudCI6NTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZlZGRkMjEwMzVmM2NjNWQ5NzZlMzJhNzk5NDdiZjY2MWZkZGMwNzgzZGZiMGUzN2ZiMjJiNWFlNWNjNDg0ZDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjZGUwMGFiZDBlZWQxOWJlNTU5ZjQ0YzQ1NDAyNzkxZWQ1NmFhMDFkNGU4MmE3OTU2YmM5ZWQ5ZmIzYTczMTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI5NmUwZTQ0ZDNmOWY1ZGQ1NjEzNWRkODdlOWQ5MGY1ZGJhZDIwZWVhYjhkMmFhZWY4NjQ0MzBjYzdkMDA0NGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNhYmNkMGMwY2M4NTJkMjI3M2UyMWU5MjA0NTU3NzNhMTU5Y2RmMWI4ODFmOTUyNTJlYjdjZjZlZjk0OWY3ZmQifQ"
+          "resource": "repo://tests/test_summarize.py",
+          "version": "repo-file-v1:sha256:0244318c866f57a153a703ec836deea7528c48112859470a51b419bd00b8897f"
+        },
+        {
+          "resource": "repo://tests/test_transcribe.py",
+          "version": "repo-file-v1:sha256:c41f62de1df83bd2ce13f7aff33367120579e78ef66ff5c69517a02b26082e64"
+        }
+      ]
+    },
+    {
+      "id": "claim_9d4d991f0a7c4482a22e36ea99c7bcfc",
+      "statement": "Pre-flight requires ffmpeg always, scenedetect when slides are enabled, aws when S3 sync is enabled, the OpenRouter key unconditionally with a fast failure when the openrouter section is missing, Notion token iff summary.backend is agno, and Telegram token iff Telegram is enabled; dry-run prints the plan with zero stage calls or manifests and is not pre-flight gated.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py",
+          "version": "repo-file-v1:sha256:3b8c089c52ea5dbe8a37eb296bd513234cf8fc28447e0213974c917629569448"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py",
+          "version": "repo-file-v1:sha256:5845ba39d11754fca98319fb7008e6a82746b57205dd6c2c173dd8cf07f687c5"
+        }
+      ]
+    },
+    {
+      "id": "claim_dc51bb632b0b4d208458235fc41dc718",
+      "statement": "Happy-path batch runs recordings in sorted order as pipeline, describe_slides, summarize, telegram, optional s3, then cleanup; a stage failure exits non-zero, skips that recording's downstream telegram and cleanup, leaves its manifest incomplete, and lets other recordings complete fully.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py",
+          "version": "repo-file-v1:sha256:3b8c089c52ea5dbe8a37eb296bd513234cf8fc28447e0213974c917629569448"
+        }
+      ]
+    },
+    {
+      "id": "claim_02820ac99bb143b0ba67ec62c965eb4a",
+      "statement": "Retries are idempotent via the per-recording state manifest plus artifact checks: completed stages skip paid calls, transcribe segments.json re-issues only failed segments and parameter changes invalidate and re-chunk, and the notion_published.json record with write-before-publish prevents duplicate Notion pages.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py",
+          "version": "repo-file-v1:sha256:3b8c089c52ea5dbe8a37eb296bd513234cf8fc28447e0213974c917629569448"
+        },
+        {
+          "resource": "repo://tests/test_pipeline.py",
+          "version": "repo-file-v1:sha256:103e124712a1914a7ad09a22927819a5b7943b237a5f69e07ed9ab0cb3b231f6"
+        },
+        {
+          "resource": "repo://tests/test_summarize.py",
+          "version": "repo-file-v1:sha256:0244318c866f57a153a703ec836deea7528c48112859470a51b419bd00b8897f"
+        }
+      ]
+    },
+    {
+      "id": "claim_31640f96cfad47c0b4e03306a489c715",
+      "statement": "Discovery excludes recordings that already have a summary .md in sorted filename order; disabled slides, S3, and Telegram toggles remove those stages from the plan and execution gated on .enabled, and a stale slides.md is never fed to summarize as slides_markdown when slides are disabled.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_main.py",
+          "version": "repo-file-v1:sha256:3b8c089c52ea5dbe8a37eb296bd513234cf8fc28447e0213974c917629569448"
+        },
+        {
+          "resource": "repo://transcriber/__main__.py",
+          "version": "repo-file-v1:sha256:5845ba39d11754fca98319fb7008e6a82746b57205dd6c2c173dd8cf07f687c5"
+        }
+      ]
+    },
+    {
+      "id": "claim_e919a79eec214ed68fadd95e68b076b7",
+      "statement": "The config loader maps JSON and YAML to an identical model, rejects bare-boolean stages.slides, enforces summary.language and slides/summary backend allow-lists, requires the openrouter section unconditionally and notion.token_env iff backend is agno, and applies transcribe, timeout, and telegram.enabled defaults while ignoring the legacy elevenlabs timeout.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_config.py",
+          "version": "repo-file-v1:sha256:7c2edd781b72afffb83544707074b2cd416d8dd4c755c717fd9e465a02bc5037"
+        },
+        {
+          "resource": "repo://transcriber/config.py",
+          "version": "repo-file-v1:sha256:95a90d127a580043b7947290dc26df6d084dd8541c3210c8c057ab00327d6593"
+        }
+      ]
+    },
+    {
+      "id": "claim_7c8bcb4df7cc40e58e65c533fc828164",
+      "statement": "Secrets are stored as environment-variable names and resolved at use time via resolve_env, so tests assert on variable names and problem text rather than values and log-hygiene tests prove keys, tokens, and image bytes never appear in logs.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_config.py",
+          "version": "repo-file-v1:sha256:7c2edd781b72afffb83544707074b2cd416d8dd4c755c717fd9e465a02bc5037"
+        },
+        {
+          "resource": "repo://tests/test_summarize.py",
+          "version": "repo-file-v1:sha256:0244318c866f57a153a703ec836deea7528c48112859470a51b419bd00b8897f"
+        },
+        {
+          "resource": "repo://transcriber/config.py",
+          "version": "repo-file-v1:sha256:95a90d127a580043b7947290dc26df6d084dd8541c3210c8c057ab00327d6593"
+        }
+      ]
+    },
+    {
+      "id": "claim_54185cd046964a949a1bd32a8afc229f",
+      "statement": "Cleanup keeps .mp4, .md summary, .txt transcript, and .slides-clean.md while deleting .mp3, .scenes.csv, .telegram.md plus routed per-topic digests, .slides.md, .notion_published.json, extracted_slides, and transcribe_work directories; keep_intermediates disables all deletion and sync-before-delete ordering is an orchestrator caller contract.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_cleanup.py",
+          "version": "repo-file-v1:sha256:079b869e8421c9e0931aec184bb72797f3bcbd2c5e946b8854ed9fad396099e6"
+        },
+        {
+          "resource": "repo://transcriber/cleanup.py",
+          "version": "repo-file-v1:sha256:3852ae76b8b947bf6b19216b4a071172b430a7fd86cb3f8768b70beb3b2903dc"
+        }
+      ]
+    },
+    {
+      "id": "claim_1a6b9e4e3ea64f649eb600b4d1ff05fa",
+      "statement": "Prompt builders embed slide markdown verbatim inside a grown code fence with no image paths, instruct the model not to reproduce slides as reference-only, and the engine appends a single Slide Descriptions section while stripping SLIDE_EMPTY markers and fallback placeholders.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_agent.py",
+          "version": "repo-file-v1:sha256:4958b65bdde35a5c8de429c2359cf01999aa270c514cce4f39e07196ed4ad52d"
+        },
+        {
+          "resource": "repo://transcriber/agent.py",
+          "version": "repo-file-v1:sha256:5de107973134aa55ec0b38a3617bc1fb4d238b363db04a3272eb928fecda5856"
+        }
+      ]
+    },
+    {
+      "id": "claim_20be3732c17d42e1b0fd9334a6e304b0",
+      "statement": "Summarize backend selection is a pure function of config with no silent fallback, and the agno backend makes summary plus digest OpenRouter calls inlining slide markdown, splits cleaned slides to .slides-clean.md and the Notion subpage, fails on empty summary, clears stale digests on empty digest, and falls back to the default timeout when unset.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_summarize.py",
+          "version": "repo-file-v1:sha256:0244318c866f57a153a703ec836deea7528c48112859470a51b419bd00b8897f"
+        }
+      ]
+    },
+    {
+      "id": "claim_c02028493eaf45ca9e35471fe054ba79",
+      "statement": "Topic routing lists every configured topic plus the reserved default key demanding strict JSON with tolerant fence and missing/extra-key parsing, routes non-empty buckets to per-topic digests with fallback, while Telegram chunking payloads and S3 duct.cmd argv with is_enabled gating and timeout are verified through mocks without network or processes.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_routing.py",
+          "version": "repo-file-v1:sha256:3711f09b8cbcd47119f93daf9f7ed0e5e51b875cedc63eff44e37357fcbdb00b"
+        },
+        {
+          "resource": "repo://tests/test_s3.py",
+          "version": "repo-file-v1:sha256:ff57ccb8ba0d5dd0feb235bfc1bb4bc04887f2b0234601d89983677eb45e3395"
+        },
+        {
+          "resource": "repo://tests/test_telegram.py",
+          "version": "repo-file-v1:sha256:115533ff6ba4c8f96d13b82c0c2c9f1dd5612bd51c4544e412569b2a70adde1e"
+        }
+      ]
+    },
+    {
+      "id": "claim_907ecdd77b4941c88e46858028337576",
+      "statement": "Config path resolution prefers explicit --config over TRANSCRIBER_CONFIG over CWD candidates with blank env treated as unset, shadowing notice, directory rejection without fallback, and a using-config log line; shipped example configs and packaged prompt templates act as schema-drift guards.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_config_resolve.py",
+          "version": "repo-file-v1:sha256:f77014dcb8c48acf868dea82d20fd6bb1c631ac54606bd2af1b27ba48a7f4356"
+        },
+        {
+          "resource": "repo://tests/test_examples.py",
+          "version": "repo-file-v1:sha256:426aad72bcb5b831ab4f204715552e39de274824d6fe355f1b373b61496e8ab6"
+        },
+        {
+          "resource": "repo://tests/test_packaging.py",
+          "version": "repo-file-v1:sha256:1189e54a95146659c38be78739c9b36ff9fbd4e0c47b63303965ea8bc85f3947"
         }
       ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.6.1",
-    "at": "2026-10-06T06:48:26.024Z"
+    "by": "openwiki/0.9.0",
+    "at": "2026-11-07T16:24:10.535Z"
   }
 }

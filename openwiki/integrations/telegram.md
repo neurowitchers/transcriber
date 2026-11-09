@@ -1,145 +1,148 @@
 ---
 type: integration
-title: Telegram Integration
-description: How the transcriber sends meeting summaries to Telegram — bot token resolution, topic routing, Markdown stripping, message chunking, digest vs full-summary preference, and manifest-gated sends.
+title: Integration — Telegram Dissemination and Topic Routing
+description: How Telegram summaries are gated, routed per topic, stripped of Markdown, chunked, and retried safely via the state manifest.
 tags: [telegram, dissemination, bot-api, chunking, routing, manifests]
 verified:
-  - by: openwiki/0.6.1
-    at: 2026-10-06T06:48:26.024Z
+  - by: openwiki/0.9.0
+    at: 2026-11-07T16:24:10.535Z
 sources:
+  - id: openwiki-source-85141969915277909135a8af
+    resource: repo://tests/test_routing.py
   - id: openwiki-source-dea2e4c42431c82993df8686
     resource: repo://tests/test_telegram.py
   - id: openwiki-source-df4110b2c5338913ae9eedcf
     resource: repo://transcriber/__main__.py
   - id: openwiki-source-bb626cf9b19692a8c8d8d744
     resource: repo://transcriber/agent.py
+  - id: openwiki-source-8ae57789b707a6fc3e3769d7
+    resource: repo://transcriber/backends/summarize_agno.py
   - id: openwiki-source-c4777b8db8d4806695ac8b6a
     resource: repo://transcriber/config.py
   - id: openwiki-source-00e3ed9e027733aaa6655e18
     resource: repo://transcriber/publish/telegram.py
   - id: openwiki-source-0c6dbb86c6b6001bf65f1b4c
     resource: repo://transcriber/state.py
-generated: { by: "openwiki/0.6.1", at: "2026-10-06T06:48:26.024Z" }
+generated: { by: "openwiki/0.9.0", at: "2026-11-07T16:24:10.535Z" }
 ---
 
-# Telegram Integration
+# Integration — Telegram Dissemination and Topic Routing
 
-<!-- openwiki: broken internal link [../transcriber/publish/telegram.py] file "../transcriber/publish/telegram.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../transcriber/__main__.py] file "../transcriber/__main__.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-The transcriber disseminates summary text to Telegram chats through the Bot HTTP API (`sendMessage`). The integration lives in [transcriber/publish/telegram.py](../transcriber/publish/telegram.py) and is orchestrated from [transcriber/__main__.py](../transcriber/__main__.py) as the fourth stage in the per-recording pipeline.
+The transcriber disseminates meeting summaries to Telegram chats through the Bot HTTP API (`sendMessage`). The integration lives in `transcriber/publish/telegram.py` and is orchestrated from `transcriber/__main__.py` as a gated stage in the per-recording pipeline.
 
-## Orchestration in the batch runner
+Related design context: [Configuration model](../concepts/config-model.md), [Pre-flight and idempotency](../operations/pre-flight-and-idempotency.md), [Summarize & Publish workflow](../workflows/summarize-publish.md).
 
-<!-- openwiki: broken internal link [../transcriber/__main__.py] file "../transcriber/__main__.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-Telegram is stage four of the per-recording flow (after `pipeline`, `describe_slides`, and `summarize`). The orchestrator in [transcriber/__main__.py](../transcriber/__main__.py) drives it as follows:
+## Enabled gate
 
-<!-- openwiki: broken internal link [../transcriber/state.py] file "../transcriber/state.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-1. It checks the recording's manifest ([transcriber/state.py](../transcriber/state.py)) for the `"telegram"` key.
-2. If the stage is already marked complete, the send is skipped (idempotent retry guard).
-3. Otherwise, it reads the summary `.md` file and the digest `.telegram.md` file, picks between them (see below), and calls `TelegramPublisher(config).send(message_text)`.
-4. On success, it calls `state.mark_complete("telegram")`.
+Whether the stage runs at all is decided by `is_enabled(config)` in `transcriber/publish/telegram.py`:
 
-<!-- openwiki: broken internal link [../state.md] file "../state.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../transcriber/__main__.py] file "../transcriber/__main__.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-Because `mark_complete` persists the manifest immediately after each stage, a crash anywhere in the pipeline leaves an accurate manifest for the next retry. This is what prevents duplicate Telegram sends when a batch is re-run after a partial failure (see [RecordingState](../state.md) and the orchestrator in [__main__.py](../transcriber/__main__.py)).
+- It returns `config.telegram.enabled`, which defaults to `True` so existing configs behave exactly as before.
+- This mirrors the S3 stage's `transcriber.publish.s3.is_enabled` gating (`stages.s3_sync` plus `s3.is_enabled`).
+- The orchestrator checks the gate before anything else: when disabled it logs `telegram: disabled, skipping` and never touches the manifest, the digest files, or the network.
+- The dry-run plan honors the same gate: `telegram` appears in the stage list and the `Telegram chats:` destination line (default chat plus every deduplicated `routing` value) only when enabled; otherwise the plan prints `Telegram: disabled`.
 
-## What gets sent: digest vs full summary
+## Pre-flight token requirement
 
-The orchestrator decides which text to send by preferring the concise digest that the agent (`agy`) was told to write for chat, and falling back to the full summary only when the digest is missing or empty.
+`transcriber check` only requires the bot-token variable when the stage will run. `_required_env_vars` appends `config.telegram.bot_token_env` conditionally on `telegram.is_enabled(config)`, then `preflight_check` reports `missing required environment variable: '<name>'` when `resolve_env` fails. When `telegram.enabled` is `False`, the token variable is not required and no secret value is ever read during pre-flight.
 
-Concretely, in the orchestrator (`transcriber/__main__.py`) the logic is:
+## Orchestration and manifest gating
 
-<!-- openwiki: broken internal link [../transcriber/agent.py] file "../transcriber/agent.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-- `digest_file = agent.digest_path_for(summary_file)` — derived from the summary path as `<name>.telegram.md` (see [agent.py](../transcriber/agent.py)).
-- If the digest file exists and contains non-whitespace text, that text is used as `message_text`.
-- Otherwise, a warning is logged and the full summary file is used instead.
+Telegram is a late stage in `_process_one` (after `summarize`/`notion`, before `s3-sync` and `cleanup`). The sequence for each recording is:
 
-<!-- openwiki: broken internal link [../transcriber/agent.py] file "../transcriber/agent.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../transcriber/backends/summarize.py] file "../transcriber/backends/summarize.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-This means the chat-side message is normally the shorter, chat-oriented digest; the full summary reaches Telegram only when the digest step did not produce output. The digest path derivation is shared by the orchestrator and the summarize backends (see [agent.py](../transcriber/agent.py) and the summarize backend selection in [backends/summarize.py](../transcriber/backends/summarize.py)).
+1. If `is_enabled` is `False`, skip the stage entirely.
+2. Else if `state.is_complete("telegram")` on the `<name>.transcriber_state.json` manifest, log `already complete, skipping`.
+3. Else log `sending`, run `_disseminate_telegram(mp4, config, name)`, then call `state.mark_complete("telegram")`, which persists the manifest immediately.
+
+Because the mark happens only after a successful send, a crash or HTTP failure leaves the stage incomplete so the next retry re-sends, while a successful run is never duplicated. A per-recording exception is caught by `_process_one`, logged with the stage name, and recorded as a failed `RecordingOutcome` with `failed_stage="telegram"` so the batch continues to the next recording.
+
+```mermaid
+flowchart TD
+  A["Stage entry: telegram"] --> B{is_enabled?}
+  B -- No --> Z["Skip: disabled"]
+  B -- Yes --> C{is_complete telegram?}
+  C -- Yes --> Y["Skip: already complete"]
+  C -- No --> D{_disseminate_telegram}
+  D --> E{routing configured?}
+  E -- Empty --> F["Send single digest to default chat"]
+  E -- Non-empty --> G["Partition summary into topic + default buckets"]
+  G -- SummarizeError --> F
+  G --> H["Send each non-empty bucket to its chat"]
+  H --> I{Any sent?}
+  I -- Yes --> J["mark_complete telegram"]
+  I -- No --> F
+  F --> J
+```
+
+## What gets sent: single digest versus routed partition
+
+`_disseminate_telegram` has two modes selected by `config.telegram.routing`.
+
+### Single-digest mode (no routing)
+
+When `routing` is empty, the orchestrator sends one message to the default chat:
+
+- `_single_digest_text` prefers the concise `<name>.telegram.md` digest written by the summarize backend.
+- The digest path is derived by `agent.digest_path_for(summary_file)` as `<name>.telegram.md`.
+- Only when that file is missing or whitespace-only does it log `digest missing/empty, sending full summary` and send the full `<name>.md` summary instead.
+
+The backend keeps this invariant: it writes the digest when non-empty and deletes any stale `<name>.telegram.md` when the digest comes back empty, so a reprocess never disseminates an outdated digest.
+
+### Routed mode (topic partition)
+
+When `routing` is non-empty, the orchestrator partitions the **full summary** (richer than the short digest) into one digest per topic plus a default remainder, using a single model call (Option B):
+
+1. `build_agno_route_prompt(config, summary_text)` lists every configured topic (with its `topic_descriptions` text when present) plus the reserved `__default__` key, and demands strict JSON keyed by exactly that set. Each value must be a short Telegram-style digest (title plus decisions/actions, well under 1500 characters) or `""` when the bucket has no relevant content.
+2. `build_routed_digests` runs the call under the summarize-stage timeout and parses the reply with `_parse_route_json`, which strips a surrounding ```` ``` ```` / ```` ```json ```` fence, fills missing buckets with `""`, drops invented extra keys, coerces non-string values to `""`, and strips whitespace. Only a non-JSON payload or a non-object JSON value raises `SummarizeError`.
+3. For each configured topic in `routing` order, an empty bucket is logged (`topic ... empty, skipping`) and skipped with no file and no send. Each non-empty bucket is written to a per-topic file and sent with `publisher.send(text, topic=topic)`, which resolves to `routing[topic]`.
+4. The `__default__` remainder bucket is written and sent with `topic=None`, which resolves to `default_chat_id`.
+5. Per-topic files use `_routed_digest_path`: `<name>.telegram.<slug>.md`, where the topic label is slugified (`[^0-9A-Za-z_-]` becomes `-`, so `ECL2.0` becomes `ECL2-0`) and `default` is used for the remainder bucket. Empty buckets write no file.
+
+Two fallbacks guarantee the notification is never dropped by routing:
+
+- **Partition failure:** a `SummarizeError` (timeout, transport error, non-JSON, non-object) logs `routing partition failed (...); falling back to a single digest to the default chat` and sends `_single_digest_text` to the default chat.
+- **All buckets empty:** when every bucket is `""`, it logs `all routed buckets empty; sending single digest to the default chat` and sends the single digest to the default chat.
+
+## Chat routing
+
+`resolve_chat_id(telegram, topic)` implements the routing rule:
+
+- A non-empty `topic` present in `config.telegram.routing` resolves to the mapped chat id.
+- `None`, an empty string, or an unmatched topic falls back to `config.telegram.default_chat_id`.
+
+`TelegramPublisher.send(text, topic=None)` resolves the chat once per call, so every chunk of a multi-chunk message lands in the same chat. Single-digest sends and the default remainder bucket always use `topic=None` and therefore the default chat.
 
 ## Bot token resolution
 
-<!-- openwiki: broken internal link [../transcriber/config.py] file "../transcriber/config.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-The publisher never stores a literal secret. The Telegram config section ([transcriber/config.py](../transcriber/config.py)) holds only the **name** of the environment variable that contains the bot token (`telegram.bot_token_env`), along with `default_chat_id` and `routing`.
+The config model never stores a literal secret. The `Telegram` dataclass holds only the **name** of the environment variable (`telegram.bot_token_env`), plus `default_chat_id`, `routing`, optional `topic_descriptions`, and `enabled`.
 
-<!-- openwiki: broken internal link [../transcriber/publish/telegram.py] file "../transcriber/publish/telegram.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../transcriber/config.py] file "../transcriber/config.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-At send time, `TelegramPublisher._token()` resolves that variable via `transcriber.config.resolve_env`. If the variable is not set, the publisher raises `TelegramError` with an actionable message that names the missing variable (from `telegram.bot_token_env`). This keeps secret values out of the config model and out of logs under normal operation (see [publish/telegram.py](../transcriber/publish/telegram.py) and the Telegram config model in [config.py](../transcriber/config.py)).
-
-<!-- openwiki: broken internal link [../transcriber/__main__.py] file "../transcriber/__main__.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-The pre-flight check (`transcriber check`) treats the Telegram token env var as always-required for dissemination: `_required_env_vars` includes `config.telegram.bot_token_env` unconditionally (see the env-var policy in [__main__.py](../transcriber/__main__.py)).
-
-## Topic routing
-
-The publisher routes a message to a chat id based on its topic:
-
-- If `topic` is non-empty and present in `config.telegram.routing`, the mapped chat id is used.
-- If `topic` is `None`, empty, or not present in `routing`, the message falls back to `config.telegram.default_chat_id`.
-
-<!-- openwiki: broken internal link [../transcriber/publish/telegram.py] file "../transcriber/publish/telegram.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-This is implemented in `resolve_chat_id(telegram, topic)` and used by `TelegramPublisher.send(text, topic)` (see [publish/telegram.py](../transcriber/publish/telegram.py)).
-
-When the orchestrator sends the per-recording summary, it calls `send` without a topic, so each recording's message always lands in the default chat unless the publish path is extended to pass topic information.
+At send time `TelegramPublisher._token()` resolves that name via `transcriber.config.resolve_env`. If the variable is unset, it raises `TelegramError` naming the missing variable and the `telegram.bot_token_env` source, with guidance to export it before publishing. No HTTP request is attempted in that case, and the stage is left incomplete so a retry can succeed once the environment is fixed.
 
 ## Markdown stripping
 
-The digest is LLM-generated Markdown (bold, headings, bullets, links, inline code, blockquotes). Because `sendMessage` is called **without** a `parse_mode`, raw Markdown markers would otherwise render literally in the chat (the recipient would see `**`, `#`, `-`, and so on).
+`sendMessage` is called **without** a `parse_mode`, so raw Markdown markers would render literally. Instead `send()` applies `strip_markdown` before chunking, so every transmitted chunk is clean plain text:
 
-<!-- openwiki: broken internal link [../transcriber/publish/telegram.py] file "../transcriber/publish/telegram.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-Rather than enable a Telegram parse mode — MarkdownV2 requires pervasive escaping and rejects unescaped specials, and Telegram has no heading or list formatting anyway — the publisher strips Markdown to clean plain text before sending (see [publish/telegram.py](../transcriber/publish/telegram.py)).
+- `**bold**`, `__bold__`, `*italic*`, `_italic_` become inner text.
+- `` `code` `` loses its backticks; fenced-code fences (```` ``` ````) are removed while content lines are kept verbatim.
+- Leading `#` heading markers are removed; `> quote` markers are removed.
+- `-` / `*` / `+` list bullets become a `•` glyph (U+2022), with indentation preserved.
+- `[text](url)` becomes `text (url)` and `![alt](url)` becomes `alt (url)` (or just the URL when alt is empty), so link targets are not lost.
+- Line structure is otherwise preserved.
 
-`strip_markdown(text)` covers the Markdown the digest actually uses:
-
-- `**bold**`, `__bold__`, `*italic*`, `_italic_` → inner text
-- `` `code` `` → inner text (backticks removed)
-- leading `#` heading markers → removed (Telegram has no headings)
-- `-` / `*` / `+` list bullets → a `•` glyph (indentation preserved)
-- `> quote` → quoted text (marker removed)
-<!-- openwiki: broken internal link [url] file "url" does not exist. Fix the href or restore the target, then delete this comment. -->
-- `[text](url)` → `text (url)` (link target preserved)
-- `![alt](url)` → `alt (url)` or just the URL when there is no alt text
-- fenced-code fences (```` ``` ````) → removed (content kept verbatim)
-
-<!-- openwiki: broken internal link [../transcriber/publish/telegram.py] file "../transcriber/publish/telegram.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../tests/test_telegram.py] file "../tests/test_telegram.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-Line structure is preserved so the message stays readable. The sending path applies `strip_markdown` inside `send()` before chunking, so every transmitted chunk is clean plain text (see [publish/telegram.py](../transcriber/publish/telegram.py) and the stripped-payload test in [test_telegram.py](../tests/test_telegram.py)).
+There is intentionally no Telegram MarkdownV2 escaping: MarkdownV2 requires pervasive escaping and rejects unescaped specials, and Telegram has no heading or list formatting anyway.
 
 ## Message chunking
 
-Telegram enforces a hard limit of 4096 characters per text message (`TELEGRAM_MAX_MESSAGE_CHARS` in `transcriber/publish/telegram.py`).
+Telegram enforces a hard limit of 4096 characters per text message (`TELEGRAM_MAX_MESSAGE_CHARS`). `chunk_message(text, limit=4096)` splits the already-stripped text purely by character count into sequential chunks of at most `limit` characters. It raises `ValueError` for a non-positive limit, and an empty string yields a single empty chunk so at least one `sendMessage` call is made.
 
-If the (already Markdown-stripped) text exceeds that limit, `chunk_message(text, limit)` splits it into sequential chunks of at most `limit` characters. Splitting is purely by character count; the caller is responsible for any content-aware formatting. An empty string yields a single empty chunk so that at least one `sendMessage` call is made.
+The publisher sends each chunk as a separate `POST https://api.telegram.org/bot<token>/sendMessage` with payload `{"chat_id": "...", "text": "..."}` and no `parse_mode` field. It returns one `httpx.Response` per chunk, all addressed to the same resolved chat.
 
-<!-- openwiki: broken internal link [../transcriber/publish/telegram.py] file "../transcriber/publish/telegram.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-The publisher then sends each chunk as a separate `sendMessage` POST to the same chat. The returned list of `httpx.Response` objects is one per chunk (see [publish/telegram.py](../transcriber/publish/telegram.py)).
+## HTTP and client details
 
-## HTTP details
-
-- Base URL: `https://api.telegram.org`
-- Per-message endpoint: `https://api.telegram.org/bot<token>/sendMessage`
-- Method: `POST`
-- Payload: `{"chat_id": "...", "text": "..."}` — no `parse_mode` field is set.
-
-<!-- openwiki: broken internal link [../transcriber/publish/telegram.py] file "../transcriber/publish/telegram.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../tests/test_telegram.py] file "../tests/test_telegram.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-The publisher accepts an optional pre-configured `httpx.Client` for test injection; when none is supplied, it creates a client per `send` call. Any `httpx.HTTPError` from a `sendMessage` call is surfaced as `TelegramError` with the failing chat id and the underlying error (see [publish/telegram.py](../transcriber/publish/telegram.py) and [test_telegram.py](../tests/test_telegram.py)).
-
-## Manifest gating and retry safety
-
-Telegram sends are manifest-gated. The orchestrator checks `state.is_complete("telegram")` before sending, and marks the stage complete only after a successful send. Combined with the per-stage manifest persistence in `RecordingState.mark_complete`, this means:
-
-- A successful run records `"telegram": true` in `<name>.transcriber_state.json`.
-- A later retry of the same recording skips the Telegram stage entirely.
-- If a send fails, the stage is not marked complete, so a subsequent retry re-sends (once the upstream stages are also complete).
-
-<!-- openwiki: broken internal link [../state.md] file "../state.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../transcriber/__main__.py] file "../transcriber/__main__.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-This is the same idempotency mechanism used for Notion pages and S3 syncs (see [RecordingState](../state.md) and the orchestrator in [__main__.py](../transcriber/__main__.py)).
+- Base URL `https://api.telegram.org`; per-message URL `https://api.telegram.org/bot<token>/sendMessage`; method `POST`.
+- The publisher accepts an optional pre-configured `httpx.Client` (used by tests to inject a mock transport); when omitted it creates a client per `send` call.
+- Any `httpx.HTTPError` (non-2xx via `raise_for_status`, network error, timeout) is surfaced as `TelegramError` naming the failing chat id and the underlying error. The stage is then not marked complete, so the retry re-sends.
 
 ## Configuration shape
-
-The Telegram section of `config.yaml` (or the equivalent JSON) looks like:
 
 ```yaml
 telegram:
@@ -148,29 +151,17 @@ telegram:
   routing:                              # optional topic -> chat mapping
     engineering: "..."
     product: "..."
+  topic_descriptions:                   # optional steering hints for the partition prompt
+    engineering: "the platform team"
+  enabled: true                         # default true; false skips the stage entirely
 ```
 
-<!-- openwiki: broken internal link [../transcriber/config.py] file "../transcriber/config.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../transcriber/config.py] file "../transcriber/config.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-All three fields are required at the dataclass level (`Telegram` in [config.py](../transcriber/config.py)). The token value itself is resolved from the environment at use time, not stored in the config file (see [config.py](../transcriber/config.py)).
+`bot_token_env`, `default_chat_id`, and `routing` are required at load; `topic_descriptions` defaults to `{}` and `enabled` defaults to `True`. Keys in `topic_descriptions` should match `routing` keys; entries without a matching `routing` key only steer classification text and never add buckets. The token value itself is resolved from the environment at use time, never stored in the config file.
 
 ## Failure behavior
 
-- Missing bot token env var → `TelegramError`, no HTTP request attempted.
-- `sendMessage` HTTP error (non-2xx, network error) → `TelegramError`, stage not marked complete, recording marked as failed at the `"telegram"` stage in the batch outcome.
-<!-- openwiki: broken internal link [../transcriber/__main__.py] file "../transcriber/__main__.py" does not exist. Fix the href or restore the target, then delete this comment. -->
-- Failure isolation: an exception in one recording's Telegram stage is caught by the batch runner, logged with the stage name, recorded in that recording's outcome, and the batch continues to the next recording (see the per-recording failure handling in [__main__.py](../transcriber/__main__.py)).
-
-## Related
-
-- [Summarize & Publish workflow](../workflows/summarize-publish.md)
-- [Pre-flight and idempotency](../operations/pre-flight-and-idempotency.md)
-<!-- openwiki: broken internal link [../state.md] file "../state.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-- [RecordingState](../state.md) (manifest / stage gating)
-- `transcriber/publish/telegram.py` (implementation)
-- `transcriber/__main__.py` (orchestration)
-- `transcriber/config.py` (Telegram config model)
-- `transcriber/state.py` (manifest / stage gating)
-- `transcriber/agent.py` (digest path derivation)
-- `transcriber/backends/summarize.py` (summarize backend selection)
-- `tests/test_telegram.py` (routing, stripping, chunking, error surfacing — httpx fully mocked)
+- Disabled stage: no digest read, no partition call, no HTTP request, no manifest write.
+- Missing bot-token env var: `TelegramError` naming the variable; no request attempted; recording marked failed at stage `telegram`.
+- `sendMessage` HTTP failure: `TelegramError` naming the chat; stage not marked complete; recording marked failed at stage `telegram`.
+- Partition-model failure or all-empty buckets: not a Telegram failure — falls back to the single digest to the default chat as described above.
+- Failure isolation: one recording's Telegram exception is caught, logged with the stage name, recorded in that recording's outcome, and the batch continues.

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:d20ba3197e1d1c1eea0dad3751c41195ae6a8797a6c5298bbe078c2a5395a495",
+  "pageVersion": "sha256:84fc6482b911b6081f58f48c0217eee4d0b8112fe52a33b93a9175fc68e4e403",
   "claims": [
     {
       "id": "claim_af7deb86f8cc4297ad72aef249585065",
@@ -54,7 +54,7 @@
         },
         {
           "resource": "repo://transcriber/config.py",
-          "version": "repo-file-v1:sha256:fc1a3f37c4464443e19993d706d07a8606a33331c7576a5b53aa9aef9dc2a4cb"
+          "version": "repo-file-v1:sha256:95a90d127a580043b7947290dc26df6d084dd8541c3210c8c057ab00327d6593"
         }
       ]
     },
@@ -77,10 +77,102 @@
           "version": "repo-file-v1:sha256:e0b7a84c4b905641436c2d664e78960482ad34c51743c34840b52da89e185692"
         }
       ]
+    },
+    {
+      "id": "claim_d7395d7dce1f4db0878c8a1bcd2e9275",
+      "statement": "process_recording processes one MP4 through audio extract, optional slides, and transcribe stages and returns a RecordingResult with new versus skipped artifacts, while process_all runs it over every MP4 in recordings_dir in sorted order.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/pipeline.py",
+          "version": "repo-file-v1:sha256:df93725f71d25a5712d95eda5fbf842d1d3d060352d2f1d375141d3c163272a2"
+        }
+      ]
+    },
+    {
+      "id": "claim_8174b7832f6c4e1895d0f7698f332497",
+      "statement": "_run_command is the sole child-process seam: it builds a duct expression with optional stdout redirection, polls to enforce the timeout, raises PipelineTimeoutError after killing the child on expiry, and lets non-zero exits surface as duct.StatusError.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/pipeline.py",
+          "version": "repo-file-v1:sha256:df93725f71d25a5712d95eda5fbf842d1d3d060352d2f1d375141d3c163272a2"
+        }
+      ]
+    },
+    {
+      "id": "claim_e3fad346fabd4693842a5998b997ef32",
+      "statement": "Audio extract runs ffmpeg with audio-only flags under the ffmpeg timeout and is skipped when the MP3 exists with have_mp3 still gating transcription; slides extraction runs scenedetect under the scenedetect timeout only when slides are enabled and is skipped when the slide directory exists.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/config.py",
+          "version": "repo-file-v1:sha256:95a90d127a580043b7947290dc26df6d084dd8541c3210c8c057ab00327d6593"
+        },
+        {
+          "resource": "repo://transcriber/pipeline.py",
+          "version": "repo-file-v1:sha256:df93725f71d25a5712d95eda5fbf842d1d3d060352d2f1d375141d3c163272a2"
+        }
+      ]
+    },
+    {
+      "id": "claim_6536e1400b0845648c44e1c62aac50b7",
+      "statement": "chunk_audio slices audio with explicit per-part ffmpeg -ss and -t calls carrying segment plus overlap length because the segment muxer cannot express overlap, computing part count as ceil(duration divided by segment_seconds) and falling back to a single part when duration is unknown.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py",
+          "version": "repo-file-v1:sha256:e0b7a84c4b905641436c2d664e78960482ad34c51743c34840b52da89e185692"
+        }
+      ]
+    },
+    {
+      "id": "claim_6d87d25cb69d4b119d67982a6a846c00",
+      "statement": "Transcription duration comes from a best-effort ffprobe call through the pipeline _run_command seam with a fixed timeout and temp-file cleanup, returning None so chunking falls back to one part when probing fails or yields non-numeric output.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py",
+          "version": "repo-file-v1:sha256:e0b7a84c4b905641436c2d664e78960482ad34c51743c34840b52da89e185692"
+        }
+      ]
+    },
+    {
+      "id": "claim_98fd80f12bc44c68bf2266d3fff77ea2",
+      "statement": "stitch offsets each chunk by index times segment_seconds onto a monotonic timeline, reconcile_speakers maps local labels to global ids via the overlap window with unmatched speakers getting a new id plus warning and later chunks skipping the leading overlap duplicates, and render_transcript emits Speaker ID lines without timestamps or flat concatenated raw text when undiarized.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py",
+          "version": "repo-file-v1:sha256:e0b7a84c4b905641436c2d664e78960482ad34c51743c34840b52da89e185692"
+        }
+      ]
+    },
+    {
+      "id": "claim_dfd04d75805a4fd490fe6e3b69b40e18",
+      "statement": "transcribe_recording stores per-part progress in transcribe_work segments.json with immediate persistence and a segment_seconds and overlap_seconds parameter guard that discards stale work, skips done parts on resume, while the pipeline driver skips transcription entirely when the TXT artifact already exists.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/transcribe_openrouter.py",
+          "version": "repo-file-v1:sha256:e0b7a84c4b905641436c2d664e78960482ad34c51743c34840b52da89e185692"
+        },
+        {
+          "resource": "repo://transcriber/pipeline.py",
+          "version": "repo-file-v1:sha256:df93725f71d25a5712d95eda5fbf842d1d3d060352d2f1d375141d3c163272a2"
+        }
+      ]
+    },
+    {
+      "id": "claim_05993c7d1737477a999db6be965c985c",
+      "statement": "The pipeline stays media-only with per-stage timeouts from config timeouts for ffmpeg, scenedetect, and transcribe stages and never invokes the paid slides-description or summarize backends, which run later in the manifest-gated orchestrator.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/config.py",
+          "version": "repo-file-v1:sha256:95a90d127a580043b7947290dc26df6d084dd8541c3210c8c057ab00327d6593"
+        },
+        {
+          "resource": "repo://transcriber/pipeline.py",
+          "version": "repo-file-v1:sha256:df93725f71d25a5712d95eda5fbf842d1d3d060352d2f1d375141d3c163272a2"
+        }
+      ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.6.1",
-    "at": "2026-10-06T06:48:26.024Z"
+    "by": "openwiki/0.9.0",
+    "at": "2026-11-07T16:24:10.535Z"
   }
 }

@@ -1,13 +1,18 @@
 ---
-type: "Reference"
-title: "Quickstart"
-openwiki_generated: true
+type: guide
+title: Quickstart — Run the Transcriber Engine
+description: Install dependencies, configure a host, and run check, dry-run, and batch transcription with the transcriber engine.
+tags: [transcriber, quickstart, setup, config, cli]
 verified:
-  - by: openwiki/0.6.1
-    at: 2026-10-06T06:48:26.024Z
+  - by: openwiki/0.9.0
+    at: 2026-11-07T16:24:10.535Z
 sources:
   - id: openwiki-source-93673910bb15c021d9d7054e
     resource: repo://examples/example.config.yaml
+  - id: openwiki-source-05ccef8d4cf1698187f20464
+    resource: repo://pyproject.toml
+  - id: openwiki-source-23775c3de52f3ab95a13cb8b
+    resource: repo://README.md
   - id: openwiki-source-df4110b2c5338913ae9eedcf
     resource: repo://transcriber/__main__.py
   - id: openwiki-source-bb626cf9b19692a8c8d8d744
@@ -26,166 +31,150 @@ sources:
     resource: repo://transcriber/config.py
   - id: openwiki-source-c09b28db65820f5184d0fc9f
     resource: repo://transcriber/pipeline.py
+  - id: openwiki-source-00e3ed9e027733aaa6655e18
+    resource: repo://transcriber/publish/telegram.py
   - id: openwiki-source-0c6dbb86c6b6001bf65f1b4c
     resource: repo://transcriber/state.py
-generated: { by: "openwiki/0.6.1", at: "2026-10-06T06:48:26.024Z" }
+generated: { by: "openwiki/0.9.0", at: "2026-11-07T16:24:10.535Z" }
 ---
 
+# Quickstart — Run the Transcriber Engine
 
-# Quickstart
+This wiki documents a **local-first, AI-enabled meeting transcriber engine**. The engine code stays identical across hosts; each host supplies only its own config file, environment-variable secrets, and a `recordings/` directory. Hosts consume it as an **installable git-ref dependency** exposing the `transcriber` console entry point — copy an example config into the host repo and run from the host root.
 
-This wiki documents a **local-first, AI-enabled meeting transcriber engine** that is designed to be embedded in another repository as a **git submodule**. The engine code stays identical across hosts; each host supplies its own config file, environment-variable secrets, and a `recordings/` directory.
-
-Use this page to get oriented, then follow the links into the domains that matter for your task.
+Use this page to install, configure, and run your first batch, then follow the links into the domains that matter for your task.
 
 ## Where to go next
 
-The wiki is organized around a few major domains. Pick the one that matches what you are trying to do:
-
-<!-- openwiki: broken internal link [../architecture/oss-companion-transcriber.md] file "../architecture/oss-companion-transcriber.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-- **Architecture** — how the owned systems compose into one batch run: config loading, the pipeline stage sequence, the pluggable post-transcript backends, Notion publishing, Telegram dissemination, S3 sync, and the orchestrator with manifest-based idempotency. See [Architecture: OSS companion transcriber engine](../architecture/oss-companion-transcriber.md).
-<!-- openwiki: broken internal link [../concepts/config-model.md] file "../concepts/config-model.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../concepts/backend-selection.md] file "../concepts/backend-selection.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-- **Concepts** — the configuration model and how backends are selected. See [Configuration model](../concepts/config-model.md) and [Backend selection and interfaces](../concepts/backend-selection.md).
-<!-- openwiki: broken internal link [../workflows/transcription-pipeline.md] file "../workflows/transcription-pipeline.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../workflows/slides-description.md] file "../workflows/slides-description.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../workflows/summarize-publish.md] file "../workflows/summarize-publish.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-- **Workflows** — the concrete stage-by-stage behavior. See [Transcription pipeline workflow](../workflows/transcription-pipeline.md), [Slide description workflow](../workflows/slides-description.md), and [Summarize and publishing workflow](../workflows/summarize-publish.md).
-<!-- openwiki: broken internal link [../integrations/openrouter.md] file "../integrations/openrouter.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../integrations/notion.md] file "../integrations/notion.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../integrations/telegram.md] file "../integrations/telegram.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../integrations/s3.md] file "../integrations/s3.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-- **Integrations** — the external seams: OpenRouter, Notion, Telegram, and S3. See [OpenRouter integration](../integrations/openrouter.md), [Notion integration](../integrations/notion.md), [Telegram integration](../integrations/telegram.md), and [S3 integration](../integrations/s3.md).
-<!-- openwiki: broken internal link [../operations/pre-flight-and-idempotency.md] file "../operations/pre-flight-and-idempotency.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-- **Operations** — pre-flight checks, dry-run planning, and idempotent retries. See [Pre-flight checks and idempotent retries](../operations/pre-flight-and-idempotency.md).
-<!-- openwiki: broken internal link [../testing/strategy.md] file "../testing/strategy.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-- **Testing** — the pytest approach for the orchestrator and CLI. See [Testing strategy](../testing/strategy.md).
+- **Architecture** — how the batch run composes. See [Architecture: OSS companion transcriber engine](architecture/oss-companion-transcriber.md).
+- **Concepts** — the validated config model and per-stage backend selectors. See [Configuration model](concepts/config-model.md) and [Backend selection](concepts/backend-selection.md).
+- **Workflows** — the concrete stage behavior. See [Transcription pipeline](workflows/transcription-pipeline.md), [Slide description](workflows/slides-description.md), and [Summarize, digest, routing, and Notion publish](workflows/summarize-publish.md).
+- **Integrations** — the external seams. See [OpenRouter](integrations/openrouter.md), [Notion](integrations/notion.md), [Telegram](integrations/telegram.md), and [S3](integrations/s3.md).
+- **Operations** — pre-flight, manifests, failures, and cleanup. See [Pre-flight, manifests, failures, and cleanup](operations/pre-flight-and-idempotency.md).
+- **Testing** — how the engine is tested. See [Testing strategy](testing/strategy.md).
 
 If you only need the minimal setup flow, keep reading.
 
-## Minimal setup flow
+## Install
 
-1. **Add the engine as a submodule** and keep host-specific customizations in config. The engine code itself does not change between hosts.
-2. **Provide a config file** (YAML or JSON) plus a `recordings/` directory. Secrets are never stored in the config; they are referenced by environment-variable name and resolved at use time.
-3. **Satisfy the prerequisites** before running: the required binaries must be on `PATH` and the required environment variables must be set. The engine ships a `transcriber check` pre-flight subcommand for this.
-4. **Understand the stage sequence** so you know what "done" means for a recording and what can be skipped on retry.
-5. **Pick the post-transcript backends** you want, because they determine which paid/network calls happen and which secrets are required.
+Requirements: **Python 3.10+** and [uv](https://docs.astral.sh/uv/) for environment management.
 
-## Config shape
+```bash
+uv sync
+```
 
-<!-- openwiki: broken internal link [../concepts/config-model.md] file "../concepts/config-model.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-The config is loaded by a single validated model regardless of file format. Both JSON and YAML map to the same `Config` dataclass. The loader is in `transcriber/config.py` and is covered in detail in [Configuration model](../concepts/config-model.md).
+`agno` is a **core dependency** (not an optional extra): `pyproject.toml` depends on `agno[mcp]~=3.0` plus `openai~=1.0` because the `summarize` stage always runs on the backend named `agno`. The deprecated no-op `transcriber[agno]` extra still resolves for old host dependency strings, but new hosts depend on plain `transcriber`. The `transcriber` console script is mapped to `transcriber.__main__:main`.
 
-At a high level, the config separates concerns like this:
+Host `pyproject.toml` pattern:
+
+```toml
+[project]
+dependencies = ["transcriber"]
+
+[tool.uv.sources]
+transcriber = { git = "ssh://git@github.com/scartill/transcriber.git", tag = "vX.Y.Z" }
+```
+
+## Configure a host
+
+A single config file (YAML or JSON, selected by extension) loads into one validated `Config` model in `transcriber/config.py`. Secrets are never stored in the file — they are referenced by **environment-variable name only** and resolved at use time via `resolve_env`.
+
+Start from an example:
+
+- `examples/example.config.yaml` — the simpler setup: slides on, no S3 sync, English summaries, a single Telegram chat, Notion subpage insertion, slides on the OpenRouter vision backend, summarize on the `agno` backend (the name is retained for compatibility; the implementation is direct OpenRouter chat-completions calls plus engine-driven Notion REST publish).
+- `examples/acme.config.yaml` — the fuller setup: S3 sync on, original-language summaries, topic-routed Telegram.
+
+At a high level the config separates concerns:
 
 - **Where recordings live** — `recordings_dir`.
-- **Which stages run** — `stages.slides` (a nested `{enabled, backend}` object; the legacy bare-bool form is rejected) and `stages.s3_sync`.
-- **How audio is transcribed** — `transcribe`, including the OpenRouter STT model slug, diarization toggle, and chunking/overlap parameters.
-- **How the summary is produced and published** — `summary` (language, sections, backend), `agent` (the local CLI settings retained for config compatibility), `notion`, and `telegram`.
-- **How external services connect** — a shared `openrouter` block (now mandatory) and optional `s3`.
-- **Timeouts and debug behavior** — `timeouts` and the optional top-level `debug` flag.
+- **Which stages run** — `stages.slides` (`{enabled, backend}`; the legacy bare-bool form raises `ConfigError`) and `stages.s3_sync`.
+- **How audio is transcribed** — `transcribe` (OpenRouter STT slug, diarization, `segment_seconds` / `overlap_seconds`).
+- **How the summary is produced** — `summary` (`language`, `sections`, `backend`), plus `agent.output_file` (`{basename}.md` template).
+- **How external services connect** — a mandatory `openrouter` block and optional `s3`; `notion` and `telegram` connection blocks.
+- **Timeouts and debug behavior** — `timeouts` and optional top-level `debug`.
 
-The example config is a useful starting point: `examples/example.config.yaml`. It is the simpler "example" host setup: slides on, no S3 sync, English summaries, a single Telegram chat, Notion subpage insertion mode, slides on the OpenRouter vision backend, and summarize on the `agno` backend.
+Rules that matter early:
 
-A few config rules matter early:
+- The `openrouter` block is **always required**. Transcription runs over the OpenRouter speech-to-text API on every run, so there is no OpenRouter-free configuration.
+- `stages.slides.backend` must be `"openrouter"` and `summary.backend` must be `"agno"` — the only values in each selector. Unknown values fail at load.
+- `notion.token_env` is required when `summary.backend == "agno"`.
+- `telegram.enabled` defaults to `True`. When `False`, the Telegram stage is skipped entirely.
 
-- The `openrouter` block is **always required**. Transcription itself runs over the OpenRouter speech-to-text API, so audio egresses to OpenRouter on every run. There is no OpenRouter-free configuration.
-- Secrets are stored as **environment-variable names only**, never as literal values. For example, `telegram.bot_token_env` names the variable that holds the token; the value is read later via `resolve_env`.
-- `stages.slides` is a nested mapping with `{enabled, backend}`. The old bare-boolean shape is invalid and raises a `ConfigError`.
-- The slides backend is constrained to `"openrouter"`, and the summarize backend is constrained to `"agno"` (the only summarize backend). Unknown values fail at load.
+### Config discovery
 
-## Prerequisites
+`transcriber` resolves its config in strict precedence:
 
-The engine is a Python CLI. Before any real work happens, it runs a pre-flight check that verifies the binaries and environment variables required by the current config.
+1. explicit `--config PATH`;
+2. `TRANSCRIBER_CONFIG` when set and non-empty (empty/whitespace counts as unset);
+3. first existing CWD candidate — `transcriber.config.yaml`, then `config.yaml` (the former wins with a shadow notice when both exist);
+4. otherwise raise `ConfigNotFoundError` naming all four sources.
 
-The always-required binary is `ffmpeg`. Other binaries are gated by config:
+An explicit `--config` and a non-empty `TRANSCRIBER_CONFIG` are **authoritative**: the path must be an existing regular file (a missing path or directory is a hard error with no fallback to CWD candidates). Relative `--config` / `TRANSCRIBER_CONFIG` paths are anchored to the current working directory, so run `transcriber` from the host root. The resolved path is logged at `INFO` on every run and shown in `check` / `--dry-run` output.
 
-- `scenedetect` when slides are enabled.
-- `agno` when the summarize backend is `agno`.
-- `aws` when S3 sync is enabled.
+## Check, plan, run
 
-On the environment-variable side, the pre-flight check treats secrets by name only. The Telegram bot token is always required for dissemination. The OpenRouter API-key variable is required on every run because transcription runs over OpenRouter. The Notion token variable is additionally required when `summary.backend == "agno"`.
-
-You can run the pre-flight check directly:
+The CLI surface is small:
 
 ```bash
-transcriber check --config config.yaml
+transcriber [--config PATH] [--keep-intermediates] [--dry-run]
+transcriber check [--config PATH]
 ```
 
-It exits `0` when everything required is present and non-zero with a message otherwise. The `--dry-run` flag is also useful early: it prints the execution plan for the current config and recordings and exits without running any subprocesses, agent, publishing, or deletion.
+- `--config PATH` selects the config file (see discovery above).
+- `transcriber check` runs the **pre-flight check standalone**: required binaries on `PATH` plus required env-var names, with the selected backend per stage surfaced. It exits `0` when everything is present and non-zero with a message otherwise.
+- `transcriber --dry-run` prints the **execution plan** and exits with no side effects — no subprocesses, no model calls, no publishing, no deletion.
+- `--keep-intermediates` skips the cleanup stage after a successful run. The config `debug: true` flag has the same effect persistently; the two are OR'd.
 
-## Pipeline stage sequence
+Before any real work, the engine fails fast on pre-flight problems:
 
-Each new `*.mp4` in `recordings_dir` (one whose summary `.md` does not yet exist) runs through a fixed sequence. The high-level order is:
+- **Binaries:** `ffmpeg` is always required; `scenedetect` is additionally required when slides are enabled; `aws` is additionally required when S3 sync is enabled. `agno` is a Python dependency installed by `uv sync`, not a checked binary.
+- **Env vars (by name only, values never read here):** the OpenRouter API-key variable is required on every run; the Telegram bot-token variable is required only when `telegram.enabled` is true; the Notion token variable is additionally required when `summary.backend == "agno"`.
 
-1. **Pipeline** — deterministic, media-only stages:
-   - **Audio extract** — pull an audio track from the video with `ffmpeg`.
-   - **Scene extraction** *(optional, `stages.slides.enabled`)* — detect scene cuts and export slide frames with `scenedetect`. This stage is network-free.
-   - **Transcribe** — diarize and chunk the audio into explicit time slices, send each slice to **OpenRouter** speech-to-text, then stitch the slices back into a single plain-text transcript.
-2. **Describe slides** *(optional, when `stages.slides.enabled`)* — turn the extracted slide images into a `<name>.slides.md` markdown block via the **`openrouter`** vision backend (the only slides backend); the pipeline itself stays ffmpeg + scenedetect + transcribe, and the STT HTTP seam lives inside `pipeline._transcribe`. One vision call per slide, image-only (no transcript).
-3. **Summarize** — turn the transcript (plus the `<name>.slides.md` block when present) into the final `<name>.md` summary and `<name>.telegram.md` digest, and publish a Notion subpage. This runs on the configured **summarize backend**.
-4. **Telegram** — disseminate a notification to Telegram, topic-routed where configured.
-5. **S3** *(optional, when `stages.s3_sync`)* — sync the recording to S3.
+Both `check` and `--dry-run` surface **backend visibility** per stage so you can confirm the engine mix before it executes. A slides-on, `agno`-summarize plan reads:
+
+```
+audio-extract, scene-extract, transcribe [openrouter:microsoft/mai-transcribe-2], describe-slides [openrouter], summarize+notion [agno], telegram, s3-sync
+```
+
+### A minimal first run
+
+```bash
+cp examples/example.config.yaml ./transcriber.config.yaml
+# edit recordings_dir, notion.parent_page_id, telegram ids, s3.* as needed
+
+export TELEGRAM_BOT_TOKEN=...
+export OPENROUTER_API_KEY=...   # always required
+export NOTION_API_KEY=...       # required for summarize backend "agno"
+
+transcriber check --config transcriber.config.yaml
+transcriber --config transcriber.config.yaml --dry-run
+mkdir -p recordings
+# drop a new *.mp4 into recordings/, then:
+transcriber --config transcriber.config.yaml
+```
+
+A recording is **new** when its `*.mp4` has no corresponding summary `.md` yet. Discovery is sorted by filename for deterministic ordering.
+
+## What a batch does
+
+Each new `*.mp4` runs through a fixed sequence:
+
+1. **Pipeline** — deterministic, media-only stages: `ffmpeg` audio extract, optional `scenedetect` scene extraction, then chunked OpenRouter speech-to-text transcribe and stitching.
+2. **Describe slides** *(only when `stages.slides.enabled`)* — one OpenRouter vision call per slide, image-only, writing `<name>.slides.md` via the `openrouter` backend.
+3. **Summarize + Notion** — the backend named `agno` makes direct OpenRouter chat-completions calls for the summary and digest, writes `<name>.md` plus `<name>.telegram.md` (and `<name>.slides-clean.md` when slides exist) **before** publishing, then the engine publishes the Notion subpage via the Notion REST API with a duplicate-publish guard.
+4. **Telegram** *(only when `telegram.enabled`)* — disseminate the digest, topic-routed where configured.
+5. **S3** *(only when `stages.s3_sync`)* — sync the recording to S3.
 6. **Cleanup** — remove intermediate artifacts after a successful run (unless `--keep-intermediates` or `debug: true`).
 
-Intermediate artifacts are cleaned up when a recording finishes processing. The durable outputs are preserved: the source `.mp4`, the final `.md` summary, the `.txt` transcript, and the reader-facing `<name>.slides-clean.md`.
+The durable outputs are preserved: the source `.mp4`, the final `.md` summary, the `.txt` transcript, and the reader-facing `<name>.slides-clean.md`.
 
-The pipeline stage itself stays network-free. The paid/network calls live in the manifest-gated post-transcript steps: describe slides, summarize/+Notion, Telegram, and S3.
+## Idempotency and failure handling
 
-## Idempotency and retry behavior
+Retries are safe by design. The engine keeps a **per-recording state manifest** (`<name>.transcriber_state.json`) next to each `.mp4`, and a retry skips already-finished stages — this is what prevents duplicate Notion pages, duplicate Telegram sends, or redundant S3 re-syncs.
 
-Retries are safe by design. The engine keeps a **per-recording state manifest** (`<name>.transcriber_state.json`) next to each `.mp4`. That manifest records which stages have completed, and a retry skips already-finished stages. This is what prevents duplicate Notion pages, duplicate Telegram sends, or a redundant S3 re-sync when a batch is re-run after a partial failure.
+- The manifest is the source of truth for stage completion.
+- `describe_slides` has an extra idempotent path: if the manifest is incomplete but `<name>.slides.md` already exists, the paid backend call is skipped and the stage is marked complete.
+- Failure is isolated per recording: an exception is caught, logged, recorded in that recording's manifest, and the batch continues. Cleanup runs only on a recording's full success.
+- There is **no silent cross-backend fallback**: a selected backend's failure fails that stage and is retryable.
 
-A few important details:
-
-- The manifest — not artifact existence alone — is the source of truth for stage completion.
-- Already-completed stages are skipped. For example, if `pipeline` is already marked complete, the orchestrator logs that and moves on.
-- The `describe_slides` stage has an extra idempotent path: if the manifest says the stage is not complete but `<name>.slides.md` is already present, the paid backend call is skipped and the stage is marked complete. This handles the crash-after-write-but-before-mark case without reissuing the call.
-- If a manifest predates the `describe_slides` stage, the missing key is treated as incomplete, so a re-run reissues the slides call exactly once and then records it.
-- Failure is isolated per recording. An exception in one recording is caught, logged, recorded in that recording's manifest, and the batch continues. Cleanup runs only on a recording's full success.
-
-Because paid calls live in manifest-gated orchestrator steps, a retry never re-issues a completed slides call. There is **no silent cross-backend fallback**: a selected backend's failure fails that stage (and is retryable).
-
-## The two post-transcript backend choices
-
-Two post-transcript stages matter most when you are setting up a host: **describe slides** and **summarize**. They are selected independently.
-
-### Describe slides
-
-The `describe_slides` stage always runs on the **`openrouter`** vision backend (the only slides backend). It performs one OpenRouter vision call per slide, image-only (no transcript). Enabling slides requires the `openrouter` block and its API key.
-
-The slide descriptor is image-only: it describes what is visually on each slide. Transcript cross-referencing — aligning speaker commentary, decisions, and Q&A to slides — happens later in the summarize stage, which receives the full transcript **and** the `<name>.slides.md` block.
-
-Slides are gated by `stages.slides.enabled`. If you must avoid all OpenRouter egress, keep slides disabled and summarize on `agno`.
-
-### Summarize
-
-The `summarize` stage runs on a separately selected backend:
-
-- **`agno`** — an OpenRouter-driven summarize backend. The model produces the summary and digest, and then **the engine publishes the Notion subpage directly via the Notion REST API** (no MCP, no `npx`). This is the only summarize backend and the default when nothing is configured.
-
-Both backends produce the same artifacts, but the Notion publish path is backend-specific. For `agno`, Notion publishing is engine-driven through the Notion REST API.
-
-Summarize defaults to `agno`. If you enable slides, you must also have the `openrouter` block and key, because the slide descriptor is an OpenRouter vision call. Operators who must avoid all OpenRouter egress should keep slides disabled and summarize on `agno`.
-
-## A minimal first run
-
-A minimal happy path looks like this:
-
-1. Copy `examples/example.config.yaml` into the host repo and adjust paths/ids.
-2. Set the referenced environment variables (for example, `TELEGRAM_BOT_TOKEN` and `OPENROUTER_API_KEY`).
-3. Run `transcriber check --config config.yaml` to verify binaries and environment.
-4. Drop a new `*.mp4` into `recordings/` and run `transcriber --config config.yaml`.
-
-If you want to preview what will happen before running anything, use:
-
-```bash
-transcriber --config config.yaml --dry-run
-```
-
-## How this wiki is organized
-
-
-<!-- openwiki: broken internal link [../architecture/oss-companion-transcriber.md] file "../architecture/oss-companion-transcriber.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-<!-- openwiki: broken internal link [../operations/pre-flight-and-idempotency.md] file "../operations/pre-flight-and-idempotency.md" does not exist. Fix the href or restore the target, then delete this comment. -->
-This page is intentionally short and concrete. Deep runtime analysis lives in the architecture and workflow pages. If you are changing the engine, start with [Architecture: OSS companion transcriber engine](../architecture/oss-companion-transcriber.md) and then read the workflow pages that match the stage you are touching. If you are operating a host repo, start with [Pre-flight checks and idempotent retries](../operations/pre-flight-and-idempotency.md) and the integration pages for whichever external services you use.
+If you are changing the engine, start with [Architecture](architecture/oss-companion-transcriber.md) and the workflow pages matching the stage you touch. If you are operating a host repo, start with [Pre-flight, manifests, failures, and cleanup](operations/pre-flight-and-idempotency.md) and the integration pages for the services you use.

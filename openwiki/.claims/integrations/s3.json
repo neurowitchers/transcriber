@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:57635f396b3c0dc50052d7d851ca41137aa99de08f88d5758968f239174a8621",
+  "pageVersion": "sha256:9139e16a1812bd6b015b155dae6a663a3c8978c6f397640cdfecc0c4bea5f923",
   "claims": [
     {
       "id": "claim_419395ccf46246f7ab1f687d4c252dab",
@@ -17,7 +17,7 @@
       "statement": "The S3 stage is gated by two independent conditions: config.stages.s3_sync must be truthy and config.s3 must not be None. The is_enabled function returns True only when both are satisfied.",
       "evidence": [
         {
-          "resource": "repo://transcriber/config.py#L130-L133",
+          "resource": "repo://transcriber/config.py#L135-L138",
           "version": "repo-lines-v1:sha256:d08fab7a7364ccc31d6dd3ca145f0b2ff794c189fe3513548f18851852e4f56a:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTRiY2MxNTIyYWRiNmNiMzBlYTdjNDA0MGMzMDJkZGU3NDk5NTAzYzE3M2RkMjZiMGYwMzNjNjAxYTkyMGZkOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNmMxZjAyZmQ3ZWMxZDQ2MmMwY2I4MThiOTQ4ZmZlNGY3MTViMmMyYzQzMjYzMGMyMzJkZmUzNGQ0Mjc0M2ZhOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDdiN2I5YTQ2NTQ2MDJlZDBmMGE0ODc0N2FjNTU2NTkxZTMyYThlZmI0NmRmZTM1ZDUzNTM5MzM2MjFjYzI0ZiJ9"
         },
         {
@@ -69,11 +69,11 @@
       "statement": "The pre-flight check requires the aws binary on PATH when S3 sync is enabled (s3_mod.is_enabled(config) is true), and reports a missing aws as a problem before any work starts.",
       "evidence": [
         {
-          "resource": "repo://transcriber/__main__.py#L168-L175",
+          "resource": "repo://transcriber/__main__.py#L169-L176",
           "version": "repo-lines-v1:sha256:8dc914e66a69bbb10d414d335bb115dee9bf52fdd829aac6dedad157af4ada89:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZWVkMDU0MWRmYzgyNGIxYWI5NmViYWE3ZjZlOWYyMjMxYzU1YWEwZDFhZDk4MGMyMTY4MWNkZGM3MmE3MmM5YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzFmZDQxZjUxMTgwYzIzOWEzZGU0OTE1YTk0OWMwN2Y2NjNkMDhjY2U4NDc3NDVkZDA1ZTEzZDlmNWIyMWYyYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYjc5ZTY5NWQ2YWZjNDJlZWMyZGI5NzNjNzAwN2RiYjRiYWM5MzYzNzM1YzIwMTYyOTZiNTk5YWViYzhiNGFiOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiODJmOTJiNjE1NDk0ZmZjNWFmODg2NGM2NDQ3N2NmMTNjMmMwOWY2NzBhYjI1ZjJlMDY2MzlkNjFiZjg2MTZhOSJ9"
         },
         {
-          "resource": "repo://transcriber/__main__.py#L200-L227",
+          "resource": "repo://transcriber/__main__.py#L203-L230",
           "version": "repo-lines-v1:sha256:c132fe3a9793542aeff6817b6d454f42b0523926ac9d35495dd8fbc2f0986cca:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzZDc1YmEyNzcyMDYzN2ZjODllNTgwZmNhMGJlYWU5NWFhMzE2NGEyZTE4ZDJlOTdlOTdlMjcxYWMwYWQ5ZmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyMzRiMTc2NjE2MmIxYzk4YTYyNjkxNWVhODZiZTU4ZWQ5MmRmOWM5NmY1ZDU4OTA5NWQ5NjIwYjc1MTk2NmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1YzNjNjFlMjk2Y2IwMTZjZjYxZmI2M2I3ZWQ3ZmE3NjllOWVjMDFiMjM5NTNmMDZlMmJiNjcyZjBjYTFjZTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRhOWJiNGIyM2UxY2ZlN2MyZWYwZjAyZjE1NWM4NzI2ODY0ZDNlMDUxNTQyZmQzNTdjNzhkZjZhMTBhNGMzYWYifQ"
         }
       ]
@@ -83,11 +83,11 @@
       "statement": "In the orchestrator, the S3 stage runs after Telegram and before cleanup. When enabled and the manifest is not complete, the orchestrator calls s3_mod.sync and marks s3 complete; when disabled it logs and skips without marking complete.",
       "evidence": [
         {
-          "resource": "repo://transcriber/__main__.py#L174-L182",
+          "resource": "repo://transcriber/__main__.py#L175-L183",
           "version": "repo-lines-v1:sha256:cd4ecccb67999ced184df28327b6320f7548604611a214ae98454605b3256c31:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMjQzZDljNjdlODdlNDY5NTk2NDYwMmUwNDZhNzk0YWIyMjUzZWI5MDMzYTdhMjUyZjU2N2JkODQ3ZDFkZjkxNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTZhNzE1MjU3MmVlODRmMTA5MDZjNzRiOWYyYTkyNDM0ZGRhYjBlM2M0MjgxM2IwNGU1OTdlZmNlYzk1MWIyNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYmVlODg3ZDE5OWY3M2IzYzE1YjgyZWFiODNmNDU4NTMzZThjMzZkOTZkNDhlMDFiNWRmNjJkOGQ1YjMyOGY1YyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOWVhNDg5ZTkzYTA5YmVkNzBhMDk5ZGY2N2I3Njg1OGVkYjhlZDc2NGVkODIzYzY2MmY2YTczMDM3ZTkzYjFjMyJ9"
         },
         {
-          "resource": "repo://transcriber/__main__.py#L565-L574",
+          "resource": "repo://transcriber/__main__.py#L574-L583",
           "version": "repo-lines-v1:sha256:30cc13d3f7a8dd38c539c5bc4e494efd2fcf1b882756e6a754f2eff96967a320:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzZDZjZjc2ZTE0ZjFlYTczNjFjZjc0Yjk4YzA0YjVjMzZkZTMxODM0NTBhNjNiMDBlZjRkNWVmOWE5MWVhMGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVkNDUzMWQ4ODIyYzlkMmQyYThmOGI2MGU1MmJkMTI4OGQxMjJlN2Q4YTdiODYxOGU2MDliOTQ2YjU2MGQxOTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFkMjNhZTU3YzU0NzY2MjQzNzMzNWE0Yzk0OGZiY2E5YjU1Mjg5M2YzNWJkMmE5NDYyNmU5ZjQ4OWExYWFkZTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNjNjNkNDdjNzQ3MzAyZjRhNzI0N2E3MTJkOGY5ZTY0ZTY4YjBjM2IyNGQyMGY5MTBhZWFhZDQ1NjkzZDMwYWEifQ"
         }
       ]
@@ -97,7 +97,7 @@
       "statement": "The config loader treats the top-level s3 section as optional (built from data.get('s3'), left as None when absent), while stages.s3_sync is a required boolean field under stages.",
       "evidence": [
         {
-          "resource": "repo://transcriber/config.py#L267-L269",
+          "resource": "repo://transcriber/config.py#L272-L274",
           "version": "repo-lines-v1:sha256:e1ddbdf8065f88c7e0b484b3be1f69730458268a410955650f0d9ae1d3b5cdbf:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNGEyNzg1ODc1NTQwZDE2NmJmNGQzZDg5MWYzYjQ4ZjBhNTkyNDczZmFhYzdlMzRmMzExYmYwOGMzZjg2OWYwOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzVkNjViZmQ3ZDQwOTFhNzk0OWFkZmI0ODMyZDAyNGJiMGY0YmRmNzRlMDRlZWI3MjY1NGIxMjBlNTA4ZWQ3YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTY4MzE2NDhhZjRhMGI1ZmQxNjIyYTg2OWExM2U1YmRjM2NkMjk5NTQ2ZTZlOThmYTFkMGMwMDdiYmY5ODVkZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZGI5NDcxNTk2YWYwYTk1YjRjMDI4YzY2MjliZWNmYmQ0NzhkOWQyYzU4NDA1NDIxYjI4MTUzMWZlOWQ2MTg0MiJ9"
         },
         {
@@ -125,7 +125,7 @@
       "statement": "The S3 module enforces an ordering contract: a successful sync must complete before any cleanup/deletion of intermediates. The module only performs the upload; cleanup is a separate function the orchestrator calls after sync returns True or after the stage is skipped.",
       "evidence": [
         {
-          "resource": "repo://transcriber/__main__.py#L565-L585",
+          "resource": "repo://transcriber/__main__.py#L574-L594",
           "version": "repo-lines-v1:sha256:6850cea00e2a0c2a0794494d9780b1ec9eea4b058d8c366ba9eb6d5606836d54:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzZDZjZjc2ZTE0ZjFlYTczNjFjZjc0Yjk4YzA0YjVjMzZkZTMxODM0NTBhNjNiMDBlZjRkNWVmOWE5MWVhMGUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmYTdmNTI2MWY0ZjI0MDk2MmEyYmQwMDQyMGE1NDU1MDY1MDkxZTQwMmRkOGJkMDY1M2JiMDFhNzczZTE1MTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFkMjNhZTU3YzU0NzY2MjQzNzMzNWE0Yzk0OGZiY2E5YjU1Mjg5M2YzNWJkMmE5NDYyNmU5ZjQ4OWExYWFkZTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNjZWFhYWU3NmZiOGNhNWVlMzVlZDRlMTYyM2Q2MTUyMTY0MTllYjU1MmI5YzZmOGMwMDc4MzIyMTVmZjNkM2IifQ"
         },
         {
@@ -143,14 +143,114 @@
           "version": "repo-lines-v1:sha256:c3d21e2a45f53a9ae723ffc04802e8c8bedce28dbe29b5bc09ad9f646edfd8e1:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNzBlZjYxYjdlOGJjNThjM2FkYjFiZGJhOWQzNTQ0NjkyODZhMTU3MWMwM2Q1M2RjMDNmN2Y3M2M2Mjc1NDUzOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTMwM2VjZGQ0YTRkMTBmMTljNzNmZDQyZmQxMjQzN2ZkMzM1NGE4MjY4MTYwNWRhNTI1NWE5N2EzOTA2OGRiYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTViNmU4NzA2YjQzMDQ3ZjJhNmRiNjdmMTMyNjM4NTk1NjA0ZTY3ZjM2OTY2ODc2Y2UwMTU4ZjAwNTNlNmJkMSJ9"
         },
         {
-          "resource": "repo://transcriber/__main__.py#L174-L174",
+          "resource": "repo://transcriber/__main__.py#L175-L175",
           "version": "repo-lines-v1:sha256:243d9c67e87e4695964602e046a794ab2253eb9033a7a252f567bd847d1df917:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMjQzZDljNjdlODdlNDY5NTk2NDYwMmUwNDZhNzk0YWIyMjUzZWI5MDMzYTdhMjUyZjU2N2JkODQ3ZDFkZjkxNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMjQzZDljNjdlODdlNDY5NTk2NDYwMmUwNDZhNzk0YWIyMjUzZWI5MDMzYTdhMjUyZjU2N2JkODQ3ZDFkZjkxNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYmVlODg3ZDE5OWY3M2IzYzE1YjgyZWFiODNmNDU4NTMzZThjMzZkOTZkNDhlMDFiNWRmNjJkOGQ1YjMyOGY1YyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjVjM2M2MWUyOTZjYjAxNmNmNjFmYjYzYjdlZDdmYTc2OWU5ZWMwMWIyMzk1M2YwNmUyYmI2NzJmMGNhMWNlMCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_528dc5d43eab42a1b782427f9636fede",
+      "statement": "The S3 sync stage is gated by is_enabled, which requires both config.stages.s3_sync to be truthy and config.s3 to be non-None; when disabled, sync returns False without spawning a child process.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py",
+          "version": "repo-file-v1:sha256:5845ba39d11754fca98319fb7008e6a82746b57205dd6c2c173dd8cf07f687c5"
+        },
+        {
+          "resource": "repo://transcriber/publish/s3.py",
+          "version": "repo-file-v1:sha256:48644f4f179183ad3e1c2247531a259ae89efc768a92ccdf393b80aae15fc996"
+        }
+      ]
+    },
+    {
+      "id": "claim_da990a331d3d49a9bd358ac234f7de4e",
+      "statement": "build_sync_command produces the vector ['aws', 's3', 'sync', local_dir, bucket, '--profile', profile] and raises ValueError when config.s3 is None.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_s3.py",
+          "version": "repo-file-v1:sha256:ff57ccb8ba0d5dd0feb235bfc1bb4bc04887f2b0234601d89983677eb45e3395"
+        },
+        {
+          "resource": "repo://transcriber/publish/s3.py",
+          "version": "repo-file-v1:sha256:48644f4f179183ad3e1c2247531a259ae89efc768a92ccdf393b80aae15fc996"
+        }
+      ]
+    },
+    {
+      "id": "claim_25b6668100a643c19c1e2aa4d7152371",
+      "statement": "sync executes the command via duct.cmd(*args).start() and polls every 0.1s against a time.monotonic() deadline derived from config.timeouts.s3, returning True on zero-status completion.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/publish/s3.py",
+          "version": "repo-file-v1:sha256:48644f4f179183ad3e1c2247531a259ae89efc768a92ccdf393b80aae15fc996"
+        }
+      ]
+    },
+    {
+      "id": "claim_5fce6020d5db404aae04b5ccba11ebca",
+      "statement": "S3SyncTimeout is a subclass of S3SyncError raised when the timeout expires after killing and waiting on the child handle; S3SyncError is raised on non-zero exit status or wrapped duct.StatusError.",
+      "evidence": [
+        {
+          "resource": "repo://tests/test_s3.py",
+          "version": "repo-file-v1:sha256:ff57ccb8ba0d5dd0feb235bfc1bb4bc04887f2b0234601d89983677eb45e3395"
+        },
+        {
+          "resource": "repo://transcriber/publish/s3.py",
+          "version": "repo-file-v1:sha256:48644f4f179183ad3e1c2247531a259ae89efc768a92ccdf393b80aae15fc996"
+        }
+      ]
+    },
+    {
+      "id": "claim_1b249deb861440958dc96c1f46e278a8",
+      "statement": "Pre-flight requires the aws binary on PATH whenever the S3 stage is enabled, and the dry-run plan only lists s3-sync and S3 bucket/profile details when the gate is open.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py",
+          "version": "repo-file-v1:sha256:5845ba39d11754fca98319fb7008e6a82746b57205dd6c2c173dd8cf07f687c5"
+        }
+      ]
+    },
+    {
+      "id": "claim_09adb9a172404477a57e51f23cf2ab41",
+      "statement": "The orchestrator runs the S3 stage after Telegram and before cleanup, syncing the recording parent directory; a successful sync must complete before cleanup, which runs only on the recording's full success path.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py",
+          "version": "repo-file-v1:sha256:5845ba39d11754fca98319fb7008e6a82746b57205dd6c2c173dd8cf07f687c5"
+        },
+        {
+          "resource": "repo://transcriber/cleanup.py",
+          "version": "repo-file-v1:sha256:3852ae76b8b947bf6b19216b4a071172b430a7fd86cb3f8768b70beb3b2903dc"
+        },
+        {
+          "resource": "repo://transcriber/publish/s3.py",
+          "version": "repo-file-v1:sha256:48644f4f179183ad3e1c2247531a259ae89efc768a92ccdf393b80aae15fc996"
+        }
+      ]
+    },
+    {
+      "id": "claim_0a02e69dff934648a180463e912ef5dc",
+      "statement": "S3 completion is tracked in the per-recording state manifest under key 's3': success calls mark_complete('s3'), already-complete runs skip, and disabled runs log skipping without marking complete.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py",
+          "version": "repo-file-v1:sha256:5845ba39d11754fca98319fb7008e6a82746b57205dd6c2c173dd8cf07f687c5"
+        }
+      ]
+    },
+    {
+      "id": "claim_e19a1891df284cc1846bdff4ff16e2a5",
+      "statement": "Config loading treats s3 as optional (None when absent) with required bucket/profile when present, requires stages.s3_sync, and defaults timeouts.s3 to 900 seconds when omitted.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/config.py",
+          "version": "repo-file-v1:sha256:95a90d127a580043b7947290dc26df6d084dd8541c3210c8c057ab00327d6593"
         }
       ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.6.1",
-    "at": "2026-10-06T06:48:26.024Z"
+    "by": "openwiki/0.9.0",
+    "at": "2026-11-07T16:24:10.535Z"
   }
 }

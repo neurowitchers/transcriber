@@ -1,22 +1,26 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:36dd581dacc9ab8d6f692eee046ba5f9023f2e3e166a06efafcf01734f80edda",
+  "pageVersion": "sha256:3f6ca746cbdc7d5a7be68506bd2134ac704e82daee61c4f64a9a524084cd25f8",
   "claims": [
     {
       "id": "claim_5fdd8df79dcb4fdca06c9525c90a5060",
-      "statement": "The summarize stage selects between agy (default) and agno backends as a pure function of config.summary.backend via get_summarize_backend, and the Notion publish path is backend-specific: agy publishes via its own Notion MCP as part of its run, while agno publishes directly via the Notion REST API with no MCP and no model tool-calling.",
+      "statement": "The summarize stage runs on a single backend still named agno (the only allowed summary.backend): it makes direct OpenRouter chat-completions calls and the engine publishes via the Notion REST API with no MCP and no model tool-calling; the legacy agy backend is removed.",
       "evidence": [
         {
-          "resource": "repo://transcriber/__main__.py",
-          "version": "repo-file-v1:sha256:a2f37f12be19c971da7b21520f5ee8c08c14b1a7c6f608298808d38e698ae238"
-        },
-        {
           "resource": "repo://transcriber/backends/interfaces.py",
-          "version": "repo-file-v1:sha256:ce3b7307308c41e3071c45cfe4afcba6c7380587cf04f31279b0c68b4ad44a62"
+          "version": "repo-file-v1:sha256:b8899c3af530144c4f1a09978b9f9aa6e80703db45630cf5233660dcfe4c7429"
         },
         {
           "resource": "repo://transcriber/backends/summarize.py",
-          "version": "repo-file-v1:sha256:3d60e50bc94f5d013e16d11069051582f4777ac6355b030ec854aeaf42eac77f"
+          "version": "repo-file-v1:sha256:ca16e60e1ac71a12a5d1321f859f313caee4cc22d1da954a519facedd04ff593"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py",
+          "version": "repo-file-v1:sha256:0146ba5304cfd45fc2db0991a228ea88e21a14f63c05fc3b7a35cc8e7fe7e139"
+        },
+        {
+          "resource": "repo://transcriber/config.py",
+          "version": "repo-file-v1:sha256:95a90d127a580043b7947290dc26df6d084dd8541c3210c8c057ab00327d6593"
         }
       ]
     },
@@ -26,7 +30,7 @@
       "evidence": [
         {
           "resource": "repo://transcriber/__main__.py",
-          "version": "repo-file-v1:sha256:a2f37f12be19c971da7b21520f5ee8c08c14b1a7c6f608298808d38e698ae238"
+          "version": "repo-file-v1:sha256:5845ba39d11754fca98319fb7008e6a82746b57205dd6c2c173dd8cf07f687c5"
         },
         {
           "resource": "repo://transcriber/state.py",
@@ -36,33 +40,33 @@
     },
     {
       "id": "claim_9fe5c3dfd7b6402fb4f6e93017ce086a",
-      "statement": "Slide markdown is embedded in the summary prompt as reference context only, wrapped in a non-XML Markdown code fence produced by _fence_for so the prompt-injection surface is bounded; the slide content is kept out of the summarizing model's output budget and appended deterministically by the engine in append_slide_descriptions.",
+      "statement": "Slide markdown is embedded in the summary prompt as fenced reference-only context via _slide_block/_fence_for and the model is told not to reproduce it; the summary file stays slide-free while cleaned slides go to a separate <name>.slides-clean.md and the Notion Slide Descriptions child page.",
       "evidence": [
         {
           "resource": "repo://transcriber/agent.py",
-          "version": "repo-file-v1:sha256:4f6df622ee7166c841c38da2d5c25581e66b929c51c216605d5a8d53682bb83d"
+          "version": "repo-file-v1:sha256:5de107973134aa55ec0b38a3617bc1fb4d238b363db04a3272eb928fecda5856"
         },
         {
           "resource": "repo://transcriber/backends/summarize_agno.py",
-          "version": "repo-file-v1:sha256:4d0c7eefdf47e03096686793f8cdd23cdb0fbdd724e8d860a87142bdeafc89e4"
+          "version": "repo-file-v1:sha256:0146ba5304cfd45fc2db0991a228ea88e21a14f63c05fc3b7a35cc8e7fe7e139"
         }
       ]
     },
     {
       "id": "claim_b6105ae82ed746b8b034ac5993e47c8f",
-      "statement": "The agno backend produces a plain-text summary and a short digest with an Agno/OpenRouter model, the engine writes <name>.md + <name>.telegram.md (and <name>.slides-clean.md) first and then publishes the Notion subpage via publish_to_notion; a Notion failure fails the whole summarize+notion stage because the publish-record sidecar is written only after a successful publish.",
+      "statement": "The agno-named backend produces the summary and digest via two direct OpenRouter chat-completions calls reading choices[0].message.content, the engine writes <name>.md + <name>.telegram.md (+ <name>.slides-clean.md) first and then publishes via publish_to_notion; a Notion failure fails the whole summarize+notion stage and the publish-record sidecar is written only after success.",
       "evidence": [
-        {
-          "resource": "repo://transcriber/agent.py",
-          "version": "repo-file-v1:sha256:4f6df622ee7166c841c38da2d5c25581e66b929c51c216605d5a8d53682bb83d"
-        },
         {
           "resource": "repo://transcriber/backends/notion_publish.py",
           "version": "repo-file-v1:sha256:7651fcdebf7ef71cae6c167159ff400631559a74f9339fa96deee6d5ff93757f"
         },
         {
+          "resource": "repo://transcriber/backends/openrouter.py",
+          "version": "repo-file-v1:sha256:4aab40ddd17c176415c3b7c2b690ef22e47e8bd9bff86144190daf4085aee4be"
+        },
+        {
           "resource": "repo://transcriber/backends/summarize_agno.py",
-          "version": "repo-file-v1:sha256:4d0c7eefdf47e03096686793f8cdd23cdb0fbdd724e8d860a87142bdeafc89e4"
+          "version": "repo-file-v1:sha256:0146ba5304cfd45fc2db0991a228ea88e21a14f63c05fc3b7a35cc8e7fe7e139"
         }
       ]
     },
@@ -76,41 +80,95 @@
         },
         {
           "resource": "repo://transcriber/backends/summarize_agno.py",
-          "version": "repo-file-v1:sha256:4d0c7eefdf47e03096686793f8cdd23cdb0fbdd724e8d860a87142bdeafc89e4"
+          "version": "repo-file-v1:sha256:0146ba5304cfd45fc2db0991a228ea88e21a14f63c05fc3b7a35cc8e7fe7e139"
         }
       ]
     },
     {
       "id": "claim_baf5a044570e445cb74cea83c708a5f7",
-      "statement": "Both backends produce <name>.md (source of truth for the summary) and <name>.telegram.md (the short digest preferred by the telegram stage, with a full-summary fallback when the digest is missing/empty); the agno path additionally writes <name>.slides-clean.md and the <name>.notion_published.json publish-record sidecar.",
+      "statement": "The single summarize backend writes <name>.md as source of truth and <name>.telegram.md as the digest preferred by telegram with full-summary fallback, plus <name>.slides-clean.md when slide content exists (stale files cleared) and the <name>.notion_published.json publish-record sidecar.",
       "evidence": [
         {
           "resource": "repo://transcriber/agent.py",
-          "version": "repo-file-v1:sha256:4f6df622ee7166c841c38da2d5c25581e66b929c51c216605d5a8d53682bb83d"
+          "version": "repo-file-v1:sha256:5de107973134aa55ec0b38a3617bc1fb4d238b363db04a3272eb928fecda5856"
         },
         {
           "resource": "repo://transcriber/backends/summarize_agno.py",
-          "version": "repo-file-v1:sha256:4d0c7eefdf47e03096686793f8cdd23cdb0fbdd724e8d860a87142bdeafc89e4"
+          "version": "repo-file-v1:sha256:0146ba5304cfd45fc2db0991a228ea88e21a14f63c05fc3b7a35cc8e7fe7e139"
         }
       ]
     },
     {
       "id": "claim_2b04a6f8bbfe4e2395fe122f6e10d99d",
-      "statement": "Selection has no silent cross-backend fallback: an unknown summary.backend raises ValueError, and selecting agno without the optional agno extra raises an actionable AgnoImportError; the agno path is hard time-bound by the summarize-stage timeout (timeouts.summarize when set, else timeouts.agy) with the blocking Notion publish run in a worker thread.",
+      "statement": "Selection is a pure function of summary.backend with no silent fallback: unknown values raise ValueError and config allows only agno; the run is hard time-bound by timeouts.summarize else the default timeout with OpenRouter and Notion work in worker threads, and per-request Notion sockets are capped by min(stage budget, DEFAULT_NOTION_TIMEOUT).",
       "evidence": [
         {
           "resource": "repo://transcriber/backends/summarize.py",
-          "version": "repo-file-v1:sha256:3d60e50bc94f5d013e16d11069051582f4777ac6355b030ec854aeaf42eac77f"
+          "version": "repo-file-v1:sha256:ca16e60e1ac71a12a5d1321f859f313caee4cc22d1da954a519facedd04ff593"
         },
         {
           "resource": "repo://transcriber/backends/summarize_agno.py",
-          "version": "repo-file-v1:sha256:4d0c7eefdf47e03096686793f8cdd23cdb0fbdd724e8d860a87142bdeafc89e4"
+          "version": "repo-file-v1:sha256:0146ba5304cfd45fc2db0991a228ea88e21a14f63c05fc3b7a35cc8e7fe7e139"
+        },
+        {
+          "resource": "repo://transcriber/config.py",
+          "version": "repo-file-v1:sha256:95a90d127a580043b7947290dc26df6d084dd8541c3210c8c057ab00327d6593"
+        }
+      ]
+    },
+    {
+      "id": "claim_21812b8e232045f3bf1f69b2c77ec26f",
+      "statement": "Phase prompts are built by build_agno_summarize_prompt (inlined transcript plus language, sections, slide block from summary.md), build_agno_digest_prompt, and build_agno_route_prompt, all encapsulating untrusted text with _fence_for fences longer than any backtick run instead of XML tags.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/agent.py",
+          "version": "repo-file-v1:sha256:5de107973134aa55ec0b38a3617bc1fb4d238b363db04a3272eb928fecda5856"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py",
+          "version": "repo-file-v1:sha256:0146ba5304cfd45fc2db0991a228ea88e21a14f63c05fc3b7a35cc8e7fe7e139"
+        },
+        {
+          "resource": "repo://transcriber/prompt_templates/summary.md",
+          "version": "repo-file-v1:sha256:7ca815ddfdd18be96b2e49dca656222e99b803cca1f4a332674edad23b684880"
+        }
+      ]
+    },
+    {
+      "id": "claim_98203013ed26459ba579895ab086367b",
+      "statement": "Direct OpenRouter calls read choices[0].message.content straight from the response to avoid truncation of reasoning-model output, retry 429/5xx with bounded backoff, raise SummarizeError without secrets, and never log keys, tokens, or content.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/backends/openrouter.py",
+          "version": "repo-file-v1:sha256:4aab40ddd17c176415c3b7c2b690ef22e47e8bd9bff86144190daf4085aee4be"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py",
+          "version": "repo-file-v1:sha256:0146ba5304cfd45fc2db0991a228ea88e21a14f63c05fc3b7a35cc8e7fe7e139"
+        }
+      ]
+    },
+    {
+      "id": "claim_a631cabe8c5540dc89e9c4bfdba919de",
+      "statement": "Telegram topic routing partitions one summary into per-topic plus __default__ remainder digests via a single model call parsed by _parse_route_json with fence-stripping, missing-bucket fill, extra-key ignore, and non-string coercion, falling back to the single digest on failure or all-empty buckets.",
+      "evidence": [
+        {
+          "resource": "repo://transcriber/__main__.py",
+          "version": "repo-file-v1:sha256:5845ba39d11754fca98319fb7008e6a82746b57205dd6c2c173dd8cf07f687c5"
+        },
+        {
+          "resource": "repo://transcriber/agent.py",
+          "version": "repo-file-v1:sha256:5de107973134aa55ec0b38a3617bc1fb4d238b363db04a3272eb928fecda5856"
+        },
+        {
+          "resource": "repo://transcriber/backends/summarize_agno.py",
+          "version": "repo-file-v1:sha256:0146ba5304cfd45fc2db0991a228ea88e21a14f63c05fc3b7a35cc8e7fe7e139"
         }
       ]
     }
   ],
   "verification": {
-    "by": "openwiki/0.6.1",
-    "at": "2026-10-02T19:10:14.922Z"
+    "by": "openwiki/0.9.0",
+    "at": "2026-11-07T16:24:10.535Z"
   }
 }
